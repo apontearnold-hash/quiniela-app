@@ -1,0 +1,151 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-pitch: #0a4d1c;
+  --color-pitch-dark: #062e10;
+  --color-pitch-light: #1a6b32;
+  --color-gold: #F5C518;
+  --color-gold-dark: #d4a017;
+  --color-gold-light: #FFD700;
+  --color-surface: #0f1c13;
+  --color-surface-elevated: #152a1a;
+  --color-surface-card: #1a3322;
+  --color-border: #2a5438;
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: #f0f2f5;
+  color: #111827;
+  font-family: 'Arial', Helvetica, sans-serif;
+  min-height: 100vh;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Gold shimmer animation */
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.gold-shimmer {
+  background: linear-gradient(90deg, #d4a017 0%, #FFD700 30%, #F5C518 50%, #FFD700 70%, #d4a017 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 3s linear infinite;
+}
+
+/* Countdown digits */
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(245, 197, 24, 0.3); }
+  50% { box-shadow: 0 0 40px rgba(245, 197, 24, 0.6); }
+}
+
+.countdown-digit {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Grass pattern */
+.grass-bg {
+  background-image:
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 40px,
+      rgba(255,255,255,0.015) 40px,
+      rgba(255,255,255,0.015) 80px
+    );
+}
+
+/* Card hover */
+.card-hover {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(245, 197, 24, 0.15);
+}
+
+/* Match card */
+.match-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.match-card:hover {
+  border-color: #F5C518;
+  box-shadow: 0 2px 8px rgba(245,197,24,0.15);
+}
+
+/* Input styles */
+.score-input {
+  width: 56px;
+  height: 56px;
+  text-align: center;
+  font-size: 1.5rem;
+  font-weight: 700;
+  background: #f9fafb;
+  border: 2px solid #d1d5db;
+  border-radius: 8px;
+  color: #111827;
+  transition: border-color 0.2s ease;
+}
+.score-input:focus {
+  outline: none;
+  border-color: #F5C518;
+  box-shadow: 0 0 0 3px rgba(245, 197, 24, 0.15);
+}
+
+/* Flag image */
+.flag-img {
+  object-fit: contain;
+  border-radius: 2px;
+}
+
+/* Section divider */
+.section-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #6b7280;
+}
+
+/* Trophy icon animation */
+@keyframes trophy-bounce {
+  0%, 100% { transform: translateY(0) rotate(-5deg); }
+  50% { transform: translateY(-8px) rotate(5deg); }
+}
+.trophy-anim {
+  animation: trophy-bounce 3s ease-in-out infinite;
+}
+
+/* Fixture ticker */
+@keyframes ticker-roll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
