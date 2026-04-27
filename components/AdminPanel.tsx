@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import type { Fixture, Phase } from "@/lib/types"
 import { PHASE_LABELS } from "@/lib/types"
@@ -18,12 +19,14 @@ interface ResultState {
   saving: boolean
   saved: boolean
   error: string | null
+  hasResult: boolean
 }
 
 interface AdminRow { id: string; email: string; created_at: string }
 
 export default function AdminPanel({ fixtures }: Props) {
   const t = useT()
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState<"results" | "sync" | "participants" | "system">("results")
   const [selectedPhase, setSelectedPhase] = useState<Phase>("groups")
   const [results, setResults] = useState<Record<number, ResultState>>(() => {
@@ -35,14 +38,24 @@ export default function AdminPanel({ fixtures }: Props) {
         wentToPenalties: f.went_to_penalties ?? false,
         penaltiesWinner: f.penalties_winner ?? "",
         saving: false, saved: false, error: null,
+        hasResult: f.home_score != null,
       }
     })
     return init
   })
 
-  // Results tab
+  // Results tab — per-fixture state
   const [recalculating, setRecalculating] = useState(false)
   const [recalcMsg, setRecalcMsg] = useState<string | null>(null)
+  const [clearConfirm, setClearConfirm] = useState<Record<number, boolean>>({})
+  const [clearing, setClearing] = useState<Record<number, boolean>>({})
+
+  // Results tab — simulation state
+  const [simulating, setSimulating] = useState(false)
+  const [simulateConfirm, setSimulateConfirm] = useState(false)
+  const [clearingSimulation, setClearingSimulation] = useState(false)
+  const [clearSimConfirm, setClearSimConfirm] = useState(false)
+  const [simMsg, setSimMsg] = useState<{ text: string; ok: boolean } | null>(null)
 
   // Sync tab — importar fixtures
   const [syncing, setSyncing] = useState(false)
@@ -123,10 +136,52 @@ export default function AdminPanel({ fixtures }: Props) {
     const data = await res.json()
     if (res.ok) {
       const pipelineErr = data.pipelineError ? `Guardado. Error en recálculo: ${data.pipelineError}` : null
-      setResults(prev => ({ ...prev, [fixture.id]: { ...prev[fixture.id], saving: false, saved: true, error: pipelineErr } }))
+      setResults(prev => ({ ...prev, [fixture.id]: { ...prev[fixture.id], saving: false, saved: true, hasResult: true, error: pipelineErr } }))
+      router.refresh()
     } else {
       setResults(prev => ({ ...prev, [fixture.id]: { ...prev[fixture.id], saving: false, error: data.error } }))
     }
+  }
+
+  async function clearResult(fixture: Fixture) {
+    setClearing(prev => ({ ...prev, [fixture.id]: true }))
+    setClearConfirm(prev => ({ ...prev, [fixture.id]: false }))
+    const res = await fetch("/api/admin/results", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fixture_id: fixture.id }),
+    })
+    const data = await res.json()
+    setClearing(prev => ({ ...prev, [fixture.id]: false }))
+    if (res.ok) {
+      setResults(prev => ({
+        ...prev,
+        [fixture.id]: { ...prev[fixture.id], homeScore: "", awayScore: "", wentToPenalties: false, penaltiesWinner: "", saved: false, hasResult: false, error: data.pipelineError ? `Limpiado. Error en recálculo: ${data.pipelineError}` : null },
+      }))
+      router.refresh()
+    } else {
+      setResults(prev => ({ ...prev, [fixture.id]: { ...prev[fixture.id], error: data.error } }))
+    }
+  }
+
+  async function simulateAll() {
+    setSimulating(true); setSimulateConfirm(false); setSimMsg(null)
+    const res = await fetch("/api/admin/simulate-phase", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phase: "all" }),
+    })
+    const data = await res.json()
+    setSimulating(false)
+    setSimMsg({ text: data.message ?? (data.error ? `Error: ${data.error}` : "Listo"), ok: res.ok })
+  }
+
+  async function clearSimulation() {
+    setClearingSimulation(true); setClearSimConfirm(false); setSimMsg(null)
+    const res = await fetch("/api/admin/simulate-phase", { method: "DELETE" })
+    const data = await res.json()
+    setClearingSimulation(false)
+    setSimMsg({ text: data.message ?? (data.error ? `Error: ${data.error}` : "Listo"), ok: res.ok })
   }
 
   async function recalculateAll() {
@@ -291,6 +346,59 @@ export default function AdminPanel({ fixtures }: Props) {
             </p>
           </div>
 
+          {/* ── Simulation panel ── */}
+          <div className="rounded-xl p-4 mb-4"
+            style={{ background: "#fffbeb", border: "1px solid #fde68a" }}>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-base">🧪</span>
+              <p className="text-xs font-bold" style={{ color: "#92400e" }}>
+                Simulación de prueba — solo para testing
+              </p>
+            </div>
+            <p className="text-xs mb-3" style={{ color: "#78350f" }}>
+              <strong>Importante:</strong> "Borrar simulación" restaura solo scores simulados.
+              Los datos de equipos/grupos de la API nunca se tocan.
+              Si los grupos aparecen en blanco, ve a <strong>Sync → Importar fixtures</strong> para restaurar.
+            </p>
+            <div className="flex flex-wrap gap-2 items-center">
+              {/* "Simular torneo completo" — disabled until group standings issue is resolved */}
+              <button
+                disabled
+                title="En desarrollo — usa Sync para importar datos oficiales"
+                className="py-1.5 px-4 rounded-lg text-xs font-bold opacity-40 cursor-not-allowed"
+                style={{ background: "#d97706", color: "white" }}>
+                Simular torneo completo
+              </button>
+
+              {clearSimConfirm ? (
+                <>
+                  <span className="text-xs font-semibold" style={{ color: "#dc2626" }}>¿Borrar resultados simulados?</span>
+                  <button onClick={clearSimulation} disabled={clearingSimulation}
+                    className="py-1.5 px-4 rounded-lg text-xs font-bold text-white disabled:opacity-50"
+                    style={{ background: "#dc2626" }}>
+                    {clearingSimulation ? "Borrando…" : "Confirmar"}
+                  </button>
+                  <button onClick={() => setClearSimConfirm(false)}
+                    className="py-1.5 px-3 rounded-lg text-xs font-medium"
+                    style={{ background: "white", border: "1px solid #d1d5db", color: "#6b7280" }}>
+                    Cancelar
+                  </button>
+                </>
+              ) : (
+                <button onClick={() => setClearSimConfirm(true)} disabled={simulating || clearingSimulation}
+                  className="py-1.5 px-4 rounded-lg text-xs font-bold disabled:opacity-50"
+                  style={{ background: "white", border: "1px solid #fca5a5", color: "#dc2626" }}>
+                  {clearingSimulation ? "Borrando…" : "Borrar simulación"}
+                </button>
+              )}
+            </div>
+            {simMsg && (
+              <p className="mt-2 text-xs" style={{ color: simMsg.ok ? "#15803d" : "#dc2626" }}>
+                {simMsg.text}
+              </p>
+            )}
+          </div>
+
           <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
             {phases.map(p => (
               <button key={p} onClick={() => setSelectedPhase(p)}
@@ -333,6 +441,32 @@ export default function AdminPanel({ fixtures }: Props) {
                       style={{ background: 'linear-gradient(135deg, #F5C518, #FFD700)' }}>
                       {r.saving ? "..." : r.saved ? `✓ ${t("saved")}` : t("save")}
                     </button>
+                    {r.hasResult && (
+                      clearing[fixture.id] ? (
+                        <button disabled className="flex-shrink-0 py-2 px-3 rounded-lg text-xs font-medium border opacity-50" style={{ background: "white", border: "1px solid #fca5a5", color: "#dc2626" }}>
+                          Limpiando…
+                        </button>
+                      ) : clearConfirm[fixture.id] ? (
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <button onClick={() => clearResult(fixture)}
+                            className="py-2 px-3 rounded-lg font-bold text-white text-xs"
+                            style={{ background: "#dc2626" }}>
+                            ¿Confirmar?
+                          </button>
+                          <button onClick={() => setClearConfirm(prev => ({ ...prev, [fixture.id]: false }))}
+                            className="py-2 px-2 rounded-lg text-xs font-medium"
+                            style={{ background: "white", border: "1px solid #d1d5db", color: "#6b7280" }}>
+                            Cancelar
+                          </button>
+                        </div>
+                      ) : (
+                        <button onClick={() => setClearConfirm(prev => ({ ...prev, [fixture.id]: true }))}
+                          className="flex-shrink-0 py-2 px-3 rounded-lg text-xs font-medium"
+                          style={{ background: "white", border: "1px solid #fca5a5", color: "#dc2626" }}>
+                          Limpiar resultado
+                        </button>
+                      )
+                    )}
                   </div>
                   {isKnockout && (
                     <div className="mt-3 pt-3 border-t border-[#1a3322] flex flex-wrap items-center gap-3">

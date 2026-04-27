@@ -104,6 +104,10 @@ export async function POST() {
               ? penHome > penAway ? "home" : "away"
               : null,
 
+          // Source priority: API results are authoritative — tags this row so
+          // manual/simulation writes are blocked from overwriting it.
+          result_source: "api",
+
           // Metadatos de la actualización
           api_updated_at: f.fixture.timestamp
             ? new Date(f.fixture.timestamp * 1000).toISOString()

@@ -28,12 +28,12 @@ export default async function AdminInviteCodesPage() {
     .order("created_at", { ascending: true })
 
   return (
-    <div className="min-h-screen" style={{ background: "#0a1208" }}>
+    <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "Arial, Helvetica, sans-serif" }}>
       <Navbar userEmail={user.email} isAdmin={isAdmin} />
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="flex items-center gap-4 mb-6">
-          <Link href="/admin" className="text-[#7ab88a] text-sm hover:text-white">← Admin</Link>
-          <h1 className="text-2xl font-black text-white">Códigos de Invitación</h1>
+      <div style={{ maxWidth: "896px", margin: "0 auto", padding: "32px 16px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "24px" }}>
+          <Link href="/admin" style={{ color: "#2563eb", fontSize: "14px", textDecoration: "none", fontWeight: 500 }}>← Admin</Link>
+          <h1 style={{ fontSize: "22px", fontWeight: 900, color: "#0f172a", margin: 0 }}>Códigos de Invitación</h1>
         </div>
         <InviteCodesPanel codes={codes ?? []} pools={pools ?? []} />
       </div>

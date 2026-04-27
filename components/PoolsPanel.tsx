@@ -16,6 +16,21 @@ interface PoolRow {
 
 const LEGACY_POOL_ID = "00000000-0000-0000-0000-000000000001"
 
+// ── Shared style tokens ───────────────────────────────────────────────────────
+
+const inp: React.CSSProperties = {
+  width: "100%", padding: "8px 12px", borderRadius: "8px",
+  border: "1px solid #e2e8f0", background: "white", color: "#0f172a",
+  fontSize: "13px", boxSizing: "border-box",
+}
+const lbl: React.CSSProperties = { display: "block", fontSize: "12px", fontWeight: 600, color: "#475569", marginBottom: "4px" }
+const btnPrimary: React.CSSProperties = { padding: "8px 20px", borderRadius: "8px", background: "#2563eb", color: "white", fontWeight: 700, fontSize: "13px", border: "none", cursor: "pointer" }
+const btnSecondary: React.CSSProperties = { padding: "6px 12px", borderRadius: "8px", background: "white", border: "1px solid #e2e8f0", color: "#334155", fontWeight: 600, fontSize: "12px", cursor: "pointer" }
+const btnDestructive: React.CSSProperties = { padding: "6px 12px", borderRadius: "8px", background: "white", border: "1px solid #fca5a5", color: "#dc2626", fontWeight: 600, fontSize: "12px", cursor: "pointer" }
+const btnDestructiveConfirm: React.CSSProperties = { padding: "6px 12px", borderRadius: "8px", background: "#dc2626", border: "none", color: "white", fontWeight: 700, fontSize: "12px", cursor: "pointer" }
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export default function PoolsPanel({ pools: initialPools }: { pools: PoolRow[] }) {
   const [pools, setPools] = useState(initialPools)
   const [loading, setLoading] = useState<string | null>(null)
@@ -119,142 +134,154 @@ export default function PoolsPanel({ pools: initialPools }: { pools: PoolRow[] }
   }
 
   return (
-    <div className="flex flex-col gap-5">
-      {/* Create form */}
-      <div className="rounded-xl overflow-hidden" style={{ border: "1px solid #2a5438" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+
+      {/* ── Create form ── */}
+      <div style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: "16px", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
         <button
           onClick={() => { setShowCreate(v => !v); setMsg(null) }}
-          className="w-full flex items-center justify-between px-4 py-3 text-sm font-bold text-[#7ab88a] hover:text-white transition-colors"
-          style={{ background: "linear-gradient(135deg, #0a1208, #111a0f)" }}>
-          <span>+ Crear nueva liga</span>
-          <span className="text-xs opacity-60">{showCreate ? "▲" : "▼"}</span>
+          style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px", background: showCreate ? "#eff6ff" : "white", border: "none", cursor: "pointer", borderBottom: showCreate ? "1px solid #bfdbfe" : "none" }}
+        >
+          <span style={{ fontSize: "14px", fontWeight: 700, color: "#2563eb" }}>+ Crear nueva liga</span>
+          <span style={{ fontSize: "11px", color: "#94a3b8" }}>{showCreate ? "▲" : "▼"}</span>
         </button>
+
         {showCreate && (
-          <div className="px-4 pb-4 pt-2 flex flex-col gap-3" style={{ background: "#0a1208" }}>
-            <div className="flex gap-3 flex-wrap">
-              <div className="flex-1 min-w-40">
-                <label className="block text-[#7ab88a] text-xs mb-1">Nombre *</label>
+          <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "12px" }}>
+            <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+              <div style={{ flex: "1 1 160px" }}>
+                <label style={lbl}>Nombre *</label>
                 <input type="text" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                  placeholder="Ej. Amigos del trabajo"
-                  className="w-full px-3 py-2 rounded-lg text-white text-sm bg-[#0a1208] border border-[#2a5438] focus:border-[#F5C518] outline-none placeholder:text-[#3a6348]" />
+                  placeholder="Ej. Amigos del trabajo" style={inp} />
               </div>
-              <div className="flex-1 min-w-40">
-                <label className="block text-[#7ab88a] text-xs mb-1">Descripción</label>
+              <div style={{ flex: "1 1 160px" }}>
+                <label style={lbl}>Descripción</label>
                 <input type="text" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-                  placeholder="Opcional"
-                  className="w-full px-3 py-2 rounded-lg text-white text-sm bg-[#0a1208] border border-[#2a5438] focus:border-[#F5C518] outline-none placeholder:text-[#3a6348]" />
+                  placeholder="Opcional" style={inp} />
               </div>
             </div>
-            <div className="flex gap-3 flex-wrap">
-              <div className="w-32">
-                <label className="block text-[#7ab88a] text-xs mb-1">Precio por quiniela</label>
-                <div className="flex items-center gap-1">
-                  <span className="text-[#7ab88a] text-xs">$</span>
+            <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+              <div style={{ width: "140px" }}>
+                <label style={lbl}>Precio por quiniela</label>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <span style={{ fontSize: "13px", color: "#64748b" }}>$</span>
                   <input type="number" min="0" step="0.5" value={form.price}
-                    onChange={e => setForm(f => ({ ...f, price: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg text-white text-sm bg-[#0a1208] border border-[#2a5438] focus:border-[#F5C518] outline-none placeholder:text-[#3a6348]" />
+                    onChange={e => setForm(f => ({ ...f, price: e.target.value }))} style={inp} />
                 </div>
               </div>
-              <div className="w-24">
-                <label className="block text-[#7ab88a] text-xs mb-1">Moneda</label>
-                <select value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value }))}
-                  className="w-full px-2 py-2 rounded-lg text-white text-sm bg-[#0a1208] border border-[#2a5438] focus:border-[#F5C518] outline-none">
-                  <option className="bg-[#0a1208]">USD</option><option className="bg-[#0a1208]">MXN</option><option className="bg-[#0a1208]">EUR</option>
+              <div style={{ width: "100px" }}>
+                <label style={lbl}>Moneda</label>
+                <select value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value }))} style={inp}>
+                  <option>USD</option><option>MXN</option><option>EUR</option>
                 </select>
               </div>
             </div>
-            {msg && !msg.ok && <p className="text-red-400 text-xs">{msg.text}</p>}
-            <div className="flex gap-2">
+            {msg && !msg.ok && <p style={{ fontSize: "12px", color: "#dc2626" }}>{msg.text}</p>}
+            <div style={{ display: "flex", gap: "8px" }}>
               <button onClick={createPool} disabled={creating || !form.name.trim()}
-                className="px-4 py-2 rounded-lg text-xs font-bold text-black disabled:opacity-50"
-                style={{ background: "linear-gradient(135deg, #F5C518, #FFD700)" }}>
+                style={{ ...btnPrimary, opacity: creating || !form.name.trim() ? 0.5 : 1 }}>
                 {creating ? "Creando..." : "Crear liga"}
               </button>
-              <button onClick={() => setShowCreate(false)}
-                className="px-3 py-2 rounded-lg text-xs text-[#7ab88a] border border-[#2a5438]">
-                Cancelar
-              </button>
+              <button onClick={() => setShowCreate(false)} style={btnSecondary}>Cancelar</button>
             </div>
           </div>
         )}
       </div>
 
+      {/* ── Status message ── */}
       {msg && msg.ok && (
-        <div className="p-2 rounded-lg text-xs text-center text-green-400"
-          style={{ background: "rgba(10,18,8,0.5)", border: "1px solid #2a5438" }}>
+        <div style={{ padding: "10px 14px", borderRadius: "8px", fontSize: "13px", fontWeight: 500, textAlign: "center", background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#16a34a" }}>
           {msg.text}
         </div>
       )}
       {msg && !msg.ok && !showCreate && (
-        <div className="p-2 rounded-lg text-xs text-center text-red-400"
-          style={{ background: "rgba(10,18,8,0.5)", border: "1px solid #2a5438" }}>
+        <div style={{ padding: "10px 14px", borderRadius: "8px", fontSize: "13px", fontWeight: 500, textAlign: "center", background: "#fef2f2", border: "1px solid #fecaca", color: "#dc2626" }}>
           {msg.text}
         </div>
       )}
 
-      {/* Pool list */}
-      <div className="flex flex-col gap-3">
+      {/* ── Pool list ── */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
         {pools.length === 0 && (
-          <p className="text-[#4a7a5a] text-sm text-center py-8">No hay ligas todavía.</p>
+          <p style={{ textAlign: "center", padding: "40px 0", color: "#94a3b8", fontSize: "14px" }}>No hay ligas todavía.</p>
         )}
+
         {pools.map(p => {
           const isLegacy = p.id === LEGACY_POOL_ID
           const pot = p.price_per_quiniela * p.quiniela_count
           const isEditing = editingId === p.id
+
+          const statusStyle: React.CSSProperties = {
+            fontSize: "11px", fontWeight: 700, padding: "2px 8px", borderRadius: "999px",
+            background: p.is_active ? "#dcfce7" : "#f1f5f9",
+            color: p.is_active ? "#16a34a" : "#64748b",
+          }
+
           return (
-            <div key={p.id} className="rounded-xl overflow-hidden"
-              style={{ border: `1px solid ${p.is_active ? "#2a5438" : "#542a2a"}` }}>
+            <div key={p.id} style={{
+              background: "white",
+              border: `1px solid ${p.is_active ? "#e2e8f0" : "#fecaca"}`,
+              borderRadius: "16px",
+              overflow: "hidden",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+            }}>
               {/* Card header */}
-              <div className="p-4" style={{ background: "linear-gradient(135deg, #152a1a, #1a3322)" }}>
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-white font-bold text-sm">{p.name}</span>
+              <div style={{ padding: "18px 20px" }}>
+                <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" }}>
+                  {/* Info */}
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "4px" }}>
+                      <span style={{ fontWeight: 700, fontSize: "15px", color: "#0f172a" }}>{p.name}</span>
                       {isLegacy && (
-                        <span className="text-xs px-1.5 py-0.5 rounded font-bold text-black"
-                          style={{ background: "#F5C518" }}>Principal</span>
+                        <span style={{ fontSize: "11px", fontWeight: 700, padding: "2px 8px", borderRadius: "999px", background: "#dbeafe", color: "#1d4ed8" }}>
+                          Principal
+                        </span>
                       )}
-                      <span className={`text-xs font-bold ${p.is_active ? "text-green-400" : "text-red-400"}`}>
-                        {p.is_active ? "Activo" : "Inactivo"}
-                      </span>
+                      <span style={statusStyle}>{p.is_active ? "Activo" : "Inactivo"}</span>
                     </div>
-                    {p.description && <p className="text-[#7ab88a] text-xs mt-0.5">{p.description}</p>}
-                    <div className="flex gap-3 mt-1 flex-wrap">
-                      <span className="text-[#4a7a5a] text-xs">👥 {p.member_count} miembros</span>
-                      <span className="text-[#4a7a5a] text-xs">🎯 {p.quiniela_count} quinielas</span>
-                      <span className="text-[#7ab88a] text-xs font-semibold">${p.price_per_quiniela} {p.currency}/quiniela</span>
+                    {p.description && <p style={{ fontSize: "13px", color: "#334155", margin: "0 0 6px" }}>{p.description}</p>}
+                    <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
+                      <span style={{ fontSize: "12px", color: "#64748b" }}>👥 {p.member_count} miembros</span>
+                      <span style={{ fontSize: "12px", color: "#64748b" }}>🎯 {p.quiniela_count} quinielas</span>
+                      <span style={{ fontSize: "12px", color: "#334155", fontWeight: 600 }}>
+                        ${p.price_per_quiniela} {p.currency}/quiniela
+                      </span>
                       {p.quiniela_count > 0 && (
-                        <span className="text-[#F5C518] text-xs font-bold">Pozo: ${pot} {p.currency}</span>
+                        <span style={{ fontSize: "12px", color: "#2563eb", fontWeight: 700 }}>
+                          Pozo: ${pot} {p.currency}
+                        </span>
                       )}
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap gap-2">
-                    <button onClick={() => isEditing ? setEditingId(null) : startEdit(p)}
-                      className="py-1.5 px-3 rounded-lg text-xs font-bold border text-[#7ab88a] border-[#2a5438] hover:text-white hover:border-[#F5C518] transition-colors">
+                  {/* Actions */}
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center" }}>
+                    <button onClick={() => isEditing ? setEditingId(null) : startEdit(p)} style={btnSecondary}>
                       {isEditing ? "✕ Cerrar" : "✎ Editar"}
                     </button>
                     {!isLegacy && (
-                      <button onClick={() => toggleActive(p.id, p.is_active)} disabled={loading !== null}
-                        className={`py-1.5 px-3 rounded-lg text-xs font-bold border disabled:opacity-50 ${p.is_active ? "text-red-400 border-[#542a2a]" : "text-green-400 border-[#1a3a1a]"}`}>
+                      <button
+                        onClick={() => toggleActive(p.id, p.is_active)}
+                        disabled={loading !== null}
+                        style={{ ...btnSecondary, borderColor: p.is_active ? "#fca5a5" : "#bbf7d0", color: p.is_active ? "#dc2626" : "#16a34a", opacity: loading !== null ? 0.5 : 1 }}>
                         {loading === p.id + "toggle" ? "..." : p.is_active ? "Desactivar" : "Activar"}
                       </button>
                     )}
-                    {!isLegacy && confirmDelete === p.id ? (
-                      <div className="flex gap-1">
-                        <button onClick={() => deletePool(p.id)} disabled={loading !== null}
-                          className="py-1.5 px-3 rounded-lg text-xs font-bold text-white disabled:opacity-50"
-                          style={{ background: "#991b1b" }}>
-                          {loading === p.id + "delete" ? "..." : "¿Confirmar?"}
-                        </button>
-                        <button onClick={() => setConfirmDelete(null)}
-                          className="py-1.5 px-2 rounded-lg text-xs text-[#7ab88a] border border-[#2a5438]">✕</button>
-                      </div>
-                    ) : (
-                      !isLegacy && (
-                        <button onClick={() => setConfirmDelete(p.id)}
+                    {!isLegacy && (
+                      confirmDelete === p.id ? (
+                        <div style={{ display: "flex", gap: "6px" }}>
+                          <button onClick={() => deletePool(p.id)} disabled={loading !== null}
+                            style={{ ...btnDestructiveConfirm, opacity: loading !== null ? 0.5 : 1 }}>
+                            {loading === p.id + "delete" ? "..." : "¿Confirmar?"}
+                          </button>
+                          <button onClick={() => setConfirmDelete(null)} style={btnSecondary}>Cancelar</button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setConfirmDelete(p.id)}
                           disabled={loading !== null || p.quiniela_count > 0}
-                          className="py-1.5 px-3 rounded-lg text-xs font-bold text-red-400 border border-[#2a5438] hover:border-red-700 disabled:opacity-40 disabled:cursor-not-allowed">
+                          title={p.quiniela_count > 0 ? "No se puede eliminar una liga con quinielas" : undefined}
+                          style={{ ...btnDestructive, opacity: loading !== null || p.quiniela_count > 0 ? 0.4 : 1, cursor: p.quiniela_count > 0 ? "not-allowed" : "pointer" }}>
                           Eliminar
                         </button>
                       )
@@ -265,56 +292,50 @@ export default function PoolsPanel({ pools: initialPools }: { pools: PoolRow[] }
 
               {/* Inline edit form */}
               {isEditing && (
-                <div className="px-4 pb-4 pt-3 flex flex-col gap-3" style={{ background: "#0a1208", borderTop: "1px solid #2a5438" }}>
-                  <div className="flex gap-3 flex-wrap">
-                    <div className="flex-1 min-w-40">
-                      <label className="block text-[#7ab88a] text-xs mb-1">Nombre *</label>
-                      <input type="text" value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
-                        className="w-full px-3 py-2 rounded-lg text-white text-sm bg-[#0a1208] border border-[#2a5438] focus:border-[#F5C518] outline-none placeholder:text-[#3a6348]" />
+                <div style={{ padding: "18px 20px", borderTop: "1px solid #e2e8f0", background: "#f8fafc", display: "flex", flexDirection: "column", gap: "12px" }}>
+                  <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+                    <div style={{ flex: "1 1 160px" }}>
+                      <label style={lbl}>Nombre *</label>
+                      <input type="text" value={editForm.name}
+                        onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} style={inp} />
                     </div>
-                    <div className="flex-1 min-w-40">
-                      <label className="block text-[#7ab88a] text-xs mb-1">Descripción</label>
-                      <input type="text" value={editForm.description} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
-                        placeholder="Opcional"
-                        className="w-full px-3 py-2 rounded-lg text-white text-sm bg-[#0a1208] border border-[#2a5438] focus:border-[#F5C518] outline-none placeholder:text-[#3a6348]" />
+                    <div style={{ flex: "1 1 160px" }}>
+                      <label style={lbl}>Descripción</label>
+                      <input type="text" value={editForm.description} placeholder="Opcional"
+                        onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))} style={inp} />
                     </div>
                   </div>
-                  <div className="flex gap-3 flex-wrap items-end">
-                    <div className="w-36">
-                      <label className="block text-[#7ab88a] text-xs mb-1">Precio por quiniela</label>
-                      <div className="flex items-center gap-1">
-                        <span className="text-[#7ab88a] text-xs">$</span>
+                  <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", alignItems: "flex-end" }}>
+                    <div style={{ width: "140px" }}>
+                      <label style={lbl}>Precio por quiniela</label>
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <span style={{ fontSize: "13px", color: "#64748b" }}>$</span>
                         <input type="number" min="0" step="0.5" value={editForm.price}
-                          onChange={e => setEditForm(f => ({ ...f, price: e.target.value }))}
-                          className="w-full px-3 py-2 rounded-lg text-white text-sm bg-[#0a1208] border border-[#2a5438] focus:border-[#F5C518] outline-none placeholder:text-[#3a6348]" />
+                          onChange={e => setEditForm(f => ({ ...f, price: e.target.value }))} style={inp} />
                       </div>
                     </div>
-                    <div className="w-24">
-                      <label className="block text-[#7ab88a] text-xs mb-1">Moneda</label>
-                      <select value={editForm.currency} onChange={e => setEditForm(f => ({ ...f, currency: e.target.value }))}
-                        className="w-full px-2 py-2 rounded-lg text-white text-sm bg-[#0a1208] border border-[#2a5438] focus:border-[#F5C518] outline-none">
-                        <option className="bg-[#0a1208]">USD</option><option className="bg-[#0a1208]">MXN</option><option className="bg-[#0a1208]">EUR</option>
+                    <div style={{ width: "100px" }}>
+                      <label style={lbl}>Moneda</label>
+                      <select value={editForm.currency}
+                        onChange={e => setEditForm(f => ({ ...f, currency: e.target.value }))} style={inp}>
+                        <option>USD</option><option>MXN</option><option>EUR</option>
                       </select>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <label className="text-[#7ab88a] text-xs">Estado:</label>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <label style={{ ...lbl, margin: 0 }}>Estado:</label>
                       <button type="button"
                         onClick={() => setEditForm(f => ({ ...f, is_active: !f.is_active }))}
-                        className={`py-1.5 px-3 rounded-lg text-xs font-bold border transition-colors ${editForm.is_active ? "text-green-400 border-green-700" : "text-red-400 border-red-900"}`}>
+                        style={{ ...btnSecondary, borderColor: editForm.is_active ? "#bbf7d0" : "#fca5a5", color: editForm.is_active ? "#16a34a" : "#dc2626" }}>
                         {editForm.is_active ? "Activo" : "Inactivo"}
                       </button>
                     </div>
                   </div>
-                  <div className="flex gap-2">
+                  <div style={{ display: "flex", gap: "8px" }}>
                     <button onClick={() => saveEdit(p.id)} disabled={editSaving || !editForm.name.trim()}
-                      className="px-4 py-2 rounded-lg text-xs font-bold text-black disabled:opacity-50"
-                      style={{ background: "linear-gradient(135deg, #F5C518, #FFD700)" }}>
+                      style={{ ...btnPrimary, opacity: editSaving || !editForm.name.trim() ? 0.5 : 1 }}>
                       {editSaving ? "Guardando..." : "Guardar cambios"}
                     </button>
-                    <button onClick={() => setEditingId(null)}
-                      className="px-3 py-2 rounded-lg text-xs text-[#7ab88a] border border-[#2a5438]">
-                      Cancelar
-                    </button>
+                    <button onClick={() => setEditingId(null)} style={btnSecondary}>Cancelar</button>
                   </div>
                 </div>
               )}

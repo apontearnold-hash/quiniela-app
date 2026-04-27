@@ -3,6 +3,7 @@ import { redirect } from "next/navigation"
 import { cookies } from "next/headers"
 import Navbar from "@/components/Navbar"
 import PoolSelector from "@/components/PoolSelector"
+import JoinLeagueButton from "@/components/JoinLeagueButton"
 import Link from "next/link"
 import type { Quiniela } from "@/lib/types"
 import { RecentFixtureTicker, UpcomingFixtureTicker } from "@/components/FixtureTicker"
@@ -257,8 +258,9 @@ export default async function DashboardPage() {
                 {selectedPool.name}
               </span>
             </div>
-            <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
               <PoolSelector pools={poolSelectorList} currentPoolId={poolId} />
+              <JoinLeagueButton />
             </div>
           </div>
           <Link

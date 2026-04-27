@@ -56,6 +56,9 @@ export interface Fixture {
   api_updated_at: string | null  // cuándo actualizó la API este fixture
   updated_at?: string
   created_at?: string
+
+  // Origen del resultado: null = sin resultado, 'api' = live/API, 'manual' = admin, 'simulation' = prueba
+  result_source: 'api' | 'manual' | 'simulation' | null
 }
 
 export interface Pool {

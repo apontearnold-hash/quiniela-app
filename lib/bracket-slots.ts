@@ -120,6 +120,7 @@ export function slotToFixture(s: typeof BRACKET_SLOTS[0]): Fixture {
     home_placeholder: s.home_placeholder,
     away_placeholder: s.away_placeholder,
     api_updated_at: null,
+    result_source: null,
   }
 }
 

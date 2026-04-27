@@ -19,6 +19,81 @@ interface InviteCode {
   pools: { id: string; name: string } | null
 }
 
+const input: React.CSSProperties = {
+  width: "100%",
+  padding: "8px 12px",
+  borderRadius: "8px",
+  border: "1px solid #e2e8f0",
+  background: "white",
+  color: "#0f172a",
+  fontSize: "14px",
+  boxSizing: "border-box",
+}
+
+const label: React.CSSProperties = {
+  display: "block",
+  fontSize: "12px",
+  fontWeight: 600,
+  color: "#475569",
+  marginBottom: "4px",
+}
+
+const card: React.CSSProperties = {
+  background: "white",
+  border: "1px solid #e2e8f0",
+  borderRadius: "16px",
+  padding: "20px",
+  boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+}
+
+const btnPrimary: React.CSSProperties = {
+  padding: "9px 24px",
+  borderRadius: "10px",
+  background: "#2563eb",
+  color: "white",
+  fontWeight: 700,
+  fontSize: "14px",
+  border: "none",
+  cursor: "pointer",
+  whiteSpace: "nowrap",
+}
+
+const btnSecondary: React.CSSProperties = {
+  padding: "6px 12px",
+  borderRadius: "8px",
+  background: "white",
+  border: "1px solid #e2e8f0",
+  color: "#334155",
+  fontWeight: 600,
+  fontSize: "12px",
+  cursor: "pointer",
+  whiteSpace: "nowrap",
+}
+
+const btnDestructive: React.CSSProperties = {
+  padding: "6px 12px",
+  borderRadius: "8px",
+  background: "white",
+  border: "1px solid #fca5a5",
+  color: "#dc2626",
+  fontWeight: 600,
+  fontSize: "12px",
+  cursor: "pointer",
+  whiteSpace: "nowrap",
+}
+
+const btnDestructiveConfirm: React.CSSProperties = {
+  padding: "6px 12px",
+  borderRadius: "8px",
+  background: "#dc2626",
+  border: "none",
+  color: "white",
+  fontWeight: 700,
+  fontSize: "12px",
+  cursor: "pointer",
+  whiteSpace: "nowrap",
+}
+
 export default function InviteCodesPanel({
   codes: initialCodes,
   pools,
@@ -119,152 +194,220 @@ export default function InviteCodesPanel({
   }
 
   return (
-    <div className="flex flex-col gap-5">
-      {/* Create new code */}
-      <div className="rounded-2xl p-5"
-        style={{ background: "linear-gradient(135deg, #152a1a, #1a3322)", border: "2px solid #F5C518" }}>
-        <h2 className="text-[#F5C518] font-bold text-sm mb-4">Crear Nuevo Código</h2>
-        <div className="flex flex-col gap-3">
-          <div className="flex gap-3 flex-wrap">
-            <div className="flex-1 min-w-40">
-              <label className="block text-[#7ab88a] text-xs mb-1">Código *</label>
+    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+
+      {/* ── Create form ── */}
+      <div style={{ ...card, border: "1px solid #bfdbfe", background: "#eff6ff" }}>
+        <h2 style={{ fontSize: "15px", fontWeight: 700, color: "#1e40af", margin: "0 0 16px" }}>
+          Crear Nuevo Código
+        </h2>
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+            <div style={{ flex: "1 1 160px" }}>
+              <label style={label}>Código *</label>
               <input
                 type="text"
                 value={newCode}
                 onChange={e => setNewCode(e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ""))}
                 placeholder="ej. AMIGOS2026"
-                className="w-full px-3 py-2 rounded-lg text-white font-mono uppercase text-sm"
-                style={{ background: "#0a1208", border: "1px solid #2a5438" }}
+                style={{ ...input, fontFamily: "monospace", fontWeight: 700, letterSpacing: "0.05em" }}
               />
             </div>
-            <div className="flex-1 min-w-40">
-              <label className="block text-[#7ab88a] text-xs mb-1">Descripción</label>
+            <div style={{ flex: "1 1 160px" }}>
+              <label style={label}>Descripción</label>
               <input
                 type="text"
                 value={newDesc}
                 onChange={e => setNewDesc(e.target.value)}
                 placeholder="Para la liga de amigos"
-                className="w-full px-3 py-2 rounded-lg text-white text-sm"
-                style={{ background: "#0a1208", border: "1px solid #2a5438" }}
+                style={input}
               />
             </div>
-            <div className="w-28">
-              <label className="block text-[#7ab88a] text-xs mb-1">Usos máx.</label>
+            <div style={{ width: "100px", flexShrink: 0 }}>
+              <label style={label}>Usos máx.</label>
               <input
                 type="number"
                 min="1"
                 value={newMaxUses}
                 onChange={e => setNewMaxUses(e.target.value)}
                 placeholder="∞"
-                className="w-full px-3 py-2 rounded-lg text-white text-sm"
-                style={{ background: "#0a1208", border: "1px solid #2a5438" }}
+                style={input}
               />
             </div>
-            <div className="flex-1 min-w-40">
-              <label className="block text-[#7ab88a] text-xs mb-1">Liga</label>
+            <div style={{ flex: "1 1 160px" }}>
+              <label style={label}>Liga</label>
               <select
                 value={newPoolId}
                 onChange={e => setNewPoolId(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg text-white text-sm"
-                style={{ background: "#0a1208", border: "1px solid #2a5438" }}>
+                style={input}
+              >
                 {pools.map(p => (
-                  <option key={p.id} value={p.id} className="bg-[#0a1208]">{p.name}</option>
+                  <option key={p.id} value={p.id}>{p.name}</option>
                 ))}
               </select>
             </div>
           </div>
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <label className="flex items-center gap-2 cursor-pointer">
+
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
               <div
                 onClick={() => setNewAutoApprove(v => !v)}
-                className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-colors ${newAutoApprove ? "bg-[#F5C518] border-[#F5C518]" : "border-[#2a5438]"}`}>
-                {newAutoApprove && <svg width="12" height="12" fill="none" stroke="black" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+                style={{
+                  width: "18px", height: "18px", borderRadius: "4px", flexShrink: 0,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  border: newAutoApprove ? "2px solid #2563eb" : "2px solid #cbd5e1",
+                  background: newAutoApprove ? "#2563eb" : "white",
+                  cursor: "pointer",
+                }}
+              >
+                {newAutoApprove && (
+                  <svg width="11" height="11" fill="none" stroke="white" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
               </div>
-              <span className="text-[#7ab88a] text-xs">Auto-aprobar usuarios al registrarse con este código</span>
+              <span style={{ fontSize: "13px", color: "#334155" }}>Auto-aprobar usuarios al registrarse con este código</span>
             </label>
-            <button onClick={createCode} disabled={creating || !newCode.trim()}
-              className="py-2 px-6 rounded-xl font-bold text-black text-sm uppercase disabled:opacity-50"
-              style={{ background: "linear-gradient(135deg, #F5C518, #FFD700)" }}>
+            <button
+              onClick={createCode}
+              disabled={creating || !newCode.trim()}
+              style={{ ...btnPrimary, opacity: creating || !newCode.trim() ? 0.5 : 1 }}
+            >
               {creating ? "Creando..." : "+ Crear Código"}
             </button>
           </div>
         </div>
       </div>
 
+      {/* ── Status message ── */}
       {msg && (
-        <div className={`p-2 rounded-lg text-xs text-center ${msg.ok ? "text-green-400" : "text-red-400"}`}
-          style={{ background: "rgba(10,18,8,0.5)", border: "1px solid #2a5438" }}>
+        <div style={{
+          padding: "10px 14px",
+          borderRadius: "8px",
+          fontSize: "13px",
+          fontWeight: 500,
+          textAlign: "center",
+          background: msg.ok ? "#f0fdf4" : "#fef2f2",
+          border: `1px solid ${msg.ok ? "#bbf7d0" : "#fecaca"}`,
+          color: msg.ok ? "#16a34a" : "#dc2626",
+        }}>
           {msg.text}
         </div>
       )}
 
-      {/* Codes list */}
-      <div className="flex flex-col gap-3">
+      {/* ── Codes list ── */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
         {codes.length === 0 && (
-          <p className="text-[#4a7a5a] text-sm text-center py-8">No hay códigos. Crea uno arriba.</p>
+          <p style={{ textAlign: "center", padding: "40px 0", color: "#94a3b8", fontSize: "14px" }}>
+            No hay códigos. Crea uno arriba.
+          </p>
         )}
+
         {codes.map(c => {
-          const usageLabel = c.max_uses ? `${c.uses_count} / ${c.max_uses}` : `${c.uses_count} usos`
+          const usageLabel = c.max_uses ? `${c.uses_count} / ${c.max_uses} usos` : `${c.uses_count} usos`
           const pct = c.max_uses ? Math.min(100, Math.round((c.uses_count / c.max_uses) * 100)) : null
           const isExhausted = c.max_uses !== null && c.uses_count >= c.max_uses
+          const isActive = c.is_active && !isExhausted
+
+          const statusStyle: React.CSSProperties = {
+            fontSize: "11px",
+            fontWeight: 700,
+            padding: "2px 8px",
+            borderRadius: "999px",
+            background: isExhausted ? "#fee2e2" : isActive ? "#dcfce7" : "#f1f5f9",
+            color: isExhausted ? "#dc2626" : isActive ? "#16a34a" : "#64748b",
+          }
 
           return (
-            <div key={c.id} className="rounded-xl p-4"
-              style={{ background: "linear-gradient(135deg, #152a1a, #1a3322)", border: `1px solid ${c.is_active && !isExhausted ? "#2a5438" : "#542a2a"}` }}>
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-mono font-bold text-white text-sm">{c.code}</span>
-                    <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${c.is_active && !isExhausted ? "text-green-400" : "text-red-400"}`}
-                      style={{ background: "rgba(0,0,0,0.3)" }}>
-                      {isExhausted ? "Agotado" : c.is_active ? "Activo" : "Inactivo"}
+            <div key={c.id} style={{
+              ...card,
+              borderColor: isExhausted ? "#fecaca" : isActive ? "#bbf7d0" : "#e2e8f0",
+            }}>
+              <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" }}>
+
+                {/* Info */}
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "4px" }}>
+                    <span style={{ fontFamily: "monospace", fontWeight: 700, fontSize: "15px", color: "#0f172a", letterSpacing: "0.05em" }}>
+                      {c.code}
+                    </span>
+                    <span style={statusStyle}>
+                      {isExhausted ? "Agotado" : isActive ? "Activo" : "Inactivo"}
                     </span>
                     {c.auto_approve && (
-                      <span className="text-xs text-[#7ab88a]">⚡ Auto-aprueba</span>
+                      <span style={{ fontSize: "11px", color: "#2563eb", fontWeight: 600 }}>⚡ Auto-aprueba</span>
                     )}
                   </div>
-                  {c.description && <p className="text-[#7ab88a] text-xs mt-0.5">{c.description}</p>}
+
+                  {c.description && (
+                    <p style={{ fontSize: "13px", color: "#334155", margin: "0 0 3px" }}>{c.description}</p>
+                  )}
+
                   {c.pools && (
-                    <p className="text-[#4a7a5a] text-xs mt-0.5">
-                      🏟️ Liga: <span className="text-[#7ab88a]">{c.pools.name}</span>
+                    <p style={{ fontSize: "12px", color: "#64748b", margin: "0 0 6px" }}>
+                      Liga: <span style={{ color: "#334155", fontWeight: 600 }}>{c.pools.name}</span>
                     </p>
                   )}
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[#4a7a5a] text-xs">{usageLabel}</span>
+
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <span style={{ fontSize: "12px", color: "#64748b" }}>{usageLabel}</span>
                     {pct !== null && (
-                      <div className="w-20 h-1.5 rounded-full overflow-hidden" style={{ background: "#0a1208" }}>
-                        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: pct >= 100 ? "#ef4444" : "#F5C518" }} />
+                      <div style={{ width: "64px", height: "5px", borderRadius: "999px", background: "#e2e8f0", overflow: "hidden" }}>
+                        <div style={{ height: "100%", borderRadius: "999px", width: `${pct}%`, background: pct >= 100 ? "#dc2626" : "#2563eb" }} />
                       </div>
                     )}
-                    <span className="text-[#4a7a5a] text-xs">
-                      {new Date(c.created_at).toLocaleDateString("es-MX", { day: "numeric", month: "short" })}
+                    <span style={{ fontSize: "12px", color: "#94a3b8" }}>
+                      {new Date(c.created_at).toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" })}
                     </span>
                   </div>
                 </div>
 
                 {/* Actions */}
-                <div className="flex flex-wrap gap-2">
-                  <button onClick={() => toggleActive(c.id, c.is_active)} disabled={loading !== null}
-                    className={`py-1.5 px-3 rounded-lg text-xs font-bold border disabled:opacity-50 ${c.is_active ? "text-red-400 border-[#542a2a] hover:bg-[#2a0a0a]" : "text-green-400 border-[#1a3a1a] hover:bg-[#0a2a0a]"}`}>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center" }}>
+                  <button
+                    onClick={() => toggleActive(c.id, c.is_active)}
+                    disabled={loading !== null}
+                    style={{
+                      ...btnSecondary,
+                      borderColor: c.is_active ? "#fca5a5" : "#bbf7d0",
+                      color: c.is_active ? "#dc2626" : "#16a34a",
+                      opacity: loading !== null ? 0.5 : 1,
+                    }}
+                  >
                     {loading === c.id + "active" ? "..." : c.is_active ? "Desactivar" : "Activar"}
                   </button>
-                  <button onClick={() => patchCode(c.id, { auto_approve: !c.auto_approve })} disabled={loading !== null}
-                    className="py-1.5 px-3 rounded-lg text-xs font-bold border border-[#2a5438] text-[#7ab88a] hover:border-[#F5C518] disabled:opacity-50">
+
+                  <button
+                    onClick={() => patchCode(c.id, { auto_approve: !c.auto_approve })}
+                    disabled={loading !== null}
+                    style={{ ...btnSecondary, opacity: loading !== null ? 0.5 : 1 }}
+                  >
                     {loading === c.id + "patch" ? "..." : c.auto_approve ? "Quitar auto-aprobación" : "Activar auto-aprobación"}
                   </button>
+
                   {confirmDelete === c.id ? (
-                    <div className="flex gap-1">
-                      <button onClick={() => deleteCode(c.id)} disabled={loading !== null}
-                        className="py-1.5 px-3 rounded-lg text-xs font-bold text-white disabled:opacity-50"
-                        style={{ background: "#991b1b" }}>
+                    <div style={{ display: "flex", gap: "6px" }}>
+                      <button
+                        onClick={() => deleteCode(c.id)}
+                        disabled={loading !== null}
+                        style={{ ...btnDestructiveConfirm, opacity: loading !== null ? 0.5 : 1 }}
+                      >
                         {loading === c.id + "delete" ? "..." : "¿Confirmar?"}
                       </button>
-                      <button onClick={() => setConfirmDelete(null)}
-                        className="py-1.5 px-2 rounded-lg text-xs text-[#7ab88a] border border-[#2a5438]">✕</button>
+                      <button
+                        onClick={() => setConfirmDelete(null)}
+                        style={btnSecondary}
+                      >
+                        Cancelar
+                      </button>
                     </div>
                   ) : (
-                    <button onClick={() => setConfirmDelete(c.id)} disabled={loading !== null || c.uses_count > 0}
-                      className="py-1.5 px-3 rounded-lg text-xs font-bold text-red-400 border border-[#2a5438] hover:border-red-700 disabled:opacity-40 disabled:cursor-not-allowed">
+                    <button
+                      onClick={() => setConfirmDelete(c.id)}
+                      disabled={loading !== null || c.uses_count > 0}
+                      title={c.uses_count > 0 ? "No se puede eliminar un código con usos" : undefined}
+                      style={{ ...btnDestructive, opacity: loading !== null || c.uses_count > 0 ? 0.4 : 1, cursor: c.uses_count > 0 ? "not-allowed" : "pointer" }}
+                    >
                       Eliminar
                     </button>
                   )}

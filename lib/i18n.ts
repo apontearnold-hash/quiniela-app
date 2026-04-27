@@ -212,6 +212,20 @@ const t = {
     tournament_upcoming_lbl:  "Próximos partidos",
     tournament_live_lbl:      "En juego",
     tournament_group_lbl:     "Grupo",
+
+    // Join league
+    join_another_league:      "Unirme a otra liga",
+    join_league_subtitle:     "Ingresa el código de invitación para unirte a una liga.",
+    join_code_placeholder:    "CÓDIGO",
+    join_btn:                 "Unirme",
+    join_joining:             "Uniéndome…",
+    join_success:             "¡Te uniste a {name}!",
+    join_already_member:      "Ya perteneces a esta liga.",
+    join_err_invalid_code:    "Código inválido o no encontrado.",
+    join_err_inactive_code:   "Este código ya no está activo.",
+    join_err_code_exhausted:  "Este código ya alcanzó su límite de usos.",
+    join_err_inactive_league: "Esta liga no está activa.",
+    join_err_join_failed:     "Error al unirse. Intenta de nuevo.",
   },
 
   en: {
@@ -425,6 +439,20 @@ const t = {
     tournament_upcoming_lbl:  "Upcoming fixtures",
     tournament_live_lbl:      "In play",
     tournament_group_lbl:     "Group",
+
+    // Join league
+    join_another_league:      "Join another league",
+    join_league_subtitle:     "Enter an invite code to join a league.",
+    join_code_placeholder:    "CODE",
+    join_btn:                 "Join",
+    join_joining:             "Joining…",
+    join_success:             "You joined {name}!",
+    join_already_member:      "You already belong to this league.",
+    join_err_invalid_code:    "Invalid or not found code.",
+    join_err_inactive_code:   "This code is no longer active.",
+    join_err_code_exhausted:  "This code has reached its usage limit.",
+    join_err_inactive_league: "This league is not active.",
+    join_err_join_failed:     "Failed to join. Please try again.",
   },
 } as const
 

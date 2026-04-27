@@ -18,17 +18,24 @@ interface UserRow {
 
 interface Pool { id: string; name: string }
 
-const STATUS_COLORS: Record<string, string> = {
-  approved: "text-green-400",
-  pending:  "text-yellow-400",
-  blocked:  "text-red-400",
-}
+// ── Style tokens ──────────────────────────────────────────────────────────────
 
-const STATUS_LABELS: Record<string, string> = {
-  approved: "✓ Aprobado",
-  pending:  "⏳ Pendiente",
-  blocked:  "🚫 Bloqueado",
+const inp: React.CSSProperties = {
+  width: "100%", padding: "8px 12px", borderRadius: "8px",
+  border: "1px solid #e2e8f0", background: "white", color: "#0f172a",
+  fontSize: "13px", boxSizing: "border-box",
 }
+const btnPrimary: React.CSSProperties = { padding: "7px 16px", borderRadius: "8px", background: "#2563eb", color: "white", fontWeight: 700, fontSize: "12px", border: "none", cursor: "pointer" }
+const btnSuccess: React.CSSProperties = { padding: "6px 12px", borderRadius: "8px", background: "#16a34a", color: "white", fontWeight: 700, fontSize: "12px", border: "none", cursor: "pointer" }
+const btnSecondary: React.CSSProperties = { padding: "6px 12px", borderRadius: "8px", background: "white", border: "1px solid #e2e8f0", color: "#334155", fontWeight: 600, fontSize: "12px", cursor: "pointer" }
+const btnDestructive: React.CSSProperties = { padding: "6px 12px", borderRadius: "8px", background: "white", border: "1px solid #fca5a5", color: "#dc2626", fontWeight: 600, fontSize: "12px", cursor: "pointer" }
+const btnDestructiveConfirm: React.CSSProperties = { padding: "6px 12px", borderRadius: "8px", background: "#dc2626", border: "none", color: "white", fontWeight: 700, fontSize: "12px", cursor: "pointer" }
+
+const STATUS_BG: Record<string, string>   = { approved: "#dcfce7", pending: "#fef9c3", blocked: "#fee2e2" }
+const STATUS_COLOR: Record<string, string> = { approved: "#16a34a", pending: "#854d0e", blocked: "#dc2626" }
+const STATUS_LABELS: Record<string, string> = { approved: "✓ Aprobado", pending: "⏳ Pendiente", blocked: "🚫 Bloqueado" }
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 export default function UsersPanel({
   users: initialUsers,
@@ -80,7 +87,6 @@ export default function UsersPanel({
         quiniela_count: 0,
       }
       setUsers(prev => [newUser, ...prev])
-      // Set initial pool memberships for new user
       const selectedPool = pools.find(p => p.id === createForm.pool_id)
       const generalPool = pools.find(p => p.id === LEGACY_POOL_ID)
       const newMemberships: { pool_id: string; name: string }[] = []
@@ -203,169 +209,185 @@ export default function UsersPanel({
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Create test user */}
-      <div className="rounded-xl overflow-hidden" style={{ border: "1px solid #2a5438" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+
+      {/* ── Create test user ── */}
+      <div style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: "16px", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
         <button
           onClick={() => { setShowCreate(v => !v); setCreateMsg(null) }}
-          className="w-full flex items-center justify-between px-4 py-3 text-sm font-bold text-[#7ab88a] hover:text-white transition-colors"
-          style={{ background: "linear-gradient(135deg, #0a1208, #111a0f)" }}>
-          <span>+ Crear usuario de prueba</span>
-          <span className="text-xs opacity-60">{showCreate ? "▲" : "▼"}</span>
+          style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px", background: showCreate ? "#eff6ff" : "white", border: "none", cursor: "pointer", borderBottom: showCreate ? "1px solid #bfdbfe" : "none" }}>
+          <span style={{ fontSize: "14px", fontWeight: 700, color: "#2563eb" }}>+ Crear usuario de prueba</span>
+          <span style={{ fontSize: "11px", color: "#94a3b8" }}>{showCreate ? "▲" : "▼"}</span>
         </button>
+
         {showCreate && (
-          <div className="px-4 pb-4 pt-2 flex flex-col gap-3" style={{ background: "#0a1208" }}>
-            <p className="text-xs text-[#4a7a5a]">El usuario se crea sin verificación de email, marcado como test, aprobado inmediatamente.</p>
-            <input
-              type="text" placeholder="Nombre completo"
+          <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "10px" }}>
+            <p style={{ fontSize: "12px", color: "#64748b", margin: 0 }}>
+              El usuario se crea sin verificación de email, marcado como test, aprobado inmediatamente.
+            </p>
+            <input type="text" placeholder="Nombre completo"
               value={createForm.display_name}
               onChange={e => setCreateForm(f => ({ ...f, display_name: e.target.value }))}
-              className="w-full px-3 py-2 rounded-lg text-sm text-white bg-[#0a1208] border border-[#2a5438] focus:border-[#F5C518] outline-none placeholder:text-[#3a6348]"
-            />
-            <input
-              type="email" placeholder="Email"
+              style={inp} />
+            <input type="email" placeholder="Email"
               value={createForm.email}
               onChange={e => setCreateForm(f => ({ ...f, email: e.target.value }))}
-              className="w-full px-3 py-2 rounded-lg text-sm text-white bg-[#0a1208] border border-[#2a5438] focus:border-[#F5C518] outline-none placeholder:text-[#3a6348]"
-            />
-            <input
-              type="password" placeholder="Contraseña (mínimo 6 caracteres)"
+              style={inp} />
+            <input type="password" placeholder="Contraseña (mínimo 6 caracteres)"
               value={createForm.password}
               onChange={e => setCreateForm(f => ({ ...f, password: e.target.value }))}
-              className="w-full px-3 py-2 rounded-lg text-sm text-white bg-[#0a1208] border border-[#2a5438] focus:border-[#F5C518] outline-none placeholder:text-[#3a6348]"
-            />
+              style={inp} />
             {pools.length > 1 && (
-              <select
-                value={createForm.pool_id}
+              <select value={createForm.pool_id}
                 onChange={e => setCreateForm(f => ({ ...f, pool_id: e.target.value }))}
-                className="w-full px-3 py-2 rounded-lg text-sm text-white bg-[#0a1208] border border-[#2a5438] focus:border-[#F5C518] outline-none">
-                {pools.map(p => <option key={p.id} value={p.id} className="bg-[#0a1208]">{p.name}</option>)}
+                style={inp}>
+                {pools.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             )}
             {createMsg && (
-              <p className={`text-xs ${createMsg.ok ? "text-green-400" : "text-red-400"}`}>{createMsg.text}</p>
+              <p style={{ fontSize: "12px", color: createMsg.ok ? "#16a34a" : "#dc2626", margin: 0 }}>{createMsg.text}</p>
             )}
-            <div className="flex gap-2">
-              <button
-                onClick={createTestUser}
+            <div style={{ display: "flex", gap: "8px" }}>
+              <button onClick={createTestUser}
                 disabled={createLoading || !createForm.email || !createForm.password}
-                className="px-4 py-2 rounded-lg text-xs font-bold text-black disabled:opacity-50"
-                style={{ background: "linear-gradient(135deg, #F5C518, #FFD700)" }}>
+                style={{ ...btnPrimary, opacity: createLoading || !createForm.email || !createForm.password ? 0.5 : 1 }}>
                 {createLoading ? "Creando..." : "Crear usuario de prueba"}
               </button>
-              <button onClick={() => setShowCreate(false)}
-                className="px-3 py-2 rounded-lg text-xs text-[#7ab88a] border border-[#2a5438]">
-                Cancelar
-              </button>
+              <button onClick={() => setShowCreate(false)} style={btnSecondary}>Cancelar</button>
             </div>
           </div>
         )}
       </div>
 
-      {/* Filter tabs */}
-      <div className="flex gap-2 flex-wrap">
-        {(["all", "pending", "approved", "blocked"] as const).map(f => (
-          <button key={f} onClick={() => setFilter(f)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${filter === f ? "bg-[#F5C518] text-black" : "border border-[#2a5438] text-[#7ab88a] hover:border-[#F5C518]"}`}>
-            {f === "all" ? "Todos" : f === "pending" ? "Pendientes" : f === "approved" ? "Aprobados" : "Bloqueados"}
-            <span className="ml-1 opacity-70">({counts[f]})</span>
-          </button>
-        ))}
+      {/* ── Filter tabs ── */}
+      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+        {(["all", "pending", "approved", "blocked"] as const).map(f => {
+          const active = filter === f
+          const accentBg: Record<string, string> = { all: "#2563eb", pending: "#ca8a04", approved: "#16a34a", blocked: "#dc2626" }
+          return (
+            <button key={f} onClick={() => setFilter(f)}
+              style={{
+                padding: "6px 14px", borderRadius: "8px", fontSize: "12px", fontWeight: 700, cursor: "pointer",
+                background: active ? accentBg[f] : "white",
+                color: active ? "white" : "#64748b",
+                border: active ? `1px solid ${accentBg[f]}` : "1px solid #e2e8f0",
+              }}>
+              {f === "all" ? "Todos" : f === "pending" ? "Pendientes" : f === "approved" ? "Aprobados" : "Bloqueados"}
+              <span style={{ marginLeft: "5px", opacity: 0.75 }}>({counts[f]})</span>
+            </button>
+          )
+        })}
       </div>
 
+      {/* ── Global message ── */}
       {msg && (
-        <div className={`p-2 rounded-lg text-xs text-center ${msg.ok ? "text-green-400" : "text-red-400"}`}
-          style={{ background: "rgba(10,18,8,0.5)", border: "1px solid #2a5438" }}>
+        <div style={{ padding: "10px 14px", borderRadius: "8px", fontSize: "13px", fontWeight: 500, textAlign: "center", background: msg.ok ? "#f0fdf4" : "#fef2f2", border: `1px solid ${msg.ok ? "#bbf7d0" : "#fecaca"}`, color: msg.ok ? "#16a34a" : "#dc2626" }}>
           {msg.text}
         </div>
       )}
 
-      <div className="flex flex-col gap-3">
+      {/* ── User list ── */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
         {filtered.length === 0 && (
-          <p className="text-[#4a7a5a] text-sm text-center py-8">No hay usuarios en esta categoría</p>
+          <p style={{ textAlign: "center", padding: "40px 0", color: "#94a3b8", fontSize: "14px" }}>No hay usuarios en esta categoría</p>
         )}
+
         {filtered.map(u => {
           const isCurrentAdmin = u.email === currentAdminEmail
           const isLoading = (key: string) => loading === u.id + key
+          const statusBg = STATUS_BG[u.status] ?? "#f1f5f9"
+          const statusColor = STATUS_COLOR[u.status] ?? "#64748b"
+
           return (
-            <div key={u.id} className="rounded-xl p-4"
-              style={{ background: "linear-gradient(135deg, #152a1a, #1a3322)", border: "1px solid #2a5438" }}>
-              <div className="flex flex-wrap items-start justify-between gap-3">
+            <div key={u.id} style={{
+              background: "white",
+              border: "1px solid #e2e8f0",
+              borderRadius: "14px",
+              padding: "16px 18px",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+            }}>
+              <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" }}>
+
                 {/* User info */}
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-white font-semibold text-sm">
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "3px" }}>
+                    <span style={{ fontWeight: 700, fontSize: "14px", color: "#0f172a" }}>
                       {u.display_name || u.email?.split("@")[0] || "—"}
                     </span>
-                    <span className={`text-xs font-bold ${STATUS_COLORS[u.status] ?? "text-[#7ab88a]"}`}>
+                    <span style={{ fontSize: "11px", fontWeight: 700, padding: "2px 8px", borderRadius: "999px", background: statusBg, color: statusColor }}>
                       {STATUS_LABELS[u.status] ?? u.status}
                     </span>
                     {u.is_test_user && (
-                      <span className="text-xs px-1.5 py-0.5 rounded font-bold text-black"
-                        style={{ background: "#888" }}>TEST</span>
+                      <span style={{ fontSize: "11px", fontWeight: 700, padding: "2px 8px", borderRadius: "999px", background: "#f1f5f9", color: "#64748b" }}>
+                        TEST
+                      </span>
                     )}
                     {isCurrentAdmin && (
-                      <span className="text-xs px-1.5 py-0.5 rounded font-bold text-black"
-                        style={{ background: "#F5C518" }}>ADMIN</span>
+                      <span style={{ fontSize: "11px", fontWeight: 700, padding: "2px 8px", borderRadius: "999px", background: "#dbeafe", color: "#1d4ed8" }}>
+                        ADMIN
+                      </span>
                     )}
                   </div>
-                  <p className="text-[#7ab88a] text-xs mt-0.5">{u.email}</p>
-                  <div className="flex gap-3 mt-1 flex-wrap">
-                    <span className="text-[#4a7a5a] text-xs">
+
+                  <p style={{ fontSize: "12px", color: "#64748b", margin: "0 0 5px" }}>{u.email}</p>
+
+                  <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginBottom: "8px" }}>
+                    <span style={{ fontSize: "12px", color: "#94a3b8" }}>
                       {u.provider === "google" ? "🌐 Google" : "✉️ Email"}
                     </span>
                     {u.invite_code_used && (
-                      <span className="text-[#4a7a5a] text-xs">
-                        🔑 {u.invite_code_used}
-                      </span>
+                      <span style={{ fontSize: "12px", color: "#94a3b8" }}>🔑 {u.invite_code_used}</span>
                     )}
-                    <span className="text-[#4a7a5a] text-xs">
+                    <span style={{ fontSize: "12px", color: "#94a3b8" }}>
                       🎯 {u.quiniela_count} quiniela{u.quiniela_count !== 1 ? "s" : ""}
                     </span>
-                    <span className="text-[#4a7a5a] text-xs">
+                    <span style={{ fontSize: "12px", color: "#94a3b8" }}>
                       {new Date(u.created_at).toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" })}
                     </span>
                   </div>
 
-                  {/* Pool memberships */}
-                  <div className="flex flex-wrap gap-1.5 mt-2 items-center">
+                  {/* Pool membership chips */}
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", alignItems: "center" }}>
                     {(memberships[u.id] ?? []).map(m => (
-                      <span key={m.pool_id} className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs"
-                        style={{ background: m.pool_id === LEGACY_POOL_ID ? "rgba(245,197,24,0.15)" : "rgba(42,84,56,0.6)", border: "1px solid #2a5438" }}>
-                        <span className="text-[#7ab88a]">{m.name}</span>
+                      <span key={m.pool_id} style={{
+                        display: "inline-flex", alignItems: "center", gap: "4px",
+                        padding: "3px 10px", borderRadius: "999px", fontSize: "11px", fontWeight: 600,
+                        background: m.pool_id === LEGACY_POOL_ID ? "#dbeafe" : "#f1f5f9",
+                        color: m.pool_id === LEGACY_POOL_ID ? "#1d4ed8" : "#334155",
+                        border: "1px solid #e2e8f0",
+                      }}>
+                        {m.name}
                         {m.pool_id !== LEGACY_POOL_ID && !isCurrentAdmin && (
                           <button onClick={() => removeFromPool(u.id, m.pool_id)}
                             disabled={loading !== null}
-                            className="text-[#4a7a5a] hover:text-red-400 leading-none ml-0.5">
+                            style={{ background: "none", border: "none", padding: "0", cursor: "pointer", color: "#94a3b8", fontSize: "13px", lineHeight: 1, marginLeft: "2px" }}>
                             ×
                           </button>
                         )}
                       </span>
                     ))}
+
                     {addPoolFor === u.id ? (
-                      <div className="flex gap-1 items-center">
+                      <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
                         <select value={addPoolId} onChange={e => setAddPoolId(e.target.value)}
-                          className="px-2 py-0.5 rounded-lg text-xs text-white bg-[#0a1208] border border-[#2a5438] outline-none">
-                          <option value="" className="bg-[#0a1208]">Seleccionar liga...</option>
+                          style={{ padding: "4px 8px", borderRadius: "6px", border: "1px solid #e2e8f0", background: "white", color: "#0f172a", fontSize: "12px" }}>
+                          <option value="">Seleccionar liga...</option>
                           {pools
                             .filter(p => !(memberships[u.id] ?? []).some(m => m.pool_id === p.id))
-                            .map(p => <option key={p.id} value={p.id} className="bg-[#0a1208]">{p.name}</option>)}
+                            .map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                         </select>
                         <button onClick={() => addPoolId && addToPool(u.id, addPoolId)}
                           disabled={!addPoolId || loading !== null}
-                          className="px-2 py-0.5 rounded-lg text-xs font-bold text-black disabled:opacity-40"
-                          style={{ background: "linear-gradient(135deg, #F5C518, #FFD700)" }}>
+                          style={{ ...btnSuccess, padding: "4px 10px", opacity: !addPoolId || loading !== null ? 0.5 : 1 }}>
                           +
                         </button>
                         <button onClick={() => { setAddPoolFor(null); setAddPoolId("") }}
-                          className="px-2 py-0.5 rounded-lg text-xs text-[#7ab88a] border border-[#2a5438]">
-                          ✕
-                        </button>
+                          style={{ ...btnSecondary, padding: "4px 8px" }}>✕</button>
                       </div>
                     ) : (
                       !isCurrentAdmin && pools.filter(p => !(memberships[u.id] ?? []).some(m => m.pool_id === p.id)).length > 0 && (
                         <button onClick={() => { setAddPoolFor(u.id); setAddPoolId("") }}
-                          className="px-2 py-0.5 rounded-full text-xs text-[#4a7a5a] border border-dashed border-[#2a5438] hover:border-[#F5C518] hover:text-[#F5C518]">
+                          style={{ padding: "3px 10px", borderRadius: "999px", fontSize: "11px", fontWeight: 600, background: "white", border: "1px dashed #cbd5e1", color: "#94a3b8", cursor: "pointer" }}>
                           + liga
                         </button>
                       )
@@ -375,47 +397,41 @@ export default function UsersPanel({
 
                 {/* Actions */}
                 {!isCurrentAdmin && (
-                  <div className="flex flex-wrap gap-2">
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", alignItems: "flex-start" }}>
                     {u.status !== "approved" && (
                       <button onClick={() => updateStatus(u.id, "approved")} disabled={loading !== null}
-                        className="py-1.5 px-3 rounded-lg text-xs font-bold text-black disabled:opacity-50"
-                        style={{ background: "linear-gradient(135deg, #22c55e, #16a34a)" }}>
+                        style={{ ...btnSuccess, opacity: loading !== null ? 0.5 : 1 }}>
                         {isLoading("approved") ? "..." : "Aprobar"}
                       </button>
                     )}
                     {u.status !== "blocked" && (
                       <button onClick={() => updateStatus(u.id, "blocked")} disabled={loading !== null}
-                        className="py-1.5 px-3 rounded-lg text-xs font-bold text-white disabled:opacity-50"
-                        style={{ background: "#7a1a1a" }}>
+                        style={{ ...btnDestructive, opacity: loading !== null ? 0.5 : 1 }}>
                         {isLoading("blocked") ? "..." : "Bloquear"}
                       </button>
                     )}
                     {u.status === "blocked" && (
                       <button onClick={() => updateStatus(u.id, "approved")} disabled={loading !== null}
-                        className="py-1.5 px-3 rounded-lg text-xs font-bold text-black disabled:opacity-50"
-                        style={{ background: "linear-gradient(135deg, #F5C518, #FFD700)" }}>
+                        style={{ ...btnSuccess, opacity: loading !== null ? 0.5 : 1 }}>
                         {isLoading("approved") ? "..." : "Desbloquear"}
                       </button>
                     )}
                     <button onClick={() => toggleTestUser(u.id, u.is_test_user)} disabled={loading !== null}
-                      className={`py-1.5 px-3 rounded-lg text-xs font-bold disabled:opacity-50 border ${u.is_test_user ? "text-white border-[#2a5438]" : "text-[#7ab88a] border-[#2a5438] hover:border-[#F5C518]"}`}>
+                      style={{ ...btnSecondary, opacity: loading !== null ? 0.5 : 1, borderColor: u.is_test_user ? "#e2e8f0" : "#e2e8f0" }}>
                       {isLoading("test") ? "..." : u.is_test_user ? "Quitar test" : "Marcar test"}
                     </button>
+
                     {confirmDelete === u.id ? (
-                      <div className="flex gap-1">
+                      <div style={{ display: "flex", gap: "6px" }}>
                         <button onClick={() => deleteUser(u.id, true)} disabled={loading !== null}
-                          className="py-1.5 px-3 rounded-lg text-xs font-bold text-white disabled:opacity-50"
-                          style={{ background: "#991b1b" }}>
+                          style={{ ...btnDestructiveConfirm, opacity: loading !== null ? 0.5 : 1 }}>
                           {isLoading("delete") ? "..." : "¿Confirmar?"}
                         </button>
-                        <button onClick={() => setConfirmDelete(null)}
-                          className="py-1.5 px-2 rounded-lg text-xs text-[#7ab88a] border border-[#2a5438]">
-                          ✕
-                        </button>
+                        <button onClick={() => setConfirmDelete(null)} style={btnSecondary}>Cancelar</button>
                       </div>
                     ) : (
                       <button onClick={() => setConfirmDelete(u.id)} disabled={loading !== null}
-                        className="py-1.5 px-3 rounded-lg text-xs font-bold text-red-400 border border-[#2a5438] hover:border-red-700 disabled:opacity-50">
+                        style={{ ...btnDestructive, opacity: loading !== null ? 0.5 : 1 }}>
                         Eliminar
                       </button>
                     )}

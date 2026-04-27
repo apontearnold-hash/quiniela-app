@@ -40,16 +40,17 @@ export default async function AdminPoolsPage() {
   }))
 
   return (
-    <div className="min-h-screen" style={{ background: "#0a1208" }}>
+    <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "Arial, Helvetica, sans-serif" }}>
       <Navbar userEmail={user.email} isAdmin={isAdmin} />
-      <div className="max-w-5xl mx-auto px-4 py-8">
-        <div className="flex items-center gap-4 mb-6">
-          <Link href="/admin" className="text-[#7ab88a] text-sm hover:text-white">← Admin</Link>
-          <h1 className="text-2xl font-black text-white">Ligas</h1>
-          <span className="px-2 py-0.5 rounded-full text-xs font-bold text-black"
-            style={{ background: "#F5C518" }}>{poolsWithCounts.length}</span>
+      <div style={{ maxWidth: "960px", margin: "0 auto", padding: "32px 16px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "8px" }}>
+          <Link href="/admin" style={{ color: "#2563eb", fontSize: "14px", textDecoration: "none", fontWeight: 500 }}>← Admin</Link>
+          <h1 style={{ fontSize: "22px", fontWeight: 900, color: "#0f172a", margin: 0 }}>Ligas</h1>
+          <span style={{ padding: "2px 10px", borderRadius: "999px", fontSize: "12px", fontWeight: 700, background: "#dbeafe", color: "#1d4ed8" }}>
+            {poolsWithCounts.length}
+          </span>
         </div>
-        <p className="text-[#7ab88a] text-sm mb-6">
+        <p style={{ fontSize: "13px", color: "#64748b", marginBottom: "24px" }}>
           Cada liga tiene sus propios participantes, precio y ranking.
           Los códigos de invitación asignan nuevos usuarios a una liga específica.
         </p>
