@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useEffect, useState } from "react"
+import { createContext, useContext, useState } from "react"
 import { useRouter } from "next/navigation"
 import { getT, type Lang, type TKey } from "@/lib/i18n"
 
@@ -16,14 +16,9 @@ const Ctx = createContext<LangCtx>({
   t: (k) => k,
 })
 
-export function LangProvider({ children }: { children: React.ReactNode }) {
-  const [lang, setLangState] = useState<Lang>("es")
+export function LangProvider({ children, defaultLang = "es" }: { children: React.ReactNode; defaultLang?: Lang }) {
+  const [lang, setLangState] = useState<Lang>(defaultLang)
   const router = useRouter()
-
-  useEffect(() => {
-    const stored = localStorage.getItem("lang") as Lang | null
-    if (stored === "es" || stored === "en") setLangState(stored)
-  }, [])
 
   function setLang(l: Lang) {
     setLangState(l)
