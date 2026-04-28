@@ -2,7 +2,6 @@
 
 import Link from "next/link"
 import type { Fixture } from "@/lib/types"
-import type { SelectedTeam } from "./MundialContent"
 
 const PHASE_SHORT: Record<string, string> = {
   groups:        "",
@@ -15,7 +14,6 @@ const PHASE_SHORT: Record<string, string> = {
 
 interface Props {
   fixtures: Fixture[]
-  onTeamSelect: (team: SelectedTeam) => void
 }
 
 function localDateKey(kickoff: string | null): string {
@@ -51,7 +49,7 @@ function StatusBadge({ fixture }: { fixture: Fixture }) {
   return <span className="text-[10px] text-[#9ca3af]">{formatHour(fixture.kickoff)}</span>
 }
 
-export default function MundialCalendar({ fixtures, onTeamSelect }: Props) {
+export default function MundialCalendar({ fixtures }: Props) {
   if (fixtures.length === 0) {
     return (
       <div className="text-center py-20">
@@ -154,32 +152,6 @@ export default function MundialCalendar({ fixtures, onTeamSelect }: Props) {
                     </div>
                   </Link>
 
-                  {/* Footer: team select buttons (group stage only) */}
-                  {f.phase === "groups" && (f.home_team_id || f.away_team_id) && (
-                    <div className="flex items-center justify-end gap-2 px-3 pb-2">
-                      {f.home_team_id && f.home_team_name && (
-                        <button
-                          onClick={() => onTeamSelect({ teamId: f.home_team_id!, teamName: f.home_team_name!, teamFlag: f.home_team_flag })}
-                          className="text-[#6b7280] text-xs hover:text-[#d97706] transition-colors"
-                          title={`Ver info de ${f.home_team_name}`}
-                        >
-                          + {f.home_team_name}
-                        </button>
-                      )}
-                      {f.home_team_id && f.away_team_id && (
-                        <span className="text-[#e5e7eb] text-xs">·</span>
-                      )}
-                      {f.away_team_id && f.away_team_name && (
-                        <button
-                          onClick={() => onTeamSelect({ teamId: f.away_team_id!, teamName: f.away_team_name!, teamFlag: f.away_team_flag })}
-                          className="text-[#6b7280] text-xs hover:text-[#d97706] transition-colors"
-                          title={`Ver info de ${f.away_team_name}`}
-                        >
-                          + {f.away_team_name}
-                        </button>
-                      )}
-                    </div>
-                  )}
                 </div>
               )
             })}

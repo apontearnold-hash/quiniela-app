@@ -75,10 +75,7 @@ export default function MundialContent({ standings, fixtures }: Props) {
         />
       )}
       {tab === "calendario" && (
-        <MundialCalendar
-          fixtures={fixtures}
-          onTeamSelect={handleTeamSelectWithNav}
-        />
+        <MundialCalendar fixtures={fixtures} />
       )}
       {tab === "fase-eliminatoria" && (
         <MundialKnockouts fixtures={knockoutFixtures} />
