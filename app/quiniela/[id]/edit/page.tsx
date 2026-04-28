@@ -7,6 +7,7 @@ import Link from "next/link"
 import type { Fixture, Prediction, BracketPick } from "@/lib/types"
 import { BRACKET_FIXTURES } from "@/lib/bracket-slots"
 import { getServerT } from "@/lib/server-lang"
+import { getLockDate } from "@/lib/lock-date"
 
 export const dynamic = "force-dynamic"
 
@@ -27,6 +28,18 @@ export default async function EditQuinielaPage({ params }: { params: Promise<{ i
     .single()
 
   if (!quiniela) notFound()
+
+  // Pool price + user's already-submitted count in this pool (for confirm dialog)
+  const poolId = quiniela.pool_id as string | null
+  const [{ data: poolData }, { count: alreadySubmitted }] = await Promise.all([
+    poolId
+      ? supabase.from("pools").select("price_per_quiniela, currency").eq("id", poolId).single()
+      : Promise.resolve({ data: null, error: null }),
+    poolId
+      ? supabase.from("quinielas").select("id", { count: "exact", head: true })
+          .eq("user_id", user.id).eq("pool_id", poolId).eq("status", "submitted")
+      : Promise.resolve({ count: 0, error: null }),
+  ])
 
   // Only real group-stage fixtures from API — knockout slots come from BRACKET_FIXTURES constant
   const { data: groupFixtures } = await supabase
@@ -59,15 +72,7 @@ export default async function EditQuinielaPage({ params }: { params: Promise<{ i
   const bracketPickMap: Record<string, BracketPick> = {}
   existingBracketPicks?.forEach(bp => { bracketPickMap[bp.slot_key] = bp as BracketPick })
 
-  // Lock date = start of day of first group fixture kickoff
-  const firstGroupKickoff = (groupFixtures ?? [])
-    .filter(f => f.kickoff)
-    .map(f => f.kickoff as string)
-    .sort()[0] ?? null
-
-  const lockDate = firstGroupKickoff
-    ? new Date(new Date(firstGroupKickoff).toDateString()).toISOString()
-    : null
+  const lockDate = await getLockDate(supabase, groupFixtures ?? [])
 
   const isLocked = lockDate ? Date.now() >= new Date(lockDate).getTime() : false
   const quinielaStatus = (quiniela.status ?? "draft") as "draft" | "submitted"
@@ -137,6 +142,9 @@ export default async function EditQuinielaPage({ params }: { params: Promise<{ i
               topScorer:     quiniela.top_scorer_pick ?? null,
               mostGoalsTeam: quiniela.most_goals_team_pick ?? null,
             }}
+            poolPrice={poolData?.price_per_quiniela ?? undefined}
+            poolCurrency={poolData?.currency ?? undefined}
+            submittedCount={alreadySubmitted ?? 0}
           />
         )}
       </div>

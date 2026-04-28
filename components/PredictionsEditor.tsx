@@ -28,6 +28,10 @@ interface Props {
   readOnly?: boolean
   /** Saved bonus picks — used for submit completeness check */
   bonusPicks?: { topScorer: string | null; mostGoalsTeam: string | null }
+  poolPrice?: number
+  poolCurrency?: string
+  /** Already-submitted count in this pool; +1 is shown to reflect this submission */
+  submittedCount?: number
 }
 
 interface PredState {
@@ -401,6 +405,7 @@ function countryEmoji(code: string | null): string {
 export default function PredictionsEditor({
   quinielaId, allFixtures, existingPredictions, existingBracketPicks, quinielaStatus, lockDate, readOnly = false,
   bonusPicks = { topScorer: null, mostGoalsTeam: null },
+  poolPrice, poolCurrency, submittedCount = 0,
 }: Props) {
   const supabase = createClient()
 
@@ -987,6 +992,22 @@ export default function PredictionsEditor({
             <div className="rounded-xl p-4" style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(245,197,24,0.4)" }}>
               <p className="text-white font-bold text-sm mb-1">¿Confirmar envío?</p>
               <p className="text-[#7ab88a] text-xs mb-3">Una vez enviada, tu quiniela queda registrada oficialmente.</p>
+              {poolPrice !== undefined && (
+                <div className="mb-3 space-y-1 text-xs" style={{ borderLeft: "2px solid rgba(245,197,24,0.4)", paddingLeft: "10px" }}>
+                  <div className="flex justify-between">
+                    <span className="text-[#7ab88a]">Precio por quiniela</span>
+                    <span className="text-white font-semibold">${poolPrice} {poolCurrency ?? "USD"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[#7ab88a]">Tus quinielas enviadas</span>
+                    <span className="text-white font-semibold">{submittedCount + 1}</span>
+                  </div>
+                  <div className="flex justify-between" style={{ borderTop: "1px solid rgba(245,197,24,0.2)", paddingTop: "4px", marginTop: "4px" }}>
+                    <span className="text-[#F5C518] font-bold">Total a pagar</span>
+                    <span className="text-[#F5C518] font-black">${(submittedCount + 1) * poolPrice} {poolCurrency ?? "USD"}</span>
+                  </div>
+                </div>
+              )}
               {submitError && <p className="text-red-400 text-xs mb-2">{submitError}</p>}
               <div className="flex gap-2">
                 <button onClick={handleSubmit} disabled={submitting}
