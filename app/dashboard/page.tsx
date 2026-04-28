@@ -150,6 +150,9 @@ export default async function DashboardPage() {
   const dist      = Math.max(0, pool - lastPrize)
   const prizes    = { first: dist * 0.5, second: dist * 0.3, third: dist * 0.2, last: lastPrize }
 
+  const mySubmittedCount = myQuinielas.filter(q => q.status === "submitted").length
+  const userOwes         = mySubmittedCount * price
+
   // ── Bonus pick stats ─────────────────────────────────────────────────
   const { data: bonusPicks } = await supabase
     .from("quinielas")
@@ -300,6 +303,15 @@ export default async function DashboardPage() {
                 <span className="text-white font-semibold">${p.amount.toFixed(0)}</span>
               </div>
             ))}
+            {mySubmittedCount > 0 && (
+              <div className="w-full flex items-center gap-2 text-xs" style={{ borderTop: "1px solid #2a5438", paddingTop: "6px", marginTop: "2px" }}>
+                <span className="text-[#7ab88a]">Tus quinielas:</span>
+                <span className="text-white font-semibold">{mySubmittedCount}</span>
+                <span className="text-[#2a5438]">·</span>
+                <span className="text-[#7ab88a]">Total a pagar:</span>
+                <span className="text-[#F5C518] font-black">${userOwes.toFixed(0)} {currency}</span>
+              </div>
+            )}
           </div>
         )}
 
