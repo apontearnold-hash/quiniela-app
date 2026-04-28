@@ -14,48 +14,46 @@ const PHASE_LABELS: Record<string, string> = {
 }
 
 interface Props {
-  fixtures: Fixture[]   // knockout fixtures from Supabase (may be empty pre-tournament)
+  fixtures: Fixture[]
 }
 
-// Read-only bracket card
 function BracketCard({ fixture }: { fixture: Fixture }) {
-  const homeName = fixture.home_team_name ?? fixture.home_placeholder ?? "TBD"
-  const awayName = fixture.away_team_name ?? fixture.away_placeholder ?? "TBD"
+  const homeName  = fixture.home_team_name ?? fixture.home_placeholder ?? "TBD"
+  const awayName  = fixture.away_team_name ?? fixture.away_placeholder ?? "TBD"
   const hasResult = fixture.home_score !== null
-  const isLive = fixture.status === "live"
-  const homeWins = hasResult && fixture.home_score! > fixture.away_score!
-  const awayWins = hasResult && fixture.away_score! > fixture.home_score!
-  const hasTeams = !!(fixture.home_team_name || fixture.away_team_name)
+  const isLive    = fixture.status === "live"
+  const homeWins  = hasResult && fixture.home_score! > fixture.away_score!
+  const awayWins  = hasResult && fixture.away_score! > fixture.home_score!
+  const hasTeams  = !!(fixture.home_team_name || fixture.away_team_name)
 
   const inner = (
     <div
       className="w-44 flex-shrink-0 rounded-lg px-2.5 py-2 flex flex-col gap-1.5 transition-colors"
       style={{
-        background: hasResult ? "rgba(10,18,8,0.92)" : "rgba(10,18,8,0.80)",
+        background: "white",
         border: isLive
           ? "1px solid #fbbf24"
           : hasResult
-          ? "1px solid #2a7a4a"
-          : hasTeams
-          ? "1px solid #2a5438"
-          : "1px solid #1a3322",
+          ? "1px solid #16a34a"
+          : "1px solid #d1d5db",
+        boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
       }}
     >
       {/* Slot key + status */}
       <div className="flex items-center justify-between">
-        <span className="text-[10px] font-mono font-semibold" style={{ color: "#4a7a5a" }}>
+        <span className="text-[10px] font-mono font-semibold text-[#9ca3af]">
           {fixture.bracket_position ?? fixture.round ?? ""}
         </span>
         {isLive && (
-          <span className="text-[10px] font-bold text-red-400 animate-pulse">
+          <span className="text-[10px] font-bold text-red-500 animate-pulse">
             {fixture.elapsed ? `${fixture.elapsed}'` : "LIVE"}
           </span>
         )}
         {!isLive && hasResult && (
-          <span className="text-[10px] font-bold text-green-400">FT</span>
+          <span className="text-[10px] font-bold text-green-600">FT</span>
         )}
         {!isLive && !hasResult && fixture.kickoff && (
-          <span className="text-[10px]" style={{ color: "#4a7a5a" }}>
+          <span className="text-[10px] text-[#9ca3af]">
             {new Date(fixture.kickoff).toLocaleDateString("es-MX", { day: "numeric", month: "short" })}
           </span>
         )}
@@ -65,38 +63,36 @@ function BracketCard({ fixture }: { fixture: Fixture }) {
       <div className="flex items-center gap-2">
         {fixture.home_team_flag
           ? <img src={fixture.home_team_flag} alt="" className="w-5 h-3.5 object-contain flex-shrink-0 rounded-sm" />
-          : <span className="w-5 h-3.5 rounded-sm flex-shrink-0" style={{ background: "#1a3322" }} />
+          : <span className="w-5 h-3.5 rounded-sm bg-[#f3f4f6] flex-shrink-0" />
         }
-        <span
-          className="text-xs font-medium flex-1 truncate leading-tight"
-          style={{ color: homeWins ? "#F5C518" : hasTeams ? "#f1f5f9" : "#4a7a5a" }}
-        >
+        <span className={`text-xs font-medium flex-1 truncate leading-tight ${
+          homeWins ? "text-[#d97706] font-bold" : hasTeams ? "text-[#111827]" : "text-[#9ca3af]"
+        }`}>
           {homeName}
         </span>
         {hasResult && (
-          <span className="text-sm font-black flex-shrink-0" style={{ color: homeWins ? "#F5C518" : "#9ca3af" }}>
+          <span className={`text-sm font-black flex-shrink-0 ${homeWins ? "text-[#d97706]" : "text-[#6b7280]"}`}>
             {fixture.home_score}
           </span>
         )}
       </div>
 
       {/* Divider */}
-      <div className="h-px" style={{ background: "#1a3322" }} />
+      <div className="h-px bg-[#f3f4f6]" />
 
       {/* Away row */}
       <div className="flex items-center gap-2">
         {fixture.away_team_flag
           ? <img src={fixture.away_team_flag} alt="" className="w-5 h-3.5 object-contain flex-shrink-0 rounded-sm" />
-          : <span className="w-5 h-3.5 rounded-sm flex-shrink-0" style={{ background: "#1a3322" }} />
+          : <span className="w-5 h-3.5 rounded-sm bg-[#f3f4f6] flex-shrink-0" />
         }
-        <span
-          className="text-xs font-medium flex-1 truncate leading-tight"
-          style={{ color: awayWins ? "#F5C518" : hasTeams ? "#f1f5f9" : "#4a7a5a" }}
-        >
+        <span className={`text-xs font-medium flex-1 truncate leading-tight ${
+          awayWins ? "text-[#d97706] font-bold" : hasTeams ? "text-[#111827]" : "text-[#9ca3af]"
+        }`}>
           {awayName}
         </span>
         {hasResult && (
-          <span className="text-sm font-black flex-shrink-0" style={{ color: awayWins ? "#F5C518" : "#9ca3af" }}>
+          <span className={`text-sm font-black flex-shrink-0 ${awayWins ? "text-[#d97706]" : "text-[#6b7280]"}`}>
             {fixture.away_score}
           </span>
         )}
@@ -104,17 +100,16 @@ function BracketCard({ fixture }: { fixture: Fixture }) {
 
       {/* Penalty note */}
       {fixture.went_to_penalties && fixture.penalties_winner && (
-        <p className="text-[10px] text-center" style={{ color: "#4a7a5a" }}>
+        <p className="text-[10px] text-center text-[#9ca3af]">
           Pen: {fixture.penalties_winner === "home" ? homeName : awayName}
         </p>
       )}
     </div>
   )
 
-  // Wrap in Link if it has a real fixture ID (not a static bracket slot ID >= 9000001)
   if (fixture.id < 9_000_001) {
     return (
-      <Link href={`/fixtures/${fixture.id}`} className="block hover:opacity-90 transition-opacity">
+      <Link href={`/fixtures/${fixture.id}`} className="block hover:opacity-80 transition-opacity">
         {inner}
       </Link>
     )
@@ -123,51 +118,43 @@ function BracketCard({ fixture }: { fixture: Fixture }) {
 }
 
 export default function MundialKnockouts({ fixtures }: Props) {
-  // Build a position→fixture map from real Supabase data
+  // Merge: BRACKET_FIXTURES as template, real Supabase data overrides by bracket_position
   const realByPosition = new Map<string, Fixture>()
   fixtures.forEach(f => {
     if (f.bracket_position) realByPosition.set(f.bracket_position, f)
   })
-
-  // Use BRACKET_FIXTURES as the template; override with real data where available
   const allDisplay = BRACKET_FIXTURES.map(bf =>
     realByPosition.get(bf.bracket_position!) ?? bf
   )
 
-  // Group by phase
+  // Group by phase (keep 3P separate)
   const byPhase = new Map<Phase, Fixture[]>()
   PHASES.forEach(p => byPhase.set(p, []))
   allDisplay.forEach(f => {
-    if (f.phase && f.phase !== "groups") {
-      const phase = f.phase as Phase
-      // Keep 3P (third place) separate — it's tagged as "semifinals"
-      if (f.bracket_position === "3P") return
-      const arr = byPhase.get(phase)
+    if (f.phase && f.phase !== "groups" && f.bracket_position !== "3P") {
+      const arr = byPhase.get(f.phase as Phase)
       if (arr) arr.push(f)
     }
   })
-
-  // Third-place game
   const thirdPlace = allDisplay.find(f => f.bracket_position === "3P")
-
-  const hasAnyRealData = fixtures.length > 0
 
   return (
     <div
-      className="rounded-2xl p-4"
-      style={{ background: "linear-gradient(135deg, #0a1208, #0d1f11)", border: "1px solid #1a3322" }}
+      className="rounded-2xl overflow-hidden"
+      style={{ background: "white", border: "1px solid #d1d5db", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}
     >
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-5">
-        <h2 className="text-[#F5C518] font-bold text-sm uppercase tracking-widest">Fase Eliminatoria</h2>
-        <div className="flex-1 h-px" style={{ background: "#1a3322" }} />
-        {!hasAnyRealData && (
-          <span className="text-[#4a7a5a] text-xs">Estructura del torneo</span>
-        )}
+      {/* Header — dark green accent matching the rest of the app */}
+      <div
+        className="px-4 py-2.5 flex items-center gap-2"
+        style={{ background: "linear-gradient(90deg, #0d3318, #0d1f11)" }}
+      >
+        <span className="text-[#F5C518] font-black text-sm">🏆</span>
+        <h2 className="font-black text-white text-sm uppercase tracking-wider">Fase Eliminatoria · Mundial 2026</h2>
+        <span className="ml-auto text-[#4a7a5a] text-xs">scroll →</span>
       </div>
 
-      {/* Horizontal scroll bracket */}
-      <div className="overflow-x-auto pb-3 -mx-1 px-1">
+      {/* Bracket body */}
+      <div className="p-4 overflow-x-auto pb-5">
         <div className="flex gap-3 min-w-max items-start">
           {PHASES.map((phase, phaseIdx) => {
             const phaseFixtures = byPhase.get(phase) ?? []
@@ -182,21 +169,20 @@ export default function MundialKnockouts({ fixtures }: Props) {
                 <div className="flex flex-col gap-2">
                   {/* Phase label */}
                   <div className="text-center mb-0.5">
-                    <p className="text-[#F5C518] font-bold text-xs uppercase tracking-wider">
+                    <p className="text-[#374151] font-bold text-xs uppercase tracking-wider">
                       {PHASE_LABELS[phase]}
                     </p>
-                    <p className="text-[#2a5438] text-[10px]">{phaseFixtures.length} partidos</p>
+                    <p className="text-[#9ca3af] text-[10px]">{phaseFixtures.length} partidos</p>
                   </div>
 
-                  {/* Match cards */}
                   {phaseFixtures.map(f => (
                     <BracketCard key={f.id} fixture={f} />
                   ))}
 
-                  {/* Third-place game under SF column */}
+                  {/* Third-place under SF column */}
                   {phase === "semifinals" && thirdPlace && (
-                    <div className="mt-3">
-                      <p className="text-[#7ab88a] text-[10px] text-center mb-2 font-bold uppercase tracking-wider">
+                    <div className="mt-4">
+                      <p className="text-[#6b7280] text-[10px] text-center mb-2 font-bold uppercase tracking-wider">
                         3er Lugar
                       </p>
                       <BracketCard fixture={thirdPlace} />
@@ -206,8 +192,8 @@ export default function MundialKnockouts({ fixtures }: Props) {
 
                 {/* Arrow connector */}
                 {hasNext && (
-                  <div className="self-center pb-8">
-                    <span className="font-bold text-lg" style={{ color: "#2a5438" }}>›</span>
+                  <div className="self-center pb-10">
+                    <span className="font-bold text-lg text-[#d1d5db]">›</span>
                   </div>
                 )}
               </div>
@@ -216,22 +202,25 @@ export default function MundialKnockouts({ fixtures }: Props) {
         </div>
       </div>
 
-      {/* Legend */}
-      <div className="flex items-center gap-4 mt-4 pt-3 flex-wrap" style={{ borderTop: "1px solid #1a3322" }}>
+      {/* Footer legend */}
+      <div
+        className="flex items-center gap-4 px-4 py-2.5 flex-wrap"
+        style={{ borderTop: "1px solid #e5e7eb", background: "#f9fafb" }}
+      >
         <div className="flex items-center gap-1.5">
-          <span className="w-3 h-0.5 rounded" style={{ background: "#2a7a4a", display: "inline-block" }} />
-          <span className="text-[10px]" style={{ color: "#4a7a5a" }}>Finalizado</span>
+          <span className="w-3 h-0.5 rounded bg-green-500 inline-block" />
+          <span className="text-[10px] text-[#6b7280]">Finalizado</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="w-3 h-0.5 rounded" style={{ background: "#fbbf24", display: "inline-block" }} />
-          <span className="text-[10px]" style={{ color: "#4a7a5a" }}>En vivo</span>
+          <span className="w-3 h-0.5 rounded bg-amber-400 inline-block" />
+          <span className="text-[10px] text-[#6b7280]">En vivo</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="w-3 h-0.5 rounded" style={{ background: "#2a5438", display: "inline-block" }} />
-          <span className="text-[10px]" style={{ color: "#4a7a5a" }}>Por disputarse</span>
+          <span className="w-3 h-0.5 rounded bg-[#d1d5db] inline-block" />
+          <span className="text-[10px] text-[#6b7280]">Por disputarse</span>
         </div>
-        <span className="text-[10px] ml-auto" style={{ color: "#2a5438" }}>
-          ← scroll horizontal en móvil
+        <span className="text-[10px] text-[#9ca3af] ml-auto">
+          {fixtures.length === 0 ? "Estructura pre-torneo" : `${fixtures.length} partidos reales`}
         </span>
       </div>
     </div>

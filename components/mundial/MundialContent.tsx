@@ -83,6 +83,7 @@ export default function MundialContent({ standings, fixtures }: Props) {
       {tab === "equipos" && (
         <MundialTeams
           standings={standings}
+          groupFixtures={groupFixtures}
           selectedTeam={selectedTeam}
           onTeamSelect={setSelectedTeam}
         />
