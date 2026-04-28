@@ -26,10 +26,9 @@ export default function Navbar({ userEmail, isAdmin }: NavbarProps) {
   }
 
   const links = [
-    { href: "/dashboard",  label: t("nav_dashboard"),  icon: "🏅" },
-    { href: "/grupos",     label: t("nav_groups"),     icon: "⚽" },
-    { href: "/tournament", label: t("nav_tournament"), icon: "🌍" },
-    { href: "/help",       label: t("nav_help"),       icon: "❓" },
+    { href: "/dashboard", label: t("nav_dashboard"), icon: "🏅" },
+    { href: "/mundial",   label: t("nav_mundial"),   icon: "🌏" },
+    { href: "/help",      label: t("nav_help"),      icon: "❓" },
   ]
   if (isAdmin) links.push({ href: "/admin", label: t("nav_admin"), icon: "⚙️" })
 

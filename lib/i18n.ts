@@ -5,6 +5,7 @@ const t = {
     // Navigation
     nav_dashboard:    "Liga Dashboard",
     nav_groups:       "Grupos y Resultados",
+    nav_mundial:      "Mundial 2026",
     nav_admin:        "Admin",
     nav_signout:      "Salir",
     nav_lang_label:   "Idioma",
@@ -232,6 +233,7 @@ const t = {
     // Navigation
     nav_dashboard:    "League Dashboard",
     nav_groups:       "Groups & Results",
+    nav_mundial:      "World Cup 2026",
     nav_admin:        "Admin",
     nav_signout:      "Sign out",
     nav_lang_label:   "Language",

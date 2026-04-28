@@ -5,6 +5,7 @@ import Navbar from "@/components/Navbar"
 import Link from "next/link"
 import type { Fixture } from "@/lib/types"
 import { getServerT } from "@/lib/server-lang"
+import TeamContextCard from "@/components/TeamContextCard"
 
 export const dynamic = "force-dynamic"
 
@@ -173,8 +174,8 @@ export default async function FixtureDetailPage({ params }: { params: Promise<{ 
 
       <div className="max-w-3xl mx-auto px-4 py-6">
 
-        <Link href="/dashboard" className="inline-flex items-center gap-1 text-[#6b7280] text-sm hover:text-[#111827] mb-5 transition-colors">
-          ← {t("nav_dashboard")}
+        <Link href="/mundial" className="inline-flex items-center gap-1 text-[#6b7280] text-sm hover:text-[#111827] mb-5 transition-colors">
+          ← Volver al Mundial
         </Link>
 
         {/* ══ Match header — stays dark as accent ══════════════════════ */}
@@ -258,6 +259,27 @@ export default async function FixtureDetailPage({ params }: { params: Promise<{ 
         {!getApiKey() && !isBracketSlot && (
           <div className="mb-6 px-4 py-3 rounded-xl text-sm" style={{ background: "#f9fafb", border: "1px solid #d1d5db", color: "#6b7280" }}>
             {t("fixture_no_api_key")}
+          </div>
+        )}
+
+        {/* ══ Team qualifier context — auto-discovers confederation ══ */}
+        {!isBracketSlot && fixture && fixture.phase === "groups" &&
+          (fixture.home_team_id || fixture.away_team_id) && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
+            {fixture.home_team_id && (
+              <TeamContextCard
+                teamId={fixture.home_team_id}
+                teamName={fixture.home_team_name ?? ""}
+                teamFlag={fixture.home_team_flag}
+              />
+            )}
+            {fixture.away_team_id && (
+              <TeamContextCard
+                teamId={fixture.away_team_id}
+                teamName={fixture.away_team_name ?? ""}
+                teamFlag={fixture.away_team_flag}
+              />
+            )}
           </div>
         )}
 
