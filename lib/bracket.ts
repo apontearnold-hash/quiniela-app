@@ -108,8 +108,27 @@ export async function recalculateGroupStandings(supabase: SupabaseClient) {
     }
   }
 
-  // Upsert into groups table
-  const upsertRows = Object.entries(standings).flatMap(([groupName, teams]) =>
+  // Determine all group names that exist in the tournament (for clean-slate delete)
+  const { data: knownGroupRows, error: kErr } = await supabase
+    .from("fixtures")
+    .select("group_name")
+    .eq("phase", "groups")
+    .not("group_name", "is", null)
+  if (kErr) throw new Error(`Fetch known groups: ${kErr.message}`)
+
+  const knownGroups = [...new Set((knownGroupRows ?? []).map(r => r.group_name as string))]
+
+  // Delete all existing standings for known groups (guarantees no stale rows)
+  if (knownGroups.length > 0) {
+    const { error: dErr } = await supabase
+      .from("groups")
+      .delete()
+      .in("group_name", knownGroups)
+    if (dErr) throw new Error(`Delete groups: ${dErr.message}`)
+  }
+
+  // Re-insert computed standings (only groups that have at least one finished game)
+  const insertRows = Object.entries(standings).flatMap(([groupName, teams]) =>
     Object.values(teams).map(t => ({
       group_name: groupName,
       team_id: t.team_id,
@@ -128,11 +147,11 @@ export async function recalculateGroupStandings(supabase: SupabaseClient) {
     }))
   )
 
-  if (upsertRows.length > 0) {
-    const { error: uErr } = await supabase
+  if (insertRows.length > 0) {
+    const { error: iErr } = await supabase
       .from("groups")
-      .upsert(upsertRows, { onConflict: "group_name,team_id" })
-    if (uErr) throw new Error(`Upsert groups: ${uErr.message}`)
+      .insert(insertRows)
+    if (iErr) throw new Error(`Insert groups: ${iErr.message}`)
   }
 
   return standings
@@ -182,27 +201,28 @@ export async function fillGroupAdvancers(
       const pos = parseInt(match[1]) - 1 // 0 = 1st, 1 = 2nd
       const groupName = `Grupo ${match[2].toUpperCase()}`
       const groupTeams = standings[groupName]
-      if (!groupTeams) return
-      const sorted = sortStandings(Object.values(groupTeams))
-      const team = sorted[pos]
-      if (!team) return
+      // Always re-derive from current standings — null if group has no results yet
+      const sorted = groupTeams ? sortStandings(Object.values(groupTeams)) : []
+      const team = sorted[pos] ?? null
 
       if (side === "home") {
-        updates.home_team_id = team.team_id
-        updates.home_team_name = team.team_name
-        updates.home_team_code = team.team_code
-        updates.home_team_flag = team.team_flag
+        updates.home_team_id   = team?.team_id   ?? null
+        updates.home_team_name = team?.team_name ?? null
+        updates.home_team_code = team?.team_code ?? null
+        updates.home_team_flag = team?.team_flag ?? null
       } else {
-        updates.away_team_id = team.team_id
-        updates.away_team_name = team.team_name
-        updates.away_team_code = team.team_code
-        updates.away_team_flag = team.team_flag
+        updates.away_team_id   = team?.team_id   ?? null
+        updates.away_team_name = team?.team_name ?? null
+        updates.away_team_code = team?.team_code ?? null
+        updates.away_team_flag = team?.team_flag ?? null
       }
       changed = true
     }
 
-    if (!fixture.home_team_id) tryFillSlot(fixture.home_placeholder, "home")
-    if (!fixture.away_team_id) tryFillSlot(fixture.away_placeholder, "away")
+    // Always re-evaluate both slots from current standings (not just when empty).
+    // Without this, changing a group result would leave the old team in the R32 slot.
+    tryFillSlot(fixture.home_placeholder, "home")
+    tryFillSlot(fixture.away_placeholder, "away")
 
     if (changed) {
       const { error: uErr } = await supabase
@@ -365,12 +385,13 @@ export async function advanceKnockout(supabase: SupabaseClient) {
     "SF-02": "away",
   }
 
-  // Fetch all finished knockout fixtures
+  // Fetch ALL knockout fixtures (finished or not) so we know the full bracket state.
+  // We need unfinished fixtures too: when a source is no longer finished we must clear
+  // the team it previously wrote to the next slot.
   const { data: knockoutFixtures, error } = await supabase
     .from("fixtures")
     .select("*")
     .in("phase", ["round_of_32", "round_of_16", "quarterfinals", "semifinals"])
-    .eq("status", "finished")
     .not("bracket_position", "is", null)
 
   if (error) throw new Error(`Fetch knockout fixtures: ${error.message}`)
@@ -388,13 +409,50 @@ export async function advanceKnockout(supabase: SupabaseClient) {
     byPosition[f.bracket_position] = f
   }
 
+  // Build a set of currently-finished source positions and a map for detail lookup
+  const finishedPositions = new Set<string>()
+  const sourceByPosition: Record<string, FixtureRow> = {}
+  for (const f of knockoutFixtures as FixtureRow[]) {
+    if (!f.bracket_position) continue
+    sourceByPosition[f.bracket_position] = f
+    if (f.status === "finished" && f.home_score !== null && f.away_score !== null) {
+      finishedPositions.add(f.bracket_position)
+    }
+  }
+
   let updated = 0
 
-  for (const fixture of knockoutFixtures as FixtureRow[]) {
-    const pos = fixture.bracket_position
-    if (!pos) continue
+  // ── Pass 1: clear downstream slots whose source is no longer finished ────────
+  // This is what fixes the "cleared result leaves stale team in next round" bug.
+  // We write null team fields to any slot whose feeder game has no result yet.
+  for (const [pos, advance] of Object.entries(ADVANCE)) {
+    if (finishedPositions.has(pos)) continue
+    const nextFixture = byPosition[advance.next]
+    if (!nextFixture) continue
+    const clearData = advance.side === "home"
+      ? { home_team_id: null, home_team_name: null, home_team_code: null, home_team_flag: null, updated_at: new Date().toISOString() }
+      : { away_team_id: null, away_team_name: null, away_team_code: null, away_team_flag: null, updated_at: new Date().toISOString() }
+    const { error: cErr } = await supabase.from("fixtures").update(clearData).eq("id", nextFixture.id)
+    if (cErr) throw new Error(`Clear stale advance ${pos} → ${advance.next}: ${cErr.message}`)
+  }
 
-    // Determine winner
+  // Clear 3P team slots whose SF source is no longer finished
+  for (const [pos, loserSide] of Object.entries(LOSER_TO_3P)) {
+    if (finishedPositions.has(pos)) continue
+    const thirdPlace = byPosition["3P"]
+    if (!thirdPlace) continue
+    const clearData = loserSide === "home"
+      ? { home_team_id: null, home_team_name: null, home_team_code: null, home_team_flag: null, updated_at: new Date().toISOString() }
+      : { away_team_id: null, away_team_name: null, away_team_code: null, away_team_flag: null, updated_at: new Date().toISOString() }
+    const { error: cErr } = await supabase.from("fixtures").update(clearData).eq("id", thirdPlace.id)
+    if (cErr) throw new Error(`Clear stale 3P loser slot (${pos}): ${cErr.message}`)
+  }
+
+  // ── Pass 2: advance winners from currently-finished fixtures ─────────────────
+  for (const fixture of Object.values(sourceByPosition)) {
+    const pos = fixture.bracket_position
+    if (!pos || !finishedPositions.has(pos)) continue
+
     let winnerId: number | null = null
     let winnerName: string | null = null
     let winnerCode: string | null = null
@@ -404,15 +462,13 @@ export async function advanceKnockout(supabase: SupabaseClient) {
     let loserCode: string | null = null
     let loserFlag: string | null = null
 
-    if (fixture.home_score === null || fixture.away_score === null) continue
-
     const winner = determineKnockoutWinner(
-      fixture.home_score,
-      fixture.away_score,
+      fixture.home_score!,
+      fixture.away_score!,
       fixture.went_to_penalties,
       fixture.penalties_winner
     )
-    if (!winner) continue // draw with no penalty result yet
+    if (!winner) continue // tie with no penalty decision yet
 
     if (winner === "home") {
       winnerId = fixture.home_team_id; winnerName = fixture.home_team_name; winnerCode = fixture.home_team_code; winnerFlag = fixture.home_team_flag
@@ -422,21 +478,17 @@ export async function advanceKnockout(supabase: SupabaseClient) {
       loserId  = fixture.home_team_id; loserName  = fixture.home_team_name; loserCode  = fixture.home_team_code; loserFlag  = fixture.home_team_flag
     }
 
-    // Advance winner to next round
+    // Advance winner to next round (always overwrite — Pass 1 already cleared stale slots)
     const advance = ADVANCE[pos]
     if (advance) {
       const nextFixture = byPosition[advance.next]
       if (nextFixture) {
-        const alreadySet = advance.side === "home" ? nextFixture.home_team_id : nextFixture.away_team_id
-        if (!alreadySet) {
-          const updateData = advance.side === "home"
-            ? { home_team_id: winnerId, home_team_name: winnerName, home_team_code: winnerCode, home_team_flag: winnerFlag, updated_at: new Date().toISOString() }
-            : { away_team_id: winnerId, away_team_name: winnerName, away_team_code: winnerCode, away_team_flag: winnerFlag, updated_at: new Date().toISOString() }
-
-          const { error: uErr } = await supabase.from("fixtures").update(updateData).eq("id", nextFixture.id)
-          if (uErr) throw new Error(`Advance winner to ${advance.next}: ${uErr.message}`)
-          updated++
-        }
+        const updateData = advance.side === "home"
+          ? { home_team_id: winnerId, home_team_name: winnerName, home_team_code: winnerCode, home_team_flag: winnerFlag, updated_at: new Date().toISOString() }
+          : { away_team_id: winnerId, away_team_name: winnerName, away_team_code: winnerCode, away_team_flag: winnerFlag, updated_at: new Date().toISOString() }
+        const { error: uErr } = await supabase.from("fixtures").update(updateData).eq("id", nextFixture.id)
+        if (uErr) throw new Error(`Advance winner to ${advance.next}: ${uErr.message}`)
+        updated++
       }
     }
 
@@ -445,16 +497,12 @@ export async function advanceKnockout(supabase: SupabaseClient) {
     if (loserSide && loserId) {
       const thirdPlace = byPosition["3P"]
       if (thirdPlace) {
-        const alreadySet = loserSide === "home" ? thirdPlace.home_team_id : thirdPlace.away_team_id
-        if (!alreadySet) {
-          const updateData = loserSide === "home"
-            ? { home_team_id: loserId, home_team_name: loserName, home_team_code: loserCode, home_team_flag: loserFlag, updated_at: new Date().toISOString() }
-            : { away_team_id: loserId, away_team_name: loserName, away_team_code: loserCode, away_team_flag: loserFlag, updated_at: new Date().toISOString() }
-
-          const { error: uErr } = await supabase.from("fixtures").update(updateData).eq("id", thirdPlace.id)
-          if (uErr) throw new Error(`Advance loser to 3P: ${uErr.message}`)
-          updated++
-        }
+        const updateData = loserSide === "home"
+          ? { home_team_id: loserId, home_team_name: loserName, home_team_code: loserCode, home_team_flag: loserFlag, updated_at: new Date().toISOString() }
+          : { away_team_id: loserId, away_team_name: loserName, away_team_code: loserCode, away_team_flag: loserFlag, updated_at: new Date().toISOString() }
+        const { error: uErr } = await supabase.from("fixtures").update(updateData).eq("id", thirdPlace.id)
+        if (uErr) throw new Error(`Advance loser to 3P: ${uErr.message}`)
+        updated++
       }
     }
   }

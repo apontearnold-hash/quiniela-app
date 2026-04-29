@@ -78,10 +78,15 @@ export async function POST(request: Request) {
   await admin.rpc("increment_invite_uses", { code_id: inviteRow.id })
 
   if (inviteRow.pool_id) {
-    await admin.from("pool_members").upsert(
+    const { error: pmError } = await admin.from("pool_members").upsert(
       { pool_id: inviteRow.pool_id, user_id: userId, role: "member" },
       { onConflict: "pool_id,user_id" }
     )
+    if (pmError) {
+      console.error("[auth/signup] pool_members upsert failed — user:", userId, "pool:", inviteRow.pool_id, "—", pmError.message)
+    }
+  } else {
+    console.error("[auth/signup] invite code", code, "has no pool_id — user", userId, "registered without a league")
   }
 
   return NextResponse.json({ ok: true, status })

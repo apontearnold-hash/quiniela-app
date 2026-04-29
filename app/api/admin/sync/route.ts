@@ -245,6 +245,14 @@ export async function POST() {
       .sort((a, b) => a[0].localeCompare(b[0]))
       .map(([r, n]) => `${r}: ${n}`)
 
+    // Detect group-stage fixtures still missing a group_name
+    const { data: nullGroupRows } = await admin
+      .from("fixtures")
+      .select("id")
+      .eq("phase", "groups")
+      .is("group_name", null)
+    const nullGroupCount = nullGroupRows?.length ?? 0
+
     const msg = `✅ ${upserted} partidos importados`
     await writeLog("fixtures", "success", msg, upserted)
     return NextResponse.json({
@@ -256,6 +264,9 @@ export async function POST() {
       groupsAssigned: !apiProvidesGroups && groupStageFixtures.length > 0
         ? `Grupos derivados por clustering (API no los envió)`
         : `Grupos tomados de la API`,
+      ...(nullGroupCount > 0
+        ? { warning: `⚠️ ${nullGroupCount} partido(s) de grupos sin group_name — asignar manualmente en DB` }
+        : {}),
     })
   } catch (err) {
     const msg = String(err)

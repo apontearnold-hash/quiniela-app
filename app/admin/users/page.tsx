@@ -55,7 +55,7 @@ export default async function AdminUsersPage() {
       <Navbar userEmail={user.email} isAdmin={isAdmin} />
       <div style={{ maxWidth: "960px", margin: "0 auto", padding: "32px 16px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "24px" }}>
-          <Link href="/admin" style={{ color: "#2563eb", fontSize: "14px", textDecoration: "none", fontWeight: 500 }}>← Admin</Link>
+          <Link href="/admin?tab=ligas" style={{ color: "#2563eb", fontSize: "14px", textDecoration: "none", fontWeight: 500 }}>← Admin</Link>
           <h1 style={{ fontSize: "22px", fontWeight: 900, color: "#0f172a", margin: 0 }}>Usuarios</h1>
           <span style={{ padding: "2px 10px", borderRadius: "999px", fontSize: "12px", fontWeight: 700, background: "#dbeafe", color: "#1d4ed8" }}>
             {users.length}

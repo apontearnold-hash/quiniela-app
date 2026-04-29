@@ -40,7 +40,7 @@ function ResultCard({ f }: { f: RecentFixtureItem }) {
           background: "white",
           border: "1px solid #d1d5db",
           boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
-          minWidth: "190px",
+          minWidth: "260px",
         }}
       >
         <div className="flex items-center gap-1.5 flex-1 justify-end min-w-0">
@@ -66,14 +66,28 @@ function ResultCard({ f }: { f: RecentFixtureItem }) {
   )
 }
 
+const TICKER_TZ = "America/Chicago"
+const TICKER_TZ_LABEL = "CT"
+
 function UpcomingCard({ f }: { f: UpcomingFixtureItem }) {
   const date = f.kickoff
     ? new Date(f.kickoff).toLocaleDateString("es-MX", {
         weekday: "short",
         day: "numeric",
         month: "short",
+        timeZone: TICKER_TZ,
       })
-    : "—"
+    : null
+
+  const time = f.kickoff
+    ? new Intl.DateTimeFormat("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+        timeZone: TICKER_TZ,
+      }).format(new Date(f.kickoff)) + " " + TICKER_TZ_LABEL
+    : null
+
   return (
     <Link href={`/fixtures/${f.id}`}>
       <div
@@ -82,7 +96,7 @@ function UpcomingCard({ f }: { f: UpcomingFixtureItem }) {
           background: "white",
           border: "1px solid #d1d5db",
           boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
-          minWidth: "210px",
+          minWidth: "280px",
         }}
       >
         <div className="flex items-center gap-1.5 flex-1 justify-end min-w-0">
@@ -92,10 +106,20 @@ function UpcomingCard({ f }: { f: UpcomingFixtureItem }) {
           </span>
         </div>
         <div
-          className="flex-shrink-0 px-1.5 py-0.5 rounded-lg text-xs font-bold capitalize whitespace-nowrap"
-          style={{ background: "#f3f4f6", color: "#6b7280" }}
+          className="flex-shrink-0 flex flex-col items-center gap-0 px-2 py-1 rounded-lg text-center"
+          style={{ background: "#f3f4f6", minWidth: "80px" }}
         >
-          {date}
+          {date && (
+            <span className="text-[10px] font-bold capitalize leading-tight" style={{ color: "#6b7280" }}>
+              {date}
+            </span>
+          )}
+          {time && (
+            <span className="text-[10px] font-medium leading-tight" style={{ color: "#9ca3af" }}>
+              {time}
+            </span>
+          )}
+          {!date && <span className="text-[10px] font-bold" style={{ color: "#6b7280" }}>—</span>}
         </div>
         <div className="flex items-center gap-1.5 flex-1 min-w-0">
           <span className="text-xs font-semibold truncate" style={{ color: "#1f2937" }}>

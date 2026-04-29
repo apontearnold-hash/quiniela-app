@@ -43,7 +43,9 @@ const SECTIONS: Section[] = [
     title: { es: "Borrador vs Enviar", en: "Draft vs Submit" },
     bullets: [
       { es: "Borrador: puedes guardarla incompleta y editarla cuando quieras.", en: "Draft: save it incomplete and edit it any time." },
-      { es: "Enviar: requiere todos los partidos de grupos, toda la eliminatoria, campeón elegido y bonos completos.", en: "Submit: requires all group matches, full knockout bracket, a champion pick, and bonus answers." },
+      { es: "Enviar: requiere todos los partidos de grupos, toda la eliminatoria, campeón elegido y las dos preguntas bonus.", en: "Submit: requires all group matches, full knockout bracket, a champion pick, and both bonus questions." },
+      { es: "Antes de confirmar el envío verás el costo de tu quiniela según el precio de tu liga.", en: "Before confirming submission you will see the cost of your quiniela based on your league's price." },
+      { es: "Las quinielas enviadas entran al ranking y al pozo de premios de tu liga.", en: "Submitted quinielas count towards your league's ranking and prize pool." },
       { es: "Una vez enviada, tu quiniela queda bloqueada y no puede editarse.", en: "Once submitted, your quiniela is locked and cannot be edited." },
     ],
   },
@@ -75,7 +77,8 @@ const SECTIONS: Section[] = [
     bullets: [
       { es: "Goleador del torneo: el jugador que más goles anote en todo el Mundial.", en: "Top scorer: the player who scores the most goals in the tournament." },
       { es: "Equipo con más goles: la selección que marque más goles en total.", en: "Most goals team: the team that scores the most goals overall." },
-      { es: "Los bonos son opcionales y dan puntos extra si aciertas.", en: "Bonus questions are optional and give extra points if correct." },
+      { es: "Son obligatorias: debes completar ambas para poder enviar tu quiniela.", en: "They are required: you must answer both to submit your quiniela." },
+      { es: "Si aciertas, sumas puntos extra. Si no, no restan puntos.", en: "If correct, you earn extra points. If wrong, no points are deducted." },
       { es: "Son editables hasta el inicio del torneo.", en: "They can be edited until the tournament starts." },
     ],
   },
@@ -99,6 +102,17 @@ const SECTIONS: Section[] = [
       { es: "Aciertos: partidos donde predijiste el ganador o empate correctamente.", en: "Correct (Aciertos): matches where you predicted the right winner or draw." },
       { es: "Exactos: predicciones donde el marcador fue exacto.", en: "Exact (Exactos): predictions where the score was exactly right." },
       { es: "Desempate: más exactos → más aciertos → registro más antiguo.", en: "Tiebreak: most exact → most correct → oldest registration." },
+    ],
+  },
+  {
+    id: "mundial",
+    icon: "🌍",
+    title: { es: "Página Mundial 2026", en: "Mundial 2026 Page" },
+    bullets: [
+      { es: 'Accede desde el menú "Mundial 2026" para explorar el torneo.', en: 'Access from the "Mundial 2026" menu to explore the tournament.' },
+      { es: "Ver tabla de posiciones de los 12 grupos en tiempo real.", en: "See the standings table for all 12 groups in real time." },
+      { es: "Consultar el calendario completo de partidos con fecha, hora y estado.", en: "Browse the full match calendar with date, time, and status." },
+      { es: "Explorar la fase eliminatoria y los equipos clasificados.", en: "Explore the knockout bracket and qualified teams." },
     ],
   },
   {
@@ -126,7 +140,7 @@ const FAQS: FAQ[] = [
   },
   {
     q: { es: "¿Por qué no puedo enviar mi quiniela?", en: "Why can't I submit my quiniela?" },
-    a: { es: "Necesitas completar: todos los partidos de grupos, todos los slots de la fase eliminatoria, elegir un campeón en el bracket y responder las preguntas bonus.", en: "You need to complete: all group matches, every knockout bracket slot, select a champion, and answer the bonus questions." },
+    a: { es: "Necesitas completar todo: todos los partidos de grupos, todos los slots de la eliminatoria, elegir un campeón en el bracket, y responder las dos preguntas bonus (goleador y equipo con más goles). Todas son obligatorias.", en: "You need to complete everything: all group matches, every knockout slot, a champion pick, and both bonus questions (top scorer and most goals team). All are required." },
   },
   {
     q: { es: "¿Qué pasa si predigo empate en la eliminatoria?", en: "What happens if I predict a tie in the knockout stage?" },

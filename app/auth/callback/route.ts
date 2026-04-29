@@ -83,10 +83,15 @@ export async function GET(request: Request) {
 
     // Add user to the pool linked to this invite code (non-fatal)
     if (codeData.pool_id) {
-      await admin.from("pool_members").upsert(
+      const { error: pmError } = await admin.from("pool_members").upsert(
         { pool_id: codeData.pool_id, user_id: user.id, role: "member" },
         { onConflict: "pool_id,user_id" }
       )
+      if (pmError) {
+        console.error("[auth/callback] pool_members upsert failed — user:", user.id, "pool:", codeData.pool_id, "—", pmError.message)
+      }
+    } else {
+      console.error("[auth/callback] invite code", inviteCode, "has no pool_id — user", user.id, "registered without a league")
     }
 
     if (status === "pending") {

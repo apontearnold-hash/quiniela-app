@@ -9,6 +9,7 @@ import { useT } from "@/components/LangProvider"
 
 interface Props {
   fixtures: Fixture[]
+  defaultTab?: string
 }
 
 interface ResultState {
@@ -24,10 +25,14 @@ interface ResultState {
 
 interface AdminRow { id: string; email: string; created_at: string }
 
-export default function AdminPanel({ fixtures }: Props) {
+const VALID_TABS = ["results", "sync", "ligas", "config"] as const
+type TabKey = typeof VALID_TABS[number]
+
+export default function AdminPanel({ fixtures, defaultTab }: Props) {
   const t = useT()
   const router = useRouter()
-  const [activeTab, setActiveTab] = useState<"results" | "sync" | "participants" | "system">("results")
+  const initialTab: TabKey = (VALID_TABS as readonly string[]).includes(defaultTab ?? "") ? (defaultTab as TabKey) : "results"
+  const [activeTab, setActiveTab] = useState<TabKey>(initialTab)
   const [selectedPhase, setSelectedPhase] = useState<Phase>("groups")
   const [results, setResults] = useState<Record<number, ResultState>>(() => {
     const init: Record<number, ResultState> = {}
@@ -56,6 +61,12 @@ export default function AdminPanel({ fixtures }: Props) {
   const [clearingSimulation, setClearingSimulation] = useState(false)
   const [clearSimConfirm, setClearSimConfirm] = useState(false)
   const [simMsg, setSimMsg] = useState<{ text: string; ok: boolean } | null>(null)
+
+  // Config tab — bracket placeholder fixtures
+  const [creatingPlaceholders, setCreatingPlaceholders] = useState(false)
+  const [createPlaceholderMsg, setCreatePlaceholderMsg] = useState<string | null>(null)
+  const [cleaningPlaceholders, setCleaningPlaceholders] = useState(false)
+  const [cleanPlaceholderMsg, setCleanPlaceholderMsg] = useState<string | null>(null)
 
   // Sync tab — importar fixtures
   const [syncing, setSyncing] = useState(false)
@@ -92,12 +103,21 @@ export default function AdminPanel({ fixtures }: Props) {
   const [bonusEvaluating, setBonusEvaluating] = useState(false)
   const [bonusEvalMsg, setBonusEvalMsg] = useState<string | null>(null)
 
+  // Config tab
+  const [configPrice, setConfigPrice] = useState("")
+  const [configCurrency, setConfigCurrency] = useState("USD")
+  const [configLockDate, setConfigLockDate] = useState("")
+  const [configLoading, setConfigLoading] = useState(false)
+  const [configSaving, setConfigSaving] = useState(false)
+  const [configMsg, setConfigMsg] = useState<string | null>(null)
+
   const phases: Phase[] = ["groups", "round_of_32", "round_of_16", "quarterfinals", "semifinals", "final"]
   const phaseFixtures = fixtures.filter(f => f.phase === selectedPhase)
 
   useEffect(() => {
-    if (activeTab !== "system") return
+    if (activeTab !== "config") return
     loadAdmins()
+    loadConfig()
   }, [activeTab])
 
   useEffect(() => {
@@ -106,12 +126,65 @@ export default function AdminPanel({ fixtures }: Props) {
     loadSyncLog()
   }, [activeTab])
 
+  // When fixtures prop changes (e.g. after router.refresh()), seed results entries for any new fixture
+  useEffect(() => {
+    setResults(prev => {
+      const updates: Record<number, ResultState> = {}
+      fixtures.forEach(f => {
+        if (!prev[f.id]) {
+          updates[f.id] = {
+            homeScore: f.home_score?.toString() ?? "",
+            awayScore: f.away_score?.toString() ?? "",
+            wentToPenalties: f.went_to_penalties ?? false,
+            penaltiesWinner: f.penalties_winner ?? "",
+            saving: false, saved: false, error: null,
+            hasResult: f.home_score != null,
+          }
+        }
+      })
+      return Object.keys(updates).length > 0 ? { ...prev, ...updates } : prev
+    })
+  }, [fixtures])
+
   async function loadAdmins() {
     const res = await fetch("/api/admin/admins")
     if (res.ok) {
       const data = await res.json()
       setAdmins(data.admins ?? [])
     }
+  }
+
+  async function loadConfig() {
+    setConfigLoading(true)
+    try {
+      const res = await fetch("/api/admin/config")
+      if (res.ok) {
+        const { config } = await res.json()
+        if (config) {
+          setConfigPrice(config.quiniela_price?.toString() ?? "")
+          setConfigCurrency(config.currency ?? "USD")
+          setConfigLockDate(config.lock_date ? new Date(config.lock_date).toISOString().slice(0, 16) : "")
+        }
+      }
+    } finally {
+      setConfigLoading(false)
+    }
+  }
+
+  async function saveConfig() {
+    setConfigSaving(true); setConfigMsg(null)
+    const res = await fetch("/api/admin/config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        quiniela_price: configPrice,
+        currency: configCurrency,
+        lock_date: configLockDate || null,
+      }),
+    })
+    const data = await res.json()
+    setConfigMsg(res.ok ? "Configuración guardada" : `Error: ${data.error}`)
+    setConfigSaving(false)
   }
 
   async function saveResult(fixture: Fixture) {
@@ -174,6 +247,23 @@ export default function AdminPanel({ fixtures }: Props) {
     const data = await res.json()
     setSimulating(false)
     setSimMsg({ text: data.message ?? (data.error ? `Error: ${data.error}` : "Listo"), ok: res.ok })
+  }
+
+  async function createBracketFixtures() {
+    setCreatingPlaceholders(true); setCreatePlaceholderMsg(null)
+    const res = await fetch("/api/admin/create-bracket-fixtures", { method: "POST" })
+    const data = await res.json()
+    setCreatingPlaceholders(false)
+    setCreatePlaceholderMsg(data.message ?? (data.error ? `Error: ${data.error}` : "Listo"))
+    if (res.ok) router.refresh()
+  }
+
+  async function cleanBracketFixtures() {
+    setCleaningPlaceholders(true); setCleanPlaceholderMsg(null)
+    const res = await fetch("/api/admin/create-bracket-fixtures", { method: "DELETE" })
+    const data = await res.json()
+    setCleaningPlaceholders(false)
+    setCleanPlaceholderMsg(data.message ?? (data.error ? `Error: ${data.error}` : "Listo"))
   }
 
   async function clearSimulation() {
@@ -320,10 +410,10 @@ export default function AdminPanel({ fixtures }: Props) {
       {/* Tabs */}
       <div className="flex rounded-xl overflow-hidden border border-[#d1d5db]">
         {([
-          { key: "results",      label: `🎯 ${t("admin_tab_results")}` },
-          { key: "sync",         label: `🔄 ${t("admin_tab_sync")}` },
-          { key: "participants", label: `👥 ${t("admin_tab_participants")}` },
-          { key: "system",       label: `⚙️ ${t("admin_tab_system")}` },
+          { key: "results", label: `🎯 Resultados / Pruebas` },
+          { key: "sync",    label: `🔄 Sincronización API` },
+          { key: "ligas",   label: `👥 Ligas y Acceso` },
+          { key: "config",  label: `⚙️ Configuración` },
         ] as const).map(tab => (
           <button
             key={tab.key}
@@ -338,65 +428,13 @@ export default function AdminPanel({ fixtures }: Props) {
       {/* ── RESULTS ────────────────────────────── */}
       {activeTab === "results" && (
         <div>
+          <p className="text-[#6b7280] text-xs mb-4">Usa esta sección para corregir resultados reales o para probar el scoring antes del torneo.</p>
           <div className="rounded-xl px-4 py-2.5 mb-4 flex items-center gap-2"
             style={{ background: "#f0fdf4", border: "1px solid #bbf7d0" }}>
             <span className="text-green-600 text-xs">✓</span>
             <p className="text-[#16a34a] text-xs">
               {t("save")} → recalcula puntos y avanza el bracket automáticamente.
             </p>
-          </div>
-
-          {/* ── Simulation panel ── */}
-          <div className="rounded-xl p-4 mb-4"
-            style={{ background: "#fffbeb", border: "1px solid #fde68a" }}>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-base">🧪</span>
-              <p className="text-xs font-bold" style={{ color: "#92400e" }}>
-                Simulación de prueba — solo para testing
-              </p>
-            </div>
-            <p className="text-xs mb-3" style={{ color: "#78350f" }}>
-              <strong>Importante:</strong> "Borrar simulación" restaura solo scores simulados.
-              Los datos de equipos/grupos de la API nunca se tocan.
-              Si los grupos aparecen en blanco, ve a <strong>Sync → Importar fixtures</strong> para restaurar.
-            </p>
-            <div className="flex flex-wrap gap-2 items-center">
-              {/* "Simular torneo completo" — disabled until group standings issue is resolved */}
-              <button
-                disabled
-                title="En desarrollo — usa Sync para importar datos oficiales"
-                className="py-1.5 px-4 rounded-lg text-xs font-bold opacity-40 cursor-not-allowed"
-                style={{ background: "#d97706", color: "white" }}>
-                Simular torneo completo
-              </button>
-
-              {clearSimConfirm ? (
-                <>
-                  <span className="text-xs font-semibold" style={{ color: "#dc2626" }}>¿Borrar resultados simulados?</span>
-                  <button onClick={clearSimulation} disabled={clearingSimulation}
-                    className="py-1.5 px-4 rounded-lg text-xs font-bold text-white disabled:opacity-50"
-                    style={{ background: "#dc2626" }}>
-                    {clearingSimulation ? "Borrando…" : "Confirmar"}
-                  </button>
-                  <button onClick={() => setClearSimConfirm(false)}
-                    className="py-1.5 px-3 rounded-lg text-xs font-medium"
-                    style={{ background: "white", border: "1px solid #d1d5db", color: "#6b7280" }}>
-                    Cancelar
-                  </button>
-                </>
-              ) : (
-                <button onClick={() => setClearSimConfirm(true)} disabled={simulating || clearingSimulation}
-                  className="py-1.5 px-4 rounded-lg text-xs font-bold disabled:opacity-50"
-                  style={{ background: "white", border: "1px solid #fca5a5", color: "#dc2626" }}>
-                  {clearingSimulation ? "Borrando…" : "Borrar simulación"}
-                </button>
-              )}
-            </div>
-            {simMsg && (
-              <p className="mt-2 text-xs" style={{ color: simMsg.ok ? "#15803d" : "#dc2626" }}>
-                {simMsg.text}
-              </p>
-            )}
           </div>
 
           <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
@@ -513,8 +551,8 @@ export default function AdminPanel({ fixtures }: Props) {
             style={{ background: "#fffbeb", border: "1px solid #fde68a" }}>
             <span className="text-lg flex-shrink-0">🕐</span>
             <div>
-              <p className="text-[#F5C518] text-xs font-bold">Sincronización automática próximamente</p>
-              <p className="text-[#6b7280] text-xs mt-0.5">El sistema se sincronizará automáticamente varias veces al día durante el torneo. Por ahora, usa el botón manual cuando necesites actualizar.</p>
+              <p className="text-[#F5C518] text-xs font-bold">Sincronización manual por ahora</p>
+              <p className="text-[#6b7280] text-xs mt-0.5">Durante el torneo deberás usar los botones de abajo para traer datos del API. La sincronización automática programada aún no está activa.</p>
             </div>
           </div>
 
@@ -652,10 +690,10 @@ export default function AdminPanel({ fixtures }: Props) {
         </div>
       )}
 
-      {/* ── PARTICIPANTES ────────────────────────────── */}
-      {activeTab === "participants" && (
+      {/* ── LIGAS Y ACCESO ────────────────────────────── */}
+      {activeTab === "ligas" && (
         <div className="flex flex-col gap-4">
-          <p className="text-[#6b7280] text-xs">Gestiona grupos, accesos y participantes del torneo.</p>
+          <p className="text-[#6b7280] text-xs">Gestiona ligas, códigos de invitación y usuarios.</p>
 
           <Link href="/admin/pools"
             className="flex items-center gap-4 p-5 rounded-xl hover:opacity-90 transition-opacity"
@@ -692,21 +730,120 @@ export default function AdminPanel({ fixtures }: Props) {
         </div>
       )}
 
-      {/* ── SISTEMA ────────────────────────────── */}
-      {activeTab === "system" && (
+      {/* ── CONFIGURACIÓN ────────────────────────────── */}
+      {activeTab === "config" && (
         <div className="flex flex-col gap-5">
 
-          {/* Admins */}
-          <div className="rounded-2xl p-5"
-            style={{ background: "white", border: "1px solid #d1d5db", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+          {/* Bloque 1 — Configuración del torneo */}
+          <div className="rounded-2xl p-5" style={cardStyle}>
+            <h2 className="text-[#111827] font-bold mb-1">⚙️ Configuración del torneo</h2>
+            <p className="text-[#6b7280] text-xs mb-4">Precio por quiniela y fecha de cierre de predicciones. El precio aquí es un valor por defecto — cada liga puede definir su propio precio.</p>
+            {configLoading ? (
+              <p className="text-[#6b7280] text-xs">Cargando...</p>
+            ) : (
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-wrap gap-3">
+                  <div className="flex flex-col gap-1 flex-1 min-w-[120px]">
+                    <label className="text-[#7ab88a] text-xs font-medium">Precio por quiniela</label>
+                    <input
+                      type="number" min="0" step="0.5"
+                      value={configPrice}
+                      onChange={e => setConfigPrice(e.target.value)}
+                      className="px-3 py-2 rounded-lg text-sm"
+                      style={{ background: "white", border: "1px solid #d1d5db", color: "#111827" }}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1 w-28">
+                    <label className="text-[#7ab88a] text-xs font-medium">Moneda</label>
+                    <select
+                      value={configCurrency}
+                      onChange={e => setConfigCurrency(e.target.value)}
+                      className="px-3 py-2 rounded-lg text-sm"
+                      style={{ background: "white", border: "1px solid #d1d5db", color: "#111827" }}
+                    >
+                      <option value="USD">USD</option>
+                      <option value="MXN">MXN</option>
+                      <option value="EUR">EUR</option>
+                      <option value="ARS">ARS</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[#7ab88a] text-xs font-medium">Fecha de cierre de predicciones</label>
+                  <input
+                    type="datetime-local"
+                    value={configLockDate}
+                    onChange={e => setConfigLockDate(e.target.value)}
+                    className="px-3 py-2 rounded-lg text-sm max-w-xs"
+                    style={{ background: "white", border: "1px solid #d1d5db", color: "#111827" }}
+                  />
+                  <p className="text-[#9ca3af] text-xs">Deja vacío para calcular automáticamente (kickoff del primer partido). Rellena solo si necesitas adelantar el cierre.</p>
+                </div>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <button onClick={saveConfig} disabled={configSaving}
+                    className="py-2 px-5 rounded-lg font-bold text-black text-xs uppercase tracking-wide disabled:opacity-50"
+                    style={{ background: "linear-gradient(135deg, #F5C518, #FFD700)" }}>
+                    {configSaving ? "Guardando…" : "Guardar configuración"}
+                  </button>
+                  {configMsg && (
+                    <p className={`text-xs ${configMsg.startsWith("Error") ? "text-red-400" : "text-green-500"}`}>{configMsg}</p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Bloque 2 — Fin del torneo */}
+          <div className="rounded-2xl p-5" style={cardStyle}>
+            <h2 className="text-[#111827] font-bold mb-1">🏆 Cerrar torneo y calcular bonos</h2>
+            <p className="text-[#6b7280] text-xs mb-2">
+              Ingresa los ganadores de las categorías bonus al terminar el torneo. Separa múltiples ganadores con coma.
+            </p>
+            <p className="text-[#9ca3af] text-xs mb-4">En el futuro estos valores deberían venir del API o un cálculo automático.</p>
+            <div className="flex flex-col gap-3">
+              <div>
+                <label className="text-[#7ab88a] text-xs mb-1 block">⚽ Goleador del torneo (nombre exacto)</label>
+                <input
+                  type="text"
+                  value={bonusScorer}
+                  onChange={e => setBonusScorer(e.target.value)}
+                  placeholder="Lionel Messi"
+                  className="w-full px-3 py-2 rounded-lg text-sm"
+                  style={{ background: "white", border: "1px solid #d1d5db", color: "#111827" }}
+                />
+              </div>
+              <div>
+                <label className="text-[#7ab88a] text-xs mb-1 block">🎯 Equipo con más goles (nombre exacto)</label>
+                <input
+                  type="text"
+                  value={bonusGoalsTeam}
+                  onChange={e => setBonusGoalsTeam(e.target.value)}
+                  placeholder="Argentina"
+                  className="w-full px-3 py-2 rounded-lg text-sm"
+                  style={{ background: "white", border: "1px solid #d1d5db", color: "#111827" }}
+                />
+              </div>
+              <button
+                onClick={evaluateBonus}
+                disabled={bonusEvaluating || (!bonusScorer.trim() && !bonusGoalsTeam.trim())}
+                className="self-start py-2 px-4 rounded-lg font-bold text-black text-xs uppercase disabled:opacity-50"
+                style={{ background: "linear-gradient(135deg, #F5C518, #FFD700)" }}>
+                {bonusEvaluating ? t("admin_evaluating") : "Calcular bonos"}
+              </button>
+              {bonusEvalMsg && (
+                <p className={`text-xs ${bonusEvalMsg.startsWith("Error") ? "text-red-400" : "text-[#F5C518]"}`}>{bonusEvalMsg}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Bloque 3 — Acceso admin */}
+          <div className="rounded-2xl p-5" style={cardStyle}>
             <h2 className="text-[#111827] font-bold mb-1">{t("admin_admins_title")}</h2>
             <p className="text-[#6b7280] text-xs mb-4">Usuarios con acceso al panel de admin</p>
-
             <div className="flex flex-col gap-2 mb-4">
               {admins.map(a => (
-                <div key={a.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg"
-                  style={{ background: "#f9fafb", border: "1px solid #e5e7eb" }}>
-                  <span className="text-white text-sm">{a.email}</span>
+                <div key={a.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg" style={innerCardStyle}>
+                  <span className="text-[#111827] text-sm">{a.email}</span>
                   {a.email !== "apontearnold@gmail.com" ? (
                     <button onClick={() => removeAdmin(a.email)} disabled={adminLoading}
                       className="text-red-400 text-xs hover:text-red-300 font-medium disabled:opacity-50">
@@ -719,126 +856,143 @@ export default function AdminPanel({ fixtures }: Props) {
               ))}
               {admins.length === 0 && <p className="text-[#9ca3af] text-xs">Cargando...</p>}
             </div>
-
             <div className="flex gap-2">
               <input
                 type="email" placeholder="nuevo@email.com"
                 value={newAdminEmail}
                 onChange={e => setNewAdminEmail(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && addAdmin()}
-                className="flex-1 px-3 py-2 rounded-lg text-white text-sm"
+                className="flex-1 px-3 py-2 rounded-lg text-[#111827] text-sm"
                 style={{ background: "white", border: "1px solid #d1d5db" }}
               />
               <button onClick={addAdmin} disabled={adminLoading || !newAdminEmail.trim()}
                 className="py-2 px-4 rounded-lg font-bold text-black text-xs uppercase disabled:opacity-50"
-                style={{ background: 'linear-gradient(135deg, #F5C518, #FFD700)' }}>
+                style={{ background: "linear-gradient(135deg, #F5C518, #FFD700)" }}>
                 {t("admin_add")}
               </button>
             </div>
             {adminMsg && <p className={`mt-2 text-xs ${adminMsg.startsWith("Error") ? "text-red-400" : "text-green-400"}`}>{adminMsg}</p>}
           </div>
 
-          {/* Maintenance */}
-          <div className="rounded-2xl p-5"
-            style={{ background: "white", border: "1px solid #d1d5db", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
-            <h2 className="text-[#111827] font-bold mb-1">{t("admin_maintenance_title")}</h2>
-            <p className="text-[#6b7280] text-xs mb-4">Herramientas de corrección. Úsalas solo si algo se desincronizó después de una edición manual en la base de datos.</p>
+          {/* Bloque 4 — Herramientas avanzadas */}
+          <details className="rounded-2xl overflow-hidden" style={cardStyle}>
+            <summary className="px-5 py-4 cursor-pointer list-none flex items-center justify-between hover:bg-[#f9fafb] transition-colors">
+              <span className="text-[#6b7280] font-bold text-sm">🔧 Herramientas avanzadas</span>
+              <span className="text-[#9ca3af] text-xs">Solo usar si algo se desincronizó</span>
+            </summary>
+            <div className="px-5 pb-5 flex flex-col gap-4" style={{ borderTop: "1px solid #e5e7eb" }}>
+              <p className="text-[#9ca3af] text-xs pt-4">
+                Úsalas solo si hubo una edición manual en la base de datos o si el bracket visual quedó desactualizado.
+              </p>
 
-            <div className="flex flex-col gap-4">
-              {/* Recalculate all */}
+              {/* Recalcular todo */}
               <div className="flex items-center justify-between gap-4 flex-wrap">
                 <div>
                   <p className="text-[#111827] text-sm font-medium">Recalcular puntos y bracket</p>
-                  <p className="text-[#9ca3af] text-xs">Reprocesa todas las predicciones y reclasifica grupos y eliminatoria desde cero. Mismo proceso que ocurre al guardar un resultado.</p>
+                  <p className="text-[#9ca3af] text-xs">Reprocesa todas las predicciones desde cero. Mismo proceso que al guardar un resultado.</p>
                 </div>
                 <button onClick={recalculateAll} disabled={recalculating}
                   className="flex-shrink-0 py-2 px-4 rounded-lg font-bold text-black text-xs uppercase disabled:opacity-50"
-                  style={{ background: 'linear-gradient(135deg, #F5C518, #FFD700)' }}>
+                  style={{ background: "linear-gradient(135deg, #F5C518, #FFD700)" }}>
                   {recalculating ? t("admin_calculating") : t("admin_recalculate_all")}
                 </button>
               </div>
               {recalcMsg && <p className={`text-xs ${recalcMsg.startsWith("Error") ? "text-red-400" : "text-[#F5C518]"}`}>{recalcMsg}</p>}
 
-              <div className="h-px" style={{ background: "#2a5438" }} />
+              <div className="h-px bg-[#e5e7eb]" />
 
-              {/* Advance bracket only */}
+              {/* Avanzar bracket */}
               <div className="flex items-center justify-between gap-4 flex-wrap">
                 <div>
                   <p className="text-[#111827] text-sm font-medium">Avanzar bracket manualmente</p>
-                  <p className="text-[#9ca3af] text-xs">Solo reclasifica grupos y avances de eliminatoria, sin recalcular puntos. Útil si el bracket visual quedó desactualizado.</p>
+                  <p className="text-[#9ca3af] text-xs">Solo actualiza el bracket visual sin recalcular puntos. Usar cuando el bracket quedó desactualizado.</p>
                 </div>
                 <button onClick={advanceBracket} disabled={advancing}
                   className="flex-shrink-0 py-2 px-4 rounded-lg font-bold text-black text-xs uppercase disabled:opacity-50"
-                  style={{ background: 'linear-gradient(135deg, #F5C518, #FFD700)' }}>
+                  style={{ background: "linear-gradient(135deg, #F5C518, #FFD700)" }}>
                   {advancing ? t("admin_calculating") : t("admin_advance_bracket")}
                 </button>
               </div>
               {advanceMsg && <p className="text-[#F5C518] text-xs">{advanceMsg}</p>}
 
-              <div className="h-px" style={{ background: "#2a5438" }} />
+              <div className="h-px bg-[#e5e7eb]" />
 
-              {/* Backfill champion picks */}
+              {/* Backfill campeones */}
               <div className="flex items-center justify-between gap-4 flex-wrap">
                 <div>
                   <p className="text-[#111827] text-sm font-medium">Backfill campeones elegidos</p>
-                  <p className="text-[#9ca3af] text-xs">Deriva y guarda el campeón predicho en cada quiniela a partir de sus picks de bracket. Úsalo una vez para rellenar quinielas existentes.</p>
+                  <p className="text-[#9ca3af] text-xs">Rellena el campeón predicho en quinielas antiguas a partir de sus picks de bracket.</p>
                 </div>
                 <button onClick={backfillChampions} disabled={backfilling}
                   className="flex-shrink-0 py-2 px-4 rounded-lg font-bold text-black text-xs uppercase disabled:opacity-50"
-                  style={{ background: 'linear-gradient(135deg, #F5C518, #FFD700)' }}>
+                  style={{ background: "linear-gradient(135deg, #F5C518, #FFD700)" }}>
                   {backfilling ? "Procesando…" : "Backfill"}
                 </button>
               </div>
               {backfillMsg && <p className={`text-xs ${backfillMsg.startsWith("Error") ? "text-red-400" : "text-[#F5C518]"}`}>{backfillMsg}</p>}
 
-              <div className="h-px" style={{ background: "#2a5438" }} />
+              <div className="h-px bg-[#e5e7eb]" />
 
-              {/* Bonus evaluation */}
+              {/* Borrar simulación */}
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div>
+                  <p className="text-[#111827] text-sm font-medium">Borrar resultados simulados</p>
+                  <p className="text-[#9ca3af] text-xs">Borra scores marcados como "simulation". Los datos de equipos y grupos no se tocan.</p>
+                </div>
+                {clearSimConfirm ? (
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button onClick={clearSimulation} disabled={clearingSimulation}
+                      className="py-2 px-4 rounded-lg font-bold text-white text-xs disabled:opacity-50"
+                      style={{ background: "#dc2626" }}>
+                      {clearingSimulation ? "Borrando…" : "Confirmar"}
+                    </button>
+                    <button onClick={() => setClearSimConfirm(false)}
+                      className="py-2 px-3 rounded-lg text-xs font-medium"
+                      style={{ background: "white", border: "1px solid #d1d5db", color: "#6b7280" }}>
+                      Cancelar
+                    </button>
+                  </div>
+                ) : (
+                  <button onClick={() => setClearSimConfirm(true)} disabled={clearingSimulation}
+                    className="flex-shrink-0 py-2 px-4 rounded-lg text-xs font-bold disabled:opacity-50"
+                    style={{ background: "white", border: "1px solid #fca5a5", color: "#dc2626" }}>
+                    {clearingSimulation ? "Borrando…" : "Borrar simulación"}
+                  </button>
+                )}
+              </div>
+              {simMsg && (
+                <p className="text-xs" style={{ color: simMsg.ok ? "#15803d" : "#dc2626" }}>{simMsg.text}</p>
+              )}
+
+              <div className="h-px bg-[#e5e7eb]" />
+
+              {/* Fixtures placeholder de eliminatoria */}
               <div className="flex flex-col gap-3">
                 <div>
-                  <p className="text-[#111827] text-sm font-medium">{t("admin_evaluate_bonus")}</p>
-                  <p className="text-[#9ca3af] text-xs">{t("admin_evaluate_bonus_desc")} Separa múltiples ganadores con coma.</p>
+                  <p className="text-[#111827] text-sm font-medium">Fixtures de eliminatoria (pruebas)</p>
+                  <p className="text-[#9ca3af] text-xs">Para probar el torneo completo antes de que API-Football publique los partidos reales. Crea 32 fixtures placeholder con bracket_position para todas las fases knockout.</p>
                 </div>
-                <div className="flex flex-col gap-2">
-                  <div>
-                    <label className="text-[#7ab88a] text-xs mb-1 block">⚽ Goleador (nombre exacto)</label>
-                    <input
-                      type="text"
-                      value={bonusScorer}
-                      onChange={e => setBonusScorer(e.target.value)}
-                      placeholder="Lionel Messi"
-                      className="w-full px-3 py-2 rounded-lg text-sm"
-                      style={{ background: "white", border: "1px solid #d1d5db", color: "#111827" }}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[#7ab88a] text-xs mb-1 block">🎯 Equipo más goles (nombre exacto)</label>
-                    <input
-                      type="text"
-                      value={bonusGoalsTeam}
-                      onChange={e => setBonusGoalsTeam(e.target.value)}
-                      placeholder="Argentina"
-                      className="w-full px-3 py-2 rounded-lg text-sm"
-                      style={{ background: "white", border: "1px solid #d1d5db", color: "#111827" }}
-                    />
-                  </div>
+                <div className="flex flex-wrap gap-2">
+                  <button onClick={createBracketFixtures} disabled={creatingPlaceholders || cleaningPlaceholders}
+                    className="py-2 px-4 rounded-lg font-bold text-black text-xs uppercase disabled:opacity-50"
+                    style={{ background: "linear-gradient(135deg, #F5C518, #FFD700)" }}>
+                    {creatingPlaceholders ? "Creando…" : "Crear partidos de eliminatoria"}
+                  </button>
+                  <button onClick={cleanBracketFixtures} disabled={cleaningPlaceholders || creatingPlaceholders}
+                    className="py-2 px-4 rounded-lg text-xs font-bold disabled:opacity-50"
+                    style={{ background: "white", border: "1px solid #fca5a5", color: "#dc2626" }}>
+                    {cleaningPlaceholders ? "Limpiando…" : "Limpiar placeholders"}
+                  </button>
                 </div>
-                <button
-                  onClick={evaluateBonus}
-                  disabled={bonusEvaluating || (!bonusScorer.trim() && !bonusGoalsTeam.trim())}
-                  className="self-start py-2 px-4 rounded-lg font-bold text-black text-xs uppercase disabled:opacity-50"
-                  style={{ background: 'linear-gradient(135deg, #F5C518, #FFD700)' }}
-                >
-                  {bonusEvaluating ? t("admin_evaluating") : t("admin_evaluate_bonus")}
-                </button>
-                {bonusEvalMsg && (
-                  <p className={`text-xs ${bonusEvalMsg.startsWith("Error") ? "text-red-400" : "text-[#F5C518]"}`}>
-                    {bonusEvalMsg}
-                  </p>
+                {createPlaceholderMsg && (
+                  <p className={`text-xs ${createPlaceholderMsg.startsWith("Error") ? "text-red-400" : "text-[#F5C518]"}`}>{createPlaceholderMsg}</p>
+                )}
+                {cleanPlaceholderMsg && (
+                  <p className={`text-xs ${cleanPlaceholderMsg.startsWith("Error") ? "text-red-400" : "text-[#15803d]"}`}>{cleanPlaceholderMsg}</p>
                 )}
               </div>
             </div>
-          </div>
+          </details>
 
         </div>
       )}

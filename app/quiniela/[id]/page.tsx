@@ -7,6 +7,7 @@ import type { Quiniela, Fixture, Prediction, BracketPick, Phase } from "@/lib/ty
 import { PHASE_LABELS, PHASE_MULTIPLIER } from "@/lib/types"
 import { BRACKET_FIXTURES } from "@/lib/bracket-slots"
 import { getServerT } from "@/lib/server-lang"
+import { getLockDate } from "@/lib/lock-date"
 
 export const dynamic = "force-dynamic"
 
@@ -70,13 +71,7 @@ export default async function QuinielaViewPage({ params }: { params: Promise<{ i
   const bracketPickMap: Record<string, BracketPick> = {}
   bracketPicksRaw?.forEach(bp => { bracketPickMap[bp.slot_key] = bp as BracketPick })
 
-  const firstGroupKickoff = (allFixtures ?? [])
-    .filter(f => f.phase === "groups" && f.kickoff)
-    .map(f => f.kickoff as string)
-    .sort()[0] ?? null
-  const lockDate = firstGroupKickoff
-    ? new Date(new Date(firstGroupKickoff).toDateString()).toISOString()
-    : null
+  const lockDate = await getLockDate(supabase, groupFixtures ?? [])
 
   // Phase breakdown: pts per phase
   const phaseBreakdown = ALL_PHASES.map(phase => {

@@ -32,7 +32,7 @@ export default async function AdminInviteCodesPage() {
       <Navbar userEmail={user.email} isAdmin={isAdmin} />
       <div style={{ maxWidth: "896px", margin: "0 auto", padding: "32px 16px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "24px" }}>
-          <Link href="/admin" style={{ color: "#2563eb", fontSize: "14px", textDecoration: "none", fontWeight: 500 }}>← Admin</Link>
+          <Link href="/admin?tab=ligas" style={{ color: "#2563eb", fontSize: "14px", textDecoration: "none", fontWeight: 500 }}>← Admin</Link>
           <h1 style={{ fontSize: "22px", fontWeight: 900, color: "#0f172a", margin: 0 }}>Códigos de Invitación</h1>
         </div>
         <InviteCodesPanel codes={codes ?? []} pools={pools ?? []} />

@@ -348,6 +348,15 @@ export default function UsersPanel({
 
                   {/* Pool membership chips */}
                   <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", alignItems: "center" }}>
+                    {u.status === "approved" && (memberships[u.id] ?? []).length === 0 && (
+                      <span style={{
+                        fontSize: "11px", fontWeight: 700, padding: "3px 10px",
+                        borderRadius: "999px", background: "#fff7ed",
+                        color: "#c2410c", border: "1px solid #fed7aa",
+                      }}>
+                        ⚠ Sin liga
+                      </span>
+                    )}
                     {(memberships[u.id] ?? []).map(m => (
                       <span key={m.pool_id} style={{
                         display: "inline-flex", alignItems: "center", gap: "4px",
