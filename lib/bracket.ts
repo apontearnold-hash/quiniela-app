@@ -60,38 +60,53 @@ interface FixtureRow {
 // -------------------------------------------------------------------
 
 export async function recalculateGroupStandings(supabase: SupabaseClient) {
-  // Fetch all finished group stage fixtures
+  // Fetch ALL group stage fixtures (not just finished ones).
+  // This is critical for correct partial standings: if only Qatar 0-1 Switzerland
+  // has been played in a group, the other two unplayed teams must still appear in
+  // the standings map with 0pts/0played — otherwise Qatar (0pts, -1GD) would rank
+  // as "2nd place" and incorrectly fill the R32 bracket slot.
   const { data: fixtures, error: fErr } = await supabase
     .from("fixtures")
     .select("*")
     .eq("phase", "groups")
-    .eq("status", "finished")
 
   if (fErr) throw new Error(`Fetch group fixtures: ${fErr.message}`)
 
   const rows = fixtures as FixtureRow[]
 
+  const initTeam = (id: number, name: string, flag: string | null, code: string | null): TeamRow => ({
+    team_id: id, team_name: name, team_flag: flag, team_code: code,
+    points: 0, goal_difference: 0, goals_for: 0, goals_against: 0,
+    played: 0, won: 0, drawn: 0, lost: 0,
+  })
+
   // Build a standings map: groupName → teamId → TeamRow
   const standings: Record<string, Record<number, TeamRow>> = {}
 
+  // Pass 1: register every team in every group so unplayed teams start at 0/0/0.
+  // Without this pass, teams that haven't played yet are invisible, making a
+  // team with 0 pts and a negative GD incorrectly rank above them.
+  for (const f of rows) {
+    if (!f.group_name) continue
+    if (!f.home_team_id || !f.away_team_id) continue // fixture teams not assigned yet
+    const g = f.group_name
+    if (!standings[g]) standings[g] = {}
+    if (!standings[g][f.home_team_id]) standings[g][f.home_team_id] = initTeam(f.home_team_id, f.home_team_name!, f.home_team_flag, f.home_team_code)
+    if (!standings[g][f.away_team_id]) standings[g][f.away_team_id] = initTeam(f.away_team_id, f.away_team_name!, f.away_team_flag, f.away_team_code)
+  }
+
+  // Pass 2: accumulate stats from finished fixtures only.
   for (const f of rows) {
     if (f.home_score === null || f.away_score === null) continue
     if (!f.group_name) continue
+    if (!f.home_team_id || !f.away_team_id) continue
 
     const g = f.group_name
-    if (!standings[g]) standings[g] = {}
+    if (!standings[g]) continue // should never happen after Pass 1, but guard anyway
 
-    const initTeam = (id: number, name: string, flag: string | null, code: string | null): TeamRow => ({
-      team_id: id, team_name: name, team_flag: flag, team_code: code,
-      points: 0, goal_difference: 0, goals_for: 0, goals_against: 0,
-      played: 0, won: 0, drawn: 0, lost: 0,
-    })
-
-    if (!standings[g][f.home_team_id!]) standings[g][f.home_team_id!] = initTeam(f.home_team_id!, f.home_team_name!, f.home_team_flag, f.home_team_code)
-    if (!standings[g][f.away_team_id!]) standings[g][f.away_team_id!] = initTeam(f.away_team_id!, f.away_team_name!, f.away_team_flag, f.away_team_code)
-
-    const home = standings[g][f.home_team_id!]
-    const away = standings[g][f.away_team_id!]
+    const home = standings[g][f.home_team_id]
+    const away = standings[g][f.away_team_id]
+    if (!home || !away) continue
 
     home.played++; away.played++
     home.goals_for += f.home_score; home.goals_against += f.away_score
@@ -166,7 +181,7 @@ function sortStandings(teams: TeamRow[]): TeamRow[] {
     if (b.points !== a.points) return b.points - a.points
     if (b.goal_difference !== a.goal_difference) return b.goal_difference - a.goal_difference
     if (b.goals_for !== a.goals_for) return b.goals_for - a.goals_for
-    return 0
+    return a.team_name.localeCompare(b.team_name)
   })
 }
 
@@ -292,12 +307,13 @@ export async function assignBest3rd(
     .select("*")
     .eq("phase", "round_of_32")
     .ilike("away_placeholder", "Mejor 3ro%")
+    .order("bracket_position", { ascending: true })
 
   if (r32Err) throw new Error(`Fetch Mejor 3ro fixtures: ${r32Err.message}`)
 
   const slots = r32Fixtures as FixtureRow[]
   let updated = 0
-  let teamIdx = 0
+  const teamIdx = 0
 
   for (const slot of slots) {
     if (slot.away_team_id) continue // Already filled
@@ -347,28 +363,28 @@ export async function advanceKnockout(supabase: SupabaseClient) {
   // Bracket advancement map: bracket_position → [nextFixturePosition, side]
   // "side" is "home" or "away" in the next fixture
   const ADVANCE: Record<string, { next: string; side: "home" | "away" }> = {
-    "R32-01": { next: "R16-01", side: "home" },
-    "R32-02": { next: "R16-01", side: "away" },
-    "R32-03": { next: "R16-02", side: "home" },
-    "R32-04": { next: "R16-02", side: "away" },
-    "R32-05": { next: "R16-03", side: "home" },
+    "R32-01": { next: "R16-02", side: "home" },
+    "R32-02": { next: "R16-01", side: "home" },
+    "R32-03": { next: "R16-02", side: "away" },
+    "R32-04": { next: "R16-03", side: "home" },
+    "R32-05": { next: "R16-01", side: "away" },
     "R32-06": { next: "R16-03", side: "away" },
     "R32-07": { next: "R16-04", side: "home" },
     "R32-08": { next: "R16-04", side: "away" },
-    "R32-09": { next: "R16-05", side: "home" },
-    "R32-10": { next: "R16-05", side: "away" },
-    "R32-11": { next: "R16-06", side: "home" },
-    "R32-12": { next: "R16-06", side: "away" },
-    "R32-13": { next: "R16-07", side: "home" },
-    "R32-14": { next: "R16-07", side: "away" },
-    "R32-15": { next: "R16-08", side: "home" },
-    "R32-16": { next: "R16-08", side: "away" },
+    "R32-09": { next: "R16-06", side: "home" },
+    "R32-10": { next: "R16-06", side: "away" },
+    "R32-11": { next: "R16-05", side: "home" },
+    "R32-12": { next: "R16-05", side: "away" },
+    "R32-13": { next: "R16-08", side: "home" },
+    "R32-14": { next: "R16-07", side: "home" },
+    "R32-15": { next: "R16-08", side: "away" },
+    "R32-16": { next: "R16-07", side: "away" },
     "R16-01": { next: "QF-01", side: "home" },
     "R16-02": { next: "QF-01", side: "away" },
-    "R16-03": { next: "QF-02", side: "home" },
-    "R16-04": { next: "QF-02", side: "away" },
-    "R16-05": { next: "QF-03", side: "home" },
-    "R16-06": { next: "QF-03", side: "away" },
+    "R16-03": { next: "QF-03", side: "home" },
+    "R16-04": { next: "QF-03", side: "away" },
+    "R16-05": { next: "QF-02", side: "home" },
+    "R16-06": { next: "QF-02", side: "away" },
     "R16-07": { next: "QF-04", side: "home" },
     "R16-08": { next: "QF-04", side: "away" },
     "QF-01": { next: "SF-01", side: "home" },

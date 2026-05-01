@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase-browser"
 import { useState } from "react"
@@ -49,7 +50,7 @@ export default function Navbar({ userEmail, isAdmin }: NavbarProps) {
       <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
         {/* Logo */}
         <Link href="/dashboard" className="flex items-center gap-2 font-black text-base flex-shrink-0">
-          <span className="text-xl">🏆</span>
+          <Image src="/wc2026-emblem.svg" alt="FIFA 2026" width={24} height={36} className="flex-shrink-0" />
           <span className="gold-shimmer hidden sm:block text-sm">Quiniela 2026</span>
         </Link>
 

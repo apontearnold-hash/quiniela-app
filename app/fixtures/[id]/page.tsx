@@ -300,7 +300,7 @@ export default async function FixtureDetailPage({ params }: { params: Promise<{ 
                       className={`flex items-start gap-3 py-2.5 border-t border-[#f3f4f6] first:border-t-0 ${isHome ? "" : "flex-row-reverse"}`}
                     >
                       <span className="text-[#d97706] text-xs font-black w-8 flex-shrink-0 text-center mt-0.5">
-                        {ev.time.elapsed}{ev.time.extra ? `+${ev.time.extra}` : ""}'
+                        {ev.time.elapsed}{ev.time.extra ? `+${ev.time.extra}` : ""}&apos;
                       </span>
                       <span className="text-sm flex-shrink-0">{eventIcon(ev.type, ev.detail)}</span>
                       <div className={`flex-1 min-w-0 ${isHome ? "" : "text-right"}`}>

@@ -933,11 +933,41 @@ export default function AdminPanel({ fixtures, defaultTab }: Props) {
 
               <div className="h-px bg-[#e5e7eb]" />
 
+              {/* Simular torneo completo */}
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div>
+                  <p className="text-[#111827] text-sm font-medium">Simular torneo completo</p>
+                  <p className="text-[#9ca3af] text-xs">Genera resultados aleatorios para todos los partidos y recalcula puntos. Solo para pruebas — usa &quot;Borrar simulación&quot; para revertir.</p>
+                </div>
+                {simulateConfirm ? (
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button onClick={simulateAll} disabled={simulating}
+                      className="py-2 px-4 rounded-lg font-bold text-black text-xs disabled:opacity-50"
+                      style={{ background: "linear-gradient(135deg, #F5C518, #FFD700)" }}>
+                      {simulating ? "Simulando…" : "Confirmar"}
+                    </button>
+                    <button onClick={() => setSimulateConfirm(false)} disabled={simulating}
+                      className="py-2 px-3 rounded-lg text-xs font-medium"
+                      style={{ background: "white", border: "1px solid #d1d5db", color: "#6b7280" }}>
+                      Cancelar
+                    </button>
+                  </div>
+                ) : (
+                  <button onClick={() => setSimulateConfirm(true)} disabled={simulating}
+                    className="flex-shrink-0 py-2 px-4 rounded-lg font-bold text-black text-xs uppercase disabled:opacity-50"
+                    style={{ background: "linear-gradient(135deg, #F5C518, #FFD700)" }}>
+                    {simulating ? "Simulando…" : "Simular torneo completo"}
+                  </button>
+                )}
+              </div>
+
+              <div className="h-px bg-[#e5e7eb]" />
+
               {/* Borrar simulación */}
               <div className="flex items-center justify-between gap-4 flex-wrap">
                 <div>
                   <p className="text-[#111827] text-sm font-medium">Borrar resultados simulados</p>
-                  <p className="text-[#9ca3af] text-xs">Borra scores marcados como "simulation". Los datos de equipos y grupos no se tocan.</p>
+                  <p className="text-[#9ca3af] text-xs">Borra scores marcados como &quot;simulation&quot;. Los datos de equipos y grupos no se tocan.</p>
                 </div>
                 {clearSimConfirm ? (
                   <div className="flex items-center gap-2 flex-shrink-0">

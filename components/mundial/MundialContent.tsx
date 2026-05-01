@@ -6,8 +6,10 @@ import MundialGroups from "./MundialGroups"
 import MundialCalendar from "./MundialCalendar"
 import MundialKnockouts from "./MundialKnockouts"
 import MundialTeams from "./MundialTeams"
+import TopScorers from "./TopScorers"
+import type { TopScorer } from "./TopScorers"
 
-type Tab = "grupos" | "calendario" | "fase-eliminatoria" | "equipos"
+type Tab = "grupos" | "calendario" | "fase-eliminatoria" | "equipos" | "goleadores"
 
 export interface SelectedTeam {
   teamId: number
@@ -18,16 +20,18 @@ export interface SelectedTeam {
 interface Props {
   standings: GroupStanding[]
   fixtures: Fixture[]
+  topScorers: TopScorer[]
 }
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: "grupos",             label: "Grupos",           icon: "🏟" },
-  { id: "calendario",         label: "Calendario",       icon: "📅" },
+  { id: "grupos",             label: "Grupos",            icon: "🏟" },
+  { id: "calendario",         label: "Calendario",        icon: "📅" },
   { id: "fase-eliminatoria",  label: "Fase Eliminatoria", icon: "🏆" },
-  { id: "equipos",            label: "Equipos",          icon: "🌍" },
+  { id: "equipos",            label: "Equipos",           icon: "🌍" },
+  { id: "goleadores",         label: "Goleadores",        icon: "⚽" },
 ]
 
-export default function MundialContent({ standings, fixtures }: Props) {
+export default function MundialContent({ standings, fixtures, topScorers }: Props) {
   const [tab, setTab] = useState<Tab>("grupos")
   const [selectedTeam, setSelectedTeam] = useState<SelectedTeam | null>(null)
 
@@ -85,8 +89,16 @@ export default function MundialContent({ standings, fixtures }: Props) {
           standings={standings}
           groupFixtures={groupFixtures}
           selectedTeam={selectedTeam}
-          onTeamSelect={setSelectedTeam}
+          onTeamSelect={(team) => setSelectedTeam(team)}
         />
+      )}
+      {tab === "goleadores" && (
+        <div>
+          <h2 className="text-lg font-black mb-4" style={{ color: "#111827" }}>
+            Máximos goleadores
+          </h2>
+          <TopScorers topScorers={topScorers} />
+        </div>
       )}
     </div>
   )

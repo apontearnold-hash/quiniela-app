@@ -30,8 +30,16 @@ interface Props {
   bonusPicks?: { topScorer: string | null; mostGoalsTeam: string | null }
   poolPrice?: number
   poolCurrency?: string
+  poolPrizeType?: "money" | "physical"
+  poolPrize1st?: string | null
+  poolPrize2nd?: string | null
+  poolPrize3rd?: string | null
   /** Already-submitted count in this pool; +1 is shown to reflect this submission */
   submittedCount?: number
+  /** Pool flag: admin has reopened knockout editing post-lock */
+  knockoutEditable?: boolean
+  /** Real fixture status per bracket_position / slot_key — used to lock started games */
+  knockoutStatusMap?: Record<string, string>
 }
 
 interface PredState {
@@ -150,6 +158,7 @@ function CompactGroupRow({ fixture, pred, isLocked, onUpdate, onSave }: {
           href={`/fixtures/${fixture.id}`}
           className="text-[#9ab8a0] hover:text-[#F5C518] text-xs font-medium transition-colors"
           title="Ver detalles"
+          tabIndex={-1}
         >
           {fixture.kickoff
             ? new Date(fixture.kickoff).toLocaleDateString("es-MX", { day: "numeric", month: "short" })
@@ -186,7 +195,8 @@ function CompactGroupRow({ fixture, pred, isLocked, onUpdate, onSave }: {
             onChange={e => onUpdate(fixture.id, "home", e.target.value)}
             onBlur={() => onSave(fixture)}
             disabled={!editable}
-            className="w-8 h-8 text-center text-white text-sm font-black rounded-lg outline-none disabled:opacity-40 disabled:cursor-not-allowed"
+            inputMode="numeric"
+            className="w-10 h-10 text-center text-white text-base font-black rounded-lg outline-none disabled:opacity-40 disabled:cursor-not-allowed"
             style={{ background: "rgba(0,0,0,0.5)", border: filled ? "1px solid #2a7a4a" : "1px solid #2a5438" }}
             placeholder="–"
           />
@@ -197,7 +207,8 @@ function CompactGroupRow({ fixture, pred, isLocked, onUpdate, onSave }: {
             onChange={e => onUpdate(fixture.id, "away", e.target.value)}
             onBlur={() => onSave(fixture)}
             disabled={!editable}
-            className="w-8 h-8 text-center text-white text-sm font-black rounded-lg outline-none disabled:opacity-40 disabled:cursor-not-allowed"
+            inputMode="numeric"
+            className="w-10 h-10 text-center text-white text-base font-black rounded-lg outline-none disabled:opacity-40 disabled:cursor-not-allowed"
             style={{ background: "rgba(0,0,0,0.5)", border: filled ? "1px solid #2a7a4a" : "1px solid #2a5438" }}
             placeholder="–"
           />
@@ -270,7 +281,7 @@ function BracketMatchCard({ fixture, pred, isLocked, proj, onUpdate, onSave }: {
   }
 
   // Identical input style to group-stage cards
-  const inputCls = "w-8 h-7 text-center text-white text-sm font-black rounded-lg outline-none disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
+  const inputCls = "w-10 h-9 text-center text-white text-base font-black rounded-lg outline-none disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
   // Projected teams dimmed but still white-toned; confirmed teams pure white
   const nameColor = (isProj: boolean) => isProj ? "#cbd5e1" : "#f1f5f9"
 
@@ -311,6 +322,7 @@ function BracketMatchCard({ fixture, pred, isLocked, proj, onUpdate, onSave }: {
           onChange={e => handleScore("home", e.target.value)}
           onBlur={() => onSave(fixture)}
           disabled={!editable}
+          inputMode="numeric"
           className={inputCls}
           style={{ background: "rgba(0,0,0,0.5)", border: filled ? "1px solid #2a7a4a" : "1px solid #2a5438" }}
           placeholder="–"
@@ -333,6 +345,7 @@ function BracketMatchCard({ fixture, pred, isLocked, proj, onUpdate, onSave }: {
           onChange={e => handleScore("away", e.target.value)}
           onBlur={() => onSave(fixture)}
           disabled={!editable}
+          inputMode="numeric"
           className={inputCls}
           style={{ background: "rgba(0,0,0,0.5)", border: filled ? "1px solid #2a7a4a" : "1px solid #2a5438" }}
           placeholder="–"
@@ -405,12 +418,25 @@ function countryEmoji(code: string | null): string {
 export default function PredictionsEditor({
   quinielaId, allFixtures, existingPredictions, existingBracketPicks, quinielaStatus, lockDate, readOnly = false,
   bonusPicks = { topScorer: null, mostGoalsTeam: null },
-  poolPrice, poolCurrency, submittedCount = 0,
+  poolPrice, poolCurrency, poolPrizeType = "money", poolPrize1st, poolPrize2nd, poolPrize3rd,
+  submittedCount = 0,
+  knockoutEditable = false, knockoutStatusMap = {},
 }: Props) {
   const supabase = createClient()
 
   const isLocked = lockDate ? Date.now() >= new Date(lockDate).getTime() : false
   const effectiveLock = isLocked || readOnly
+
+  // When knockoutEditable: groups stay locked, only not_started bracket slots are editable
+  const canEdit = !effectiveLock || (knockoutEditable && !readOnly)
+  function isFixtureLocked(f: Fixture): boolean {
+    if (!effectiveLock) return false
+    if (!(knockoutEditable && !readOnly)) return true
+    if (!isBracketSlotId(f.id)) return true
+    const slotKey = slotKeyById(f.id)
+    if (!slotKey) return true
+    return (knockoutStatusMap[slotKey] ?? "not_started") !== "not_started"
+  }
 
   const [preds, setPreds] = useState<Record<number, PredState>>(() => {
     const init: Record<number, PredState> = {}
@@ -734,7 +760,7 @@ export default function PredictionsEditor({
       )}
 
       {/* ══ Locked banner ════════════════════════════════════════════════════ */}
-      {isLocked && !readOnly && (
+      {isLocked && !readOnly && !knockoutEditable && (
         <div className="rounded-xl px-4 py-3 flex items-center gap-3"
           style={{ background: "rgba(245,197,24,0.06)", border: "1px solid rgba(245,197,24,0.25)" }}>
           <span className="text-xl">🔒</span>
@@ -745,8 +771,20 @@ export default function PredictionsEditor({
         </div>
       )}
 
-      {/* ══ Save bar — sticky, visible for both draft and submitted before deadline ═ */}
-      {!effectiveLock && (
+      {/* ══ Reopen banner — knockout editing enabled by admin ════════════════ */}
+      {isLocked && !readOnly && knockoutEditable && (
+        <div className="rounded-xl px-4 py-3 flex items-center gap-3"
+          style={{ background: "rgba(37,99,235,0.07)", border: "1px solid rgba(37,99,235,0.35)" }}>
+          <span className="text-xl">🔓</span>
+          <div>
+            <p className="font-bold text-sm" style={{ color: "#60a5fa" }}>Edición de eliminatorias abierta</p>
+            <p className="text-xs mt-0.5" style={{ color: "#7ab88a" }}>Solo partidos no iniciados son editables. Los grupos están bloqueados.</p>
+          </div>
+        </div>
+      )}
+
+      {/* ══ Save bar — sticky, visible when any fixture is editable ═══════════ */}
+      {canEdit && (
         <div className="sticky top-0 z-20 -mx-4 px-4 py-3 flex items-center gap-3"
           style={{ background: "rgba(8,14,6,0.97)", borderBottom: "1px solid #2a5438", backdropFilter: "blur(6px)" }}>
           <button
@@ -864,7 +902,7 @@ export default function PredictionsEditor({
                           key={f.id}
                           fixture={f}
                           pred={preds[f.id]}
-                          isLocked={effectiveLock}
+                          isLocked={isFixtureLocked(f)}
                           proj={projectedBracket[f.id]}
                           onUpdate={updatePred}
                           onSave={savePred}
@@ -900,7 +938,7 @@ export default function PredictionsEditor({
                               key={f.id}
                               fixture={f}
                               pred={preds[f.id]}
-                              isLocked={effectiveLock}
+                              isLocked={isFixtureLocked(f)}
                               proj={projectedBracket[f.id]}
                               onUpdate={updatePred}
                               onSave={savePred}
@@ -992,7 +1030,21 @@ export default function PredictionsEditor({
             <div className="rounded-xl p-4" style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(245,197,24,0.4)" }}>
               <p className="text-white font-bold text-sm mb-1">¿Confirmar envío?</p>
               <p className="text-[#7ab88a] text-xs mb-3">Una vez enviada, tu quiniela queda registrada oficialmente.</p>
-              {poolPrice !== undefined && (
+              {poolPrizeType === "physical" ? (
+                <div className="mb-3 space-y-1.5 text-xs" style={{ borderLeft: "2px solid rgba(245,197,24,0.4)", paddingLeft: "10px" }}>
+                  <p className="text-[#7ab88a]">Esta liga usa premios físicos en lugar de pozo en dinero.</p>
+                  {[
+                    { icon: "🥇", label: "1º", value: poolPrize1st },
+                    { icon: "🥈", label: "2º", value: poolPrize2nd },
+                    { icon: "🥉", label: "3º", value: poolPrize3rd },
+                  ].map(({ icon, label, value }) => (
+                    <div key={label} className="flex justify-between">
+                      <span className="text-[#7ab88a]">{icon} Premios de la liga {label}</span>
+                      <span className="text-white font-semibold">{value ?? "Por definir"}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : poolPrice !== undefined ? (
                 <div className="mb-3 space-y-1 text-xs" style={{ borderLeft: "2px solid rgba(245,197,24,0.4)", paddingLeft: "10px" }}>
                   <div className="flex justify-between">
                     <span className="text-[#7ab88a]">Precio por quiniela</span>
@@ -1007,7 +1059,7 @@ export default function PredictionsEditor({
                     <span className="text-[#F5C518] font-black">${(submittedCount + 1) * poolPrice} {poolCurrency ?? "USD"}</span>
                   </div>
                 </div>
-              )}
+              ) : null}
               {submitError && <p className="text-red-400 text-xs mb-2">{submitError}</p>}
               <div className="flex gap-2">
                 <button onClick={handleSubmit} disabled={submitting}
@@ -1024,14 +1076,18 @@ export default function PredictionsEditor({
             </div>
           )}
         </div>
-      ) : !isLocked ? (
-        /* ── Submitted + before deadline: editable, no re-submit needed ── */
+      ) : (!isLocked || knockoutEditable) ? (
+        /* ── Submitted + editable (before deadline or knockout reopen) ── */
         <div className="rounded-2xl p-5" style={{ background: "linear-gradient(135deg, #0d2a1a, #0a1a0d)", border: "2px solid #2a7a4a" }}>
           <div className="flex items-center gap-3 mb-3">
             <span className="text-2xl">✅</span>
             <div>
               <p className="text-white font-bold">Quiniela Enviada</p>
-              <p className="text-[#7ab88a] text-xs mt-0.5">Apareces en el ranking y en el pozo. Puedes seguir editando tus predicciones hasta el inicio del torneo.</p>
+              <p className="text-[#7ab88a] text-xs mt-0.5">
+                {knockoutEditable
+                  ? "Edición de eliminatorias disponible. Guarda tus cambios en partidos no iniciados."
+                  : "Apareces en el ranking y en el pozo. Puedes seguir editando tus predicciones hasta el inicio del torneo."}
+              </p>
             </div>
           </div>
           <div>
@@ -1045,7 +1101,7 @@ export default function PredictionsEditor({
             </div>
           </div>
           {isDirty && (
-            <p className="text-[#F5C518] text-xs mt-2">· Tienes cambios sin guardar — usa "Guardar cambios" arriba.</p>
+            <p className="text-[#F5C518] text-xs mt-2">· Tienes cambios sin guardar — usa &quot;Guardar cambios&quot; arriba.</p>
           )}
         </div>
       ) : (
@@ -1061,7 +1117,7 @@ export default function PredictionsEditor({
       {!readOnly && (
         <div className="rounded-xl px-4 py-3 flex items-center gap-3 flex-wrap"
           style={{ background: "rgba(8,14,6,0.97)", border: "1px solid #2a5438" }}>
-          {!effectiveLock && (
+          {canEdit && (
             <button
               onClick={saveAllPreds}
               disabled={isSaving}

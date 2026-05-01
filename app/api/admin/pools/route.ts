@@ -50,10 +50,10 @@ export async function POST(request: Request) {
   const user = await verifyAdmin()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  let body: { name?: string; description?: string; price_per_quiniela?: number; currency?: string }
+  let body: { name?: string; description?: string; price_per_quiniela?: number; currency?: string; prize_type?: string; prize_description?: string; prize_1st?: string; prize_2nd?: string; prize_3rd?: string }
   try { body = await request.json() } catch { return NextResponse.json({ error: "JSON inválido" }, { status: 400 }) }
 
-  const { name, description, price_per_quiniela, currency } = body
+  const { name, description, price_per_quiniela, currency, prize_type, prize_description, prize_1st, prize_2nd, prize_3rd } = body
   if (!name?.trim()) return NextResponse.json({ error: "El nombre es requerido" }, { status: 400 })
 
   const admin = createAdminClient()
@@ -63,6 +63,11 @@ export async function POST(request: Request) {
     description: description?.trim() || null,
     price_per_quiniela: price_per_quiniela ?? 5.00,
     currency: currency ?? "USD",
+    prize_type: prize_type === "physical" ? "physical" : "money",
+    prize_description: prize_description?.trim() || null,
+    prize_1st: prize_1st?.trim() || null,
+    prize_2nd: prize_2nd?.trim() || null,
+    prize_3rd: prize_3rd?.trim() || null,
     created_by: user.id,
     is_active: true,
   }).select().single()
@@ -77,13 +82,13 @@ export async function PATCH(request: Request) {
   const user = await verifyAdmin()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  let body: { id?: string; name?: string; description?: string; price_per_quiniela?: number; currency?: string; is_active?: boolean }
+  let body: { id?: string; name?: string; description?: string; price_per_quiniela?: number; currency?: string; is_active?: boolean; knockout_editing_open?: boolean; prize_type?: string; prize_description?: string; prize_1st?: string; prize_2nd?: string; prize_3rd?: string }
   try { body = await request.json() } catch { return NextResponse.json({ error: "JSON inválido" }, { status: 400 }) }
 
   const { id, ...rest } = body
   if (!id) return NextResponse.json({ error: "id requerido" }, { status: 400 })
 
-  const allowed = ["name", "description", "price_per_quiniela", "currency", "is_active"]
+  const allowed = ["name", "description", "price_per_quiniela", "currency", "is_active", "knockout_editing_open", "prize_type", "prize_description", "prize_1st", "prize_2nd", "prize_3rd"]
   const update: Record<string, unknown> = {}
   for (const key of allowed) {
     if (key in rest) update[key] = (rest as Record<string, unknown>)[key]

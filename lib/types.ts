@@ -69,6 +69,12 @@ export interface Pool {
   currency: string
   created_by: string | null
   is_active: boolean
+  knockout_editing_open?: boolean
+  prize_type?: 'money' | 'physical'
+  prize_description?: string | null
+  prize_1st?: string | null
+  prize_2nd?: string | null
+  prize_3rd?: string | null
   created_at: string
 }
 
@@ -151,12 +157,12 @@ export interface GroupStanding {
 }
 
 export const PHASE_MULTIPLIER: Record<Phase, number> = {
-  groups: 1,
-  round_of_32: 2,
-  round_of_16: 3,
-  quarterfinals: 4,
-  semifinals: 5,
-  final: 6,
+  groups:        1,
+  round_of_32:   1.25,
+  round_of_16:   1.5,
+  quarterfinals: 1.75,
+  semifinals:    2,
+  final:         2.5,
 }
 
 export const PHASE_LABELS: Record<Phase, string> = {

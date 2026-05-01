@@ -1,6 +1,7 @@
 "use client"
 
 import TeamContextCard from "@/components/TeamContextCard"
+import TeamSquad from "@/components/TeamSquad"
 import type { Fixture, GroupStanding } from "@/lib/types"
 import type { SelectedTeam } from "./MundialContent"
 
@@ -14,7 +15,7 @@ interface Props {
   standings:     GroupStanding[]
   groupFixtures: Fixture[]
   selectedTeam:  SelectedTeam | null
-  onTeamSelect:  (team: SelectedTeam) => void
+  onTeamSelect:  (team: SelectedTeam | null) => void
 }
 
 function buildGroupsMap(
@@ -64,8 +65,8 @@ export default function MundialTeams({ standings, groupFixtures, selectedTeam, o
   return (
     <div className="flex flex-col md:flex-row gap-4 items-start">
 
-      {/* ── Left: team list ─────────────────────────────────────────── */}
-      <div className="w-full md:w-60 flex-shrink-0">
+      {/* ── Left: team list — hidden on mobile when a team is selected ── */}
+      <div className={`w-full md:w-60 flex-shrink-0 ${selectedTeam ? "hidden md:block" : "block"}`}>
         <div
           className="rounded-xl overflow-hidden"
           style={{ background: "white", border: "1px solid #d1d5db", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}
@@ -112,7 +113,7 @@ export default function MundialTeams({ standings, groupFixtures, selectedTeam, o
                             teamName: team.teamName,
                             teamFlag: team.teamFlag,
                           })}
-                          className={`w-full flex items-center gap-2.5 px-3 py-2 border-b border-[#f3f4f6] text-left transition-colors ${
+                          className={`w-full flex items-center gap-2.5 px-3 py-2.5 border-b border-[#f3f4f6] text-left transition-colors ${
                             isSelected ? "bg-[#fef3c7]" : "bg-white hover:bg-[#f9fafb]"
                           }`}
                         >
@@ -135,8 +136,18 @@ export default function MundialTeams({ standings, groupFixtures, selectedTeam, o
         </div>
       </div>
 
-      {/* ── Right: team detail ──────────────────────────────────────── */}
-      <div className="flex-1 min-w-0 w-full">
+      {/* ── Right: team detail — hidden on mobile when no team selected ── */}
+      <div className={`flex-1 min-w-0 w-full ${!selectedTeam ? "hidden md:block" : "block"}`}>
+        {/* Back button — mobile only, returns to team list */}
+        {selectedTeam && (
+          <button
+            onClick={() => onTeamSelect(null)}
+            className="md:hidden mb-4 flex items-center gap-1.5 text-sm font-semibold transition-colors"
+            style={{ color: "#374151" }}
+          >
+            ← Volver a equipos
+          </button>
+        )}
         {!selectedTeam ? (
           <div
             className="rounded-xl p-8 text-center flex flex-col items-center justify-center"
@@ -166,6 +177,7 @@ export default function MundialTeams({ standings, groupFixtures, selectedTeam, o
               teamName={selectedTeam.teamName}
               teamFlag={selectedTeam.teamFlag}
             />
+            <TeamSquad teamId={selectedTeam.teamId} />
           </div>
         )}
       </div>

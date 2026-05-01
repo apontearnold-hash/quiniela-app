@@ -10,6 +10,34 @@ async function requireAdmin() {
   return user
 }
 
+// GET — list members + emails for a pool
+export async function GET(request: Request) {
+  if (!await requireAdmin()) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 })
+  }
+
+  const pool_id = new URL(request.url).searchParams.get("pool_id")
+  if (!pool_id) return NextResponse.json({ error: "pool_id requerido" }, { status: 400 })
+
+  const admin = createAdminClient()
+  const { data, error } = await admin
+    .from("pool_members")
+    .select("user_id, profiles(display_name, email)")
+    .eq("pool_id", pool_id)
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  const members = (data ?? [])
+    .map(m => {
+      const p = m.profiles as unknown as { display_name: string | null; email: string | null } | null
+      return { name: p?.display_name ?? p?.email ?? "Sin nombre", email: p?.email ?? "" }
+    })
+    .filter(m => m.email)
+    .sort((a, b) => a.name.localeCompare(b.name))
+
+  return NextResponse.json({ members })
+}
+
 export async function POST(request: Request) {
   if (!await requireAdmin()) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 })

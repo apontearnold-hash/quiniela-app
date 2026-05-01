@@ -95,17 +95,21 @@ export default async function DashboardPage() {
   // ── Pool selection ──────────────────────────────────────────────────
   const { data: memberships } = await admin
     .from("pool_members")
-    .select("pool_id, joined_at, pools(id, name, price_per_quiniela, currency)")
+    .select("pool_id, joined_at, pools(id, name, price_per_quiniela, currency, prize_type, prize_1st, prize_2nd, prize_3rd)")
     .eq("user_id", user.id)
     .order("joined_at", { ascending: true })
 
   const userPools = (memberships ?? []).map(m => {
-    const p = m.pools as unknown as { id: string; name: string; price_per_quiniela: number; currency: string } | null
+    const p = m.pools as unknown as { id: string; name: string; price_per_quiniela: number; currency: string; prize_type: string | null; prize_1st: string | null; prize_2nd: string | null; prize_3rd: string | null } | null
     return {
       id: m.pool_id,
       name: p?.name ?? "General",
       price: p?.price_per_quiniela ?? 5,
       currency: p?.currency ?? "USD",
+      prizeType: (p?.prize_type ?? "money") as "money" | "physical",
+      prize1st: p?.prize_1st ?? null,
+      prize2nd: p?.prize_2nd ?? null,
+      prize3rd: p?.prize_3rd ?? null,
     }
   })
 
@@ -115,7 +119,7 @@ export default async function DashboardPage() {
     userPools.find(p => p.id === cookiePoolId) ??
     userPools.find(p => p.id !== LEGACY_POOL_ID) ??
     userPools[0] ??
-    { id: LEGACY_POOL_ID, name: "General", price: 5, currency: "USD" }
+    { id: LEGACY_POOL_ID, name: "General", price: 5, currency: "USD", prizeType: "money" as "money" | "physical", prize1st: null, prize2nd: null, prize3rd: null }
 
   const poolId = selectedPool.id
 
@@ -143,7 +147,8 @@ export default async function DashboardPage() {
   const myQuinielas = (myQuinielasData ?? []) as Quiniela[]
 
   // ── Prize pool ──────────────────────────────────────────────────────
-  const { price, currency } = selectedPool
+  const { price, currency, prizeType, prize1st, prize2nd, prize3rd } = selectedPool
+  const isPhysicalPrize = prizeType === "physical"
   const totalQ    = quinielas.length
   const pool      = price * totalQ
   const lastPrize = price
@@ -283,34 +288,64 @@ export default async function DashboardPage() {
             className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-4 py-2.5 rounded-xl text-xs"
             style={{ background: "#0d1f11", border: "1px solid #2a5438" }}
           >
-            <div className="flex items-center gap-2">
-              <span className="text-[#F5C518] font-black uppercase tracking-wider">{t("prize_pool")}</span>
-              <span className="text-white font-black">${pool.toFixed(0)}</span>
-              <span className="text-[#4a7a5a]">{currency}</span>
-              <span className="text-[#2a5438]">·</span>
-              <span className="text-[#7ab88a]">{totalQ} quiniela{totalQ !== 1 ? "s" : ""}</span>
-            </div>
-            <span className="text-[#2a5438] hidden sm:inline">|</span>
-            {[
-              { icon: "🥇", label: "1°", amount: prizes.first },
-              { icon: "🥈", label: "2°", amount: prizes.second },
-              { icon: "🥉", label: "3°", amount: prizes.third },
-              { icon: "🎟️", label: t("prize_last"), amount: prizes.last },
-            ].map(p => (
-              <div key={p.label} className="flex items-center gap-1">
-                <span>{p.icon}</span>
-                <span className="text-[#7ab88a]">{p.label}:</span>
-                <span className="text-white font-semibold">${p.amount.toFixed(0)}</span>
-              </div>
-            ))}
-            {mySubmittedCount > 0 && (
-              <div className="w-full flex items-center gap-2 text-xs" style={{ borderTop: "1px solid #2a5438", paddingTop: "6px", marginTop: "2px" }}>
-                <span className="text-[#7ab88a]">Tus quinielas:</span>
-                <span className="text-white font-semibold">{mySubmittedCount}</span>
-                <span className="text-[#2a5438]">·</span>
-                <span className="text-[#7ab88a]">Total a pagar:</span>
-                <span className="text-[#F5C518] font-black">${userOwes.toFixed(0)} {currency}</span>
-              </div>
+            {isPhysicalPrize ? (
+              <>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[#F5C518] font-black uppercase tracking-wider">Premios</span>
+                  <span className="text-[#2a5438]">·</span>
+                  <span className="text-[#7ab88a]">{totalQ} quiniela{totalQ !== 1 ? "s" : ""}</span>
+                </div>
+                <span className="text-[#2a5438] hidden sm:inline">|</span>
+                {[
+                  { icon: "🥇", label: "1º", value: prize1st },
+                  { icon: "🥈", label: "2º", value: prize2nd },
+                  { icon: "🥉", label: "3º", value: prize3rd },
+                ].map(({ icon, label, value }) => (
+                  <div key={label} className="flex items-center gap-1">
+                    <span>{icon}</span>
+                    <span className="text-[#7ab88a]">{label}:</span>
+                    <span className="text-white font-semibold">{value ?? "Por definir"}</span>
+                  </div>
+                ))}
+                {mySubmittedCount > 0 && (
+                  <div className="w-full flex items-center gap-2 text-xs" style={{ borderTop: "1px solid #2a5438", paddingTop: "6px", marginTop: "2px" }}>
+                    <span className="text-[#7ab88a]">Tus quinielas:</span>
+                    <span className="text-white font-semibold">{mySubmittedCount}</span>
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-2">
+                  <span className="text-[#F5C518] font-black uppercase tracking-wider">{t("prize_pool")}</span>
+                  <span className="text-white font-black">${pool.toFixed(0)}</span>
+                  <span className="text-[#4a7a5a]">{currency}</span>
+                  <span className="text-[#2a5438]">·</span>
+                  <span className="text-[#7ab88a]">{totalQ} quiniela{totalQ !== 1 ? "s" : ""}</span>
+                </div>
+                <span className="text-[#2a5438] hidden sm:inline">|</span>
+                {[
+                  { icon: "🥇", label: "1°", amount: prizes.first },
+                  { icon: "🥈", label: "2°", amount: prizes.second },
+                  { icon: "🥉", label: "3°", amount: prizes.third },
+                  { icon: "🎟️", label: t("prize_last"), amount: prizes.last },
+                ].map(p => (
+                  <div key={p.label} className="flex items-center gap-1">
+                    <span>{p.icon}</span>
+                    <span className="text-[#7ab88a]">{p.label}:</span>
+                    <span className="text-white font-semibold">${p.amount.toFixed(0)}</span>
+                  </div>
+                ))}
+                {mySubmittedCount > 0 && (
+                  <div className="w-full flex items-center gap-2 text-xs" style={{ borderTop: "1px solid #2a5438", paddingTop: "6px", marginTop: "2px" }}>
+                    <span className="text-[#7ab88a]">Tus quinielas:</span>
+                    <span className="text-white font-semibold">{mySubmittedCount}</span>
+                    <span className="text-[#2a5438]">·</span>
+                    <span className="text-[#7ab88a]">Total a pagar:</span>
+                    <span className="text-[#F5C518] font-black">${userOwes.toFixed(0)} {currency}</span>
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}

@@ -75,7 +75,7 @@ export function calculatePredictionScore(
     }
   }
 
-  const totalPoints = (base + bonus) * multiplier + penaltyBonus
+  const totalPoints = Math.round((base + bonus) * multiplier) + penaltyBonus
 
   return {
     points: totalPoints,

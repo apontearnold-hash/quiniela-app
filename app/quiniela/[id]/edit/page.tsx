@@ -31,15 +31,23 @@ export default async function EditQuinielaPage({ params }: { params: Promise<{ i
 
   // Pool price + user's already-submitted count in this pool (for confirm dialog)
   const poolId = quiniela.pool_id as string | null
-  const [{ data: poolData }, { count: alreadySubmitted }] = await Promise.all([
+  const [{ data: poolData }, { count: alreadySubmitted }, { data: kfStatuses }] = await Promise.all([
     poolId
-      ? supabase.from("pools").select("price_per_quiniela, currency").eq("id", poolId).single()
+      ? supabase.from("pools").select("price_per_quiniela, currency, knockout_editing_open, prize_type, prize_1st, prize_2nd, prize_3rd").eq("id", poolId).single()
       : Promise.resolve({ data: null, error: null }),
     poolId
       ? supabase.from("quinielas").select("id", { count: "exact", head: true })
           .eq("user_id", user.id).eq("pool_id", poolId).eq("status", "submitted")
       : Promise.resolve({ count: 0, error: null }),
+    supabase.from("fixtures").select("bracket_position, status").not("bracket_position", "is", null),
   ])
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const knockoutEditable = (poolData as any)?.knockout_editing_open === true
+  const knockoutStatusMap: Record<string, string> = {}
+  for (const f of kfStatuses ?? []) {
+    if (f.bracket_position) knockoutStatusMap[f.bracket_position] = f.status ?? "not_started"
+  }
 
   // Only real group-stage fixtures from API — knockout slots come from BRACKET_FIXTURES constant
   const { data: groupFixtures } = await supabase
@@ -74,7 +82,7 @@ export default async function EditQuinielaPage({ params }: { params: Promise<{ i
 
   const lockDate = await getLockDate(supabase, groupFixtures ?? [])
 
-  const isLocked = lockDate ? Date.now() >= new Date(lockDate).getTime() : false
+  const isLocked = lockDate ? new Date().getTime() >= new Date(lockDate).getTime() : false
   const quinielaStatus = (quiniela.status ?? "draft") as "draft" | "submitted"
 
   // Teams for bonus dropdowns — built from group fixtures only
@@ -144,7 +152,13 @@ export default async function EditQuinielaPage({ params }: { params: Promise<{ i
             }}
             poolPrice={poolData?.price_per_quiniela ?? undefined}
             poolCurrency={poolData?.currency ?? undefined}
+            poolPrizeType={(poolData as any)?.prize_type === "physical" ? "physical" : "money"}
+            poolPrize1st={(poolData as any)?.prize_1st ?? null}
+            poolPrize2nd={(poolData as any)?.prize_2nd ?? null}
+            poolPrize3rd={(poolData as any)?.prize_3rd ?? null}
             submittedCount={alreadySubmitted ?? 0}
+            knockoutEditable={knockoutEditable}
+            knockoutStatusMap={knockoutStatusMap}
           />
         )}
       </div>

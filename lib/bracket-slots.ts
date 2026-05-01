@@ -24,49 +24,49 @@ interface RawSlot {
 }
 
 const RAW_SLOTS: RawSlot[] = [
-  // ── Round of 32 (16 games, Jun 29 – Jul 6) ─────────────────────────────
-  { slot_key: "R32-01", phase: "round_of_32", home_placeholder: "1ro Grupo A",   away_placeholder: "2do Grupo B",            kickoff: "2026-06-29T17:00:00Z" },
-  { slot_key: "R32-02", phase: "round_of_32", home_placeholder: "1ro Grupo C",   away_placeholder: "2do Grupo F",            kickoff: "2026-06-29T20:00:00Z" },
-  { slot_key: "R32-03", phase: "round_of_32", home_placeholder: "1ro Grupo E",   away_placeholder: "Mejor 3ro (A/B/C/D/F)", kickoff: "2026-06-30T17:00:00Z" },
-  { slot_key: "R32-04", phase: "round_of_32", home_placeholder: "1ro Grupo F",   away_placeholder: "2do Grupo C",            kickoff: "2026-06-30T20:00:00Z" },
-  { slot_key: "R32-05", phase: "round_of_32", home_placeholder: "2do Grupo E",   away_placeholder: "2do Grupo I",            kickoff: "2026-07-01T17:00:00Z" },
-  { slot_key: "R32-06", phase: "round_of_32", home_placeholder: "1ro Grupo I",   away_placeholder: "Mejor 3ro (C/D/F/G/H)", kickoff: "2026-07-01T20:00:00Z" },
-  { slot_key: "R32-07", phase: "round_of_32", home_placeholder: "2do Grupo A",   away_placeholder: "Mejor 3ro (C/E/F/H/I)", kickoff: "2026-07-02T17:00:00Z" },
-  { slot_key: "R32-08", phase: "round_of_32", home_placeholder: "1ro Grupo L",   away_placeholder: "Mejor 3ro (E/H/I/J/K)", kickoff: "2026-07-02T20:00:00Z" },
-  { slot_key: "R32-09", phase: "round_of_32", home_placeholder: "1ro Grupo G",   away_placeholder: "Mejor 3ro (A/E/H/I/J)", kickoff: "2026-07-03T17:00:00Z" },
-  { slot_key: "R32-10", phase: "round_of_32", home_placeholder: "1ro Grupo D",   away_placeholder: "Mejor 3ro (B/E/F/I/J)", kickoff: "2026-07-03T20:00:00Z" },
-  { slot_key: "R32-11", phase: "round_of_32", home_placeholder: "1ro Grupo H",   away_placeholder: "2do Grupo J",            kickoff: "2026-07-04T17:00:00Z" },
-  { slot_key: "R32-12", phase: "round_of_32", home_placeholder: "2do Grupo K",   away_placeholder: "2do Grupo L",            kickoff: "2026-07-04T20:00:00Z" },
-  { slot_key: "R32-13", phase: "round_of_32", home_placeholder: "1ro Grupo B",   away_placeholder: "Mejor 3ro (E/F/G/I/J)", kickoff: "2026-07-05T17:00:00Z" },
-  { slot_key: "R32-14", phase: "round_of_32", home_placeholder: "2do Grupo D",   away_placeholder: "2do Grupo G",            kickoff: "2026-07-05T20:00:00Z" },
-  { slot_key: "R32-15", phase: "round_of_32", home_placeholder: "1ro Grupo J",   away_placeholder: "2do Grupo H",            kickoff: "2026-07-06T17:00:00Z" },
-  { slot_key: "R32-16", phase: "round_of_32", home_placeholder: "1ro Grupo K",   away_placeholder: "Mejor 3ro (D/E/I/J/L)", kickoff: "2026-07-06T20:00:00Z" },
+  // ── Round of 32 (16 games, Jun 28 – Jul 3) ─────────────────────────────
+  { slot_key: "R32-01", phase: "round_of_32", home_placeholder: "2do Grupo A",   away_placeholder: "2do Grupo B",            kickoff: "2026-06-28T19:00:00Z" },
+  { slot_key: "R32-02", phase: "round_of_32", home_placeholder: "1ro Grupo E",   away_placeholder: "Mejor 3ro (A/B/C/D/F)", kickoff: "2026-06-29T17:00:00Z" },
+  { slot_key: "R32-03", phase: "round_of_32", home_placeholder: "1ro Grupo F",   away_placeholder: "2do Grupo C",            kickoff: "2026-06-29T20:00:00Z" },
+  { slot_key: "R32-04", phase: "round_of_32", home_placeholder: "1ro Grupo C",   away_placeholder: "2do Grupo F",            kickoff: "2026-06-29T23:00:00Z" },
+  { slot_key: "R32-05", phase: "round_of_32", home_placeholder: "1ro Grupo I",   away_placeholder: "Mejor 3ro (C/D/F/G/H)", kickoff: "2026-06-30T17:00:00Z" },
+  { slot_key: "R32-06", phase: "round_of_32", home_placeholder: "2do Grupo E",   away_placeholder: "2do Grupo I",            kickoff: "2026-06-30T20:00:00Z" },
+  { slot_key: "R32-07", phase: "round_of_32", home_placeholder: "1ro Grupo A",   away_placeholder: "Mejor 3ro (C/E/F/H/I)", kickoff: "2026-06-30T23:00:00Z" },
+  { slot_key: "R32-08", phase: "round_of_32", home_placeholder: "1ro Grupo L",   away_placeholder: "Mejor 3ro (E/H/I/J/K)", kickoff: "2026-07-01T16:00:00Z" },
+  { slot_key: "R32-09", phase: "round_of_32", home_placeholder: "1ro Grupo D",   away_placeholder: "Mejor 3ro (B/E/F/I/J)", kickoff: "2026-07-01T20:00:00Z" },
+  { slot_key: "R32-10", phase: "round_of_32", home_placeholder: "1ro Grupo G",   away_placeholder: "Mejor 3ro (A/E/H/I/J)", kickoff: "2026-07-01T22:00:00Z" },
+  { slot_key: "R32-11", phase: "round_of_32", home_placeholder: "2do Grupo K",   away_placeholder: "2do Grupo L",            kickoff: "2026-07-02T17:00:00Z" },
+  { slot_key: "R32-12", phase: "round_of_32", home_placeholder: "1ro Grupo H",   away_placeholder: "2do Grupo J",            kickoff: "2026-07-02T19:00:00Z" },
+  { slot_key: "R32-13", phase: "round_of_32", home_placeholder: "1ro Grupo B",   away_placeholder: "Mejor 3ro (E/F/G/I/J)", kickoff: "2026-07-02T22:00:00Z" },
+  { slot_key: "R32-14", phase: "round_of_32", home_placeholder: "1ro Grupo J",   away_placeholder: "2do Grupo H",            kickoff: "2026-07-03T17:00:00Z" },
+  { slot_key: "R32-15", phase: "round_of_32", home_placeholder: "1ro Grupo K",   away_placeholder: "Mejor 3ro (D/E/I/J/L)", kickoff: "2026-07-03T20:00:00Z" },
+  { slot_key: "R32-16", phase: "round_of_32", home_placeholder: "2do Grupo D",   away_placeholder: "2do Grupo G",            kickoff: "2026-07-03T23:00:00Z" },
 
-  // ── Round of 16 (8 games, Jul 8–11) ────────────────────────────────────
-  { slot_key: "R16-01", phase: "round_of_16", home_placeholder: "Ganador R32-01", away_placeholder: "Ganador R32-02", kickoff: "2026-07-08T17:00:00Z" },
-  { slot_key: "R16-02", phase: "round_of_16", home_placeholder: "Ganador R32-03", away_placeholder: "Ganador R32-04", kickoff: "2026-07-08T20:00:00Z" },
-  { slot_key: "R16-03", phase: "round_of_16", home_placeholder: "Ganador R32-05", away_placeholder: "Ganador R32-06", kickoff: "2026-07-09T17:00:00Z" },
-  { slot_key: "R16-04", phase: "round_of_16", home_placeholder: "Ganador R32-07", away_placeholder: "Ganador R32-08", kickoff: "2026-07-09T20:00:00Z" },
-  { slot_key: "R16-05", phase: "round_of_16", home_placeholder: "Ganador R32-09", away_placeholder: "Ganador R32-10", kickoff: "2026-07-10T17:00:00Z" },
-  { slot_key: "R16-06", phase: "round_of_16", home_placeholder: "Ganador R32-11", away_placeholder: "Ganador R32-12", kickoff: "2026-07-10T20:00:00Z" },
-  { slot_key: "R16-07", phase: "round_of_16", home_placeholder: "Ganador R32-13", away_placeholder: "Ganador R32-14", kickoff: "2026-07-11T17:00:00Z" },
-  { slot_key: "R16-08", phase: "round_of_16", home_placeholder: "Ganador R32-15", away_placeholder: "Ganador R32-16", kickoff: "2026-07-11T20:00:00Z" },
+  // ── Round of 16 (8 games, Jul 4–7) ─────────────────────────────────────
+  { slot_key: "R16-01", phase: "round_of_16", home_placeholder: "Ganador R32-02", away_placeholder: "Ganador R32-05", kickoff: "2026-07-04T21:00:00Z" },
+  { slot_key: "R16-02", phase: "round_of_16", home_placeholder: "Ganador R32-01", away_placeholder: "Ganador R32-03", kickoff: "2026-07-04T17:00:00Z" },
+  { slot_key: "R16-03", phase: "round_of_16", home_placeholder: "Ganador R32-04", away_placeholder: "Ganador R32-06", kickoff: "2026-07-05T21:00:00Z" },
+  { slot_key: "R16-04", phase: "round_of_16", home_placeholder: "Ganador R32-07", away_placeholder: "Ganador R32-08", kickoff: "2026-07-05T23:00:00Z" },
+  { slot_key: "R16-05", phase: "round_of_16", home_placeholder: "Ganador R32-11", away_placeholder: "Ganador R32-12", kickoff: "2026-07-06T20:00:00Z" },
+  { slot_key: "R16-06", phase: "round_of_16", home_placeholder: "Ganador R32-09", away_placeholder: "Ganador R32-10", kickoff: "2026-07-06T22:00:00Z" },
+  { slot_key: "R16-07", phase: "round_of_16", home_placeholder: "Ganador R32-14", away_placeholder: "Ganador R32-16", kickoff: "2026-07-07T16:00:00Z" },
+  { slot_key: "R16-08", phase: "round_of_16", home_placeholder: "Ganador R32-13", away_placeholder: "Ganador R32-15", kickoff: "2026-07-07T20:00:00Z" },
 
-  // ── Quarterfinals (4 games, Jul 14–15) ─────────────────────────────────
-  { slot_key: "QF-01", phase: "quarterfinals", home_placeholder: "Ganador R16-01", away_placeholder: "Ganador R16-02", kickoff: "2026-07-14T17:00:00Z" },
-  { slot_key: "QF-02", phase: "quarterfinals", home_placeholder: "Ganador R16-03", away_placeholder: "Ganador R16-04", kickoff: "2026-07-14T20:00:00Z" },
-  { slot_key: "QF-03", phase: "quarterfinals", home_placeholder: "Ganador R16-05", away_placeholder: "Ganador R16-06", kickoff: "2026-07-15T17:00:00Z" },
-  { slot_key: "QF-04", phase: "quarterfinals", home_placeholder: "Ganador R16-07", away_placeholder: "Ganador R16-08", kickoff: "2026-07-15T20:00:00Z" },
+  // ── Quarterfinals (4 games, Jul 9–12) ──────────────────────────────────
+  { slot_key: "QF-01", phase: "quarterfinals", home_placeholder: "Ganador R16-01", away_placeholder: "Ganador R16-02", kickoff: "2026-07-09T21:00:00Z" },
+  { slot_key: "QF-02", phase: "quarterfinals", home_placeholder: "Ganador R16-05", away_placeholder: "Ganador R16-06", kickoff: "2026-07-10T19:00:00Z" },
+  { slot_key: "QF-03", phase: "quarterfinals", home_placeholder: "Ganador R16-03", away_placeholder: "Ganador R16-04", kickoff: "2026-07-11T21:00:00Z" },
+  { slot_key: "QF-04", phase: "quarterfinals", home_placeholder: "Ganador R16-07", away_placeholder: "Ganador R16-08", kickoff: "2026-07-12T01:00:00Z" },
 
-  // ── Semifinals (2 games, Jul 18–19) ────────────────────────────────────
-  { slot_key: "SF-01", phase: "semifinals", home_placeholder: "Ganador QF-01", away_placeholder: "Ganador QF-02", kickoff: "2026-07-18T20:00:00Z" },
-  { slot_key: "SF-02", phase: "semifinals", home_placeholder: "Ganador QF-03", away_placeholder: "Ganador QF-04", kickoff: "2026-07-19T20:00:00Z" },
+  // ── Semifinals (2 games, Jul 14–15) ────────────────────────────────────
+  { slot_key: "SF-01", phase: "semifinals", home_placeholder: "Ganador QF-01", away_placeholder: "Ganador QF-02", kickoff: "2026-07-14T19:00:00Z" },
+  { slot_key: "SF-02", phase: "semifinals", home_placeholder: "Ganador QF-03", away_placeholder: "Ganador QF-04", kickoff: "2026-07-15T19:00:00Z" },
 
-  // ── Third place (Jul 21) ────────────────────────────────────────────────
-  { slot_key: "3P",  phase: "semifinals", home_placeholder: "Perdedor SF-01", away_placeholder: "Perdedor SF-02", kickoff: "2026-07-21T17:00:00Z" },
+  // ── Third place (Jul 18) ────────────────────────────────────────────────
+  { slot_key: "3P",  phase: "semifinals", home_placeholder: "Perdedor SF-01", away_placeholder: "Perdedor SF-02", kickoff: "2026-07-18T21:00:00Z" },
 
-  // ── Final (Jul 22) ─────────────────────────────────────────────────────
-  { slot_key: "FIN", phase: "final",     home_placeholder: "Ganador SF-01",  away_placeholder: "Ganador SF-02",  kickoff: "2026-07-22T20:00:00Z" },
+  // ── Final (Jul 19) ─────────────────────────────────────────────────────
+  { slot_key: "FIN", phase: "final",     home_placeholder: "Ganador SF-01",  away_placeholder: "Ganador SF-02",  kickoff: "2026-07-19T19:00:00Z" },
 ]
 
 export const BRACKET_SLOTS = RAW_SLOTS.map((s, i) => ({
