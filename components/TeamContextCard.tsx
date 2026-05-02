@@ -29,20 +29,12 @@ interface RecentFixture {
   result:       "W" | "D" | "L" | null
 }
 
-interface TopScorer {
-  id:    number
-  name:  string
-  photo: string
-  team:  string
-  goals: number
-}
-
 interface TeamContext {
   found:          boolean
   competition:    Competition | null
   standing:       Standing | null
   recentFixtures: RecentFixture[]
-  topScorers:     TopScorer[]
+  topScorers:     unknown[]
 }
 
 // ── Props ─────────────────────────────────────────────────────────────────────
@@ -110,10 +102,29 @@ export default function TeamContextCard({ teamId, teamName, teamFlag, league, se
     )
   }
 
-  // Team not found in any known competition — render nothing silently
-  if (!data || !data.found) return null
+  // Team not found in any known competition — show minimal fallback so both cards remain visible
+  if (!data || !data.found) {
+    return (
+      <div style={{
+        background: "white", border: "1px solid #e5e7eb", borderRadius: "16px",
+        padding: "16px", display: "flex", flexDirection: "column", gap: "8px",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          {teamFlag && (
+            <img src={teamFlag} alt="" style={{ width: "22px", height: "16px", objectFit: "contain", borderRadius: "3px", flexShrink: 0 }} />
+          )}
+          <p style={{ fontSize: "13px", fontWeight: 800, color: "#111827", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {teamName}
+          </p>
+        </div>
+        <p style={{ fontSize: "11px", color: "#9ca3af", margin: 0 }}>
+          Datos de clasificación no disponibles.
+        </p>
+      </div>
+    )
+  }
 
-  const { competition, standing, recentFixtures, topScorers } = data
+  const { competition, standing, recentFixtures } = data
 
   const qualThreshold = competition
     ? (QUALIFIED_RANKS[competition.confederation] ?? 6)
@@ -175,6 +186,33 @@ export default function TeamContextCard({ teamId, teamName, teamFlag, league, se
         </div>
       )}
 
+      {/* ── Recent form ── */}
+      {standing?.form && (() => {
+        const chars = standing.form.split("").filter(c => ["W","D","L"].includes(c)).slice(0, 5)
+        if (!chars.length) return null
+        return (
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span style={{ fontSize: "10px", color: "#9ca3af", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", flexShrink: 0 }}>
+              Forma
+            </span>
+            <div style={{ display: "flex", gap: "3px" }}>
+              {chars.map((r, i) => {
+                const s = r === "W"
+                  ? { background: "#dcfce7", color: "#15803d" }
+                  : r === "L"
+                  ? { background: "#fee2e2", color: "#dc2626" }
+                  : { background: "#f3f4f6", color: "#4b5563" }
+                return (
+                  <span key={i} style={{ width: "20px", height: "20px", borderRadius: "5px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", fontWeight: 800, flexShrink: 0, ...s }}>
+                    {r}
+                  </span>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })()}
+
       {/* ── Recent fixtures ── */}
       {recentFixtures.length > 0 && (
         <div>
@@ -205,8 +243,8 @@ export default function TeamContextCard({ teamId, teamName, teamFlag, league, se
                     </span>
                   </div>
                   <span style={{ fontSize: "11px", fontWeight: 700, color: "#111827", flexShrink: 0 }}>{score}</span>
-                  <span style={{ fontSize: "10px", color: "#9ca3af", flexShrink: 0, minWidth: "36px", textAlign: "right" }}>
-                    {fx.date.slice(5).replace("-", "/")}
+                  <span style={{ fontSize: "10px", color: "#9ca3af", flexShrink: 0, minWidth: "60px", textAlign: "right" }}>
+                    {new Date(fx.date + "T12:00:00").toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" })}
                   </span>
                 </div>
               )
@@ -215,35 +253,6 @@ export default function TeamContextCard({ teamId, teamName, teamFlag, league, se
         </div>
       )}
 
-      {/* ── Top scorers ── */}
-      {topScorers.length > 0 && (
-        <div style={{ borderTop: "1px solid #f3f4f6", paddingTop: "10px" }}>
-          <p style={{ fontSize: "10px", color: "#6b7280", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 6px" }}>
-            Goleadores · {competition?.confederation ?? "Competición"}
-          </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            {topScorers.map((p, i) => (
-              <div key={p.id} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <span style={{ fontSize: "10px", color: "#9ca3af", fontWeight: 700, width: "14px", textAlign: "right", flexShrink: 0 }}>
-                  {i + 1}.
-                </span>
-                <span style={{ fontSize: "11px", color: "#111827", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {p.name}
-                </span>
-                <span style={{ fontSize: "10px", color: "#6b7280", flexShrink: 0, overflow: "hidden", textOverflow: "ellipsis", maxWidth: "80px", whiteSpace: "nowrap" }}>
-                  {p.team}
-                </span>
-                <span style={{
-                  fontSize: "11px", fontWeight: 800, color: "#d97706",
-                  background: "#fef9c3", borderRadius: "6px", padding: "1px 6px", flexShrink: 0,
-                }}>
-                  {p.goals}⚽
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
     </div>
   )

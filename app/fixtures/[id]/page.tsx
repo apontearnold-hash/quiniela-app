@@ -6,6 +6,7 @@ import Link from "next/link"
 import type { Fixture } from "@/lib/types"
 import { getServerT } from "@/lib/server-lang"
 import TeamContextCard from "@/components/TeamContextCard"
+import FixtureTopScorers from "@/components/FixtureTopScorers"
 
 export const dynamic = "force-dynamic"
 
@@ -26,6 +27,11 @@ interface TeamStats {
 
 interface PlayerInLineup {
   player: { id: number; name: string; number: number; pos: string; grid: string | null }
+}
+interface H2HFixture {
+  fixture: { id: number; date: string; status: { short: string } }
+  teams:   { home: { id: number; name: string; logo: string }; away: { id: number; name: string; logo: string } }
+  goals:   { home: number | null; away: number | null }
 }
 interface TeamLineup {
   team:        { id: number; name: string; logo: string }
@@ -107,17 +113,33 @@ export default async function FixtureDetailPage({ params }: { params: Promise<{ 
 
   const fixture = fixtureRaw as Fixture | null
 
+  // Derive status before API calls so cache TTL can be set per match state.
+  const isNotStarted = fixture?.status === "not_started" || fixture?.status_short === "NS"
+  const isFinished   = fixture?.status === "finished"
+  const isLive       = fixture?.status === "live"
+
+  // Cache strategy:
+  //   live      → no-store (score/events change every minute)
+  //   finished  → 86400s  (result is immutable)
+  //   not yet   → 3600s   (probable lineups may appear a few hours before KO)
+  const detailsCacheOpts = isLive
+    ? undefined
+    : isFinished
+    ? { revalidate: 86400 }
+    : { revalidate: 3600 }
+
   let events:     FixtureEvent[]  = []
   let statistics: TeamStats[]     = []
   let lineups:    TeamLineup[]    = []
+  let h2h:        H2HFixture[]    = []
   let apiError:   string | null   = null
 
   if (!isBracketSlot && getApiKey() && fixture) {
     try {
       const [evRes, stRes, liRes] = await Promise.all([
-        apiFetch(`/fixtures/events?fixture=${fixtureId}`),
-        apiFetch(`/fixtures/statistics?fixture=${fixtureId}`),
-        apiFetch(`/fixtures/lineups?fixture=${fixtureId}`),
+        apiFetch(`/fixtures/events?fixture=${fixtureId}`,    detailsCacheOpts),
+        apiFetch(`/fixtures/statistics?fixture=${fixtureId}`, detailsCacheOpts),
+        apiFetch(`/fixtures/lineups?fixture=${fixtureId}`,   detailsCacheOpts),
       ])
       const [evData, stData, liData] = await Promise.all([
         evRes.json(), stRes.json(), liRes.json(),
@@ -130,9 +152,18 @@ export default async function FixtureDetailPage({ params }: { params: Promise<{ 
     }
   }
 
-  const isNotStarted = fixture?.status === "not_started" || fixture?.status_short === "NS"
-  const isFinished   = fixture?.status === "finished"
-  const isLive       = fixture?.status === "live"
+  if (!isBracketSlot && getApiKey() && fixture?.home_team_id && fixture?.away_team_id) {
+    try {
+      const h2hRes = await apiFetch(
+        `/fixtures/headtohead?h2h=${fixture.home_team_id}-${fixture.away_team_id}&last=5`,
+        { revalidate: 86400 },
+      )
+      if (h2hRes.ok) {
+        const h2hData = await h2hRes.json()
+        h2h = h2hData.response ?? []
+      }
+    } catch { /* h2h is informational only */ }
+  }
 
   function statusLabel(short: string | null, elapsed: number | null): string {
     if (!short) return ""
@@ -279,6 +310,55 @@ export default async function FixtureDetailPage({ params }: { params: Promise<{ 
                 teamName={fixture.away_team_name ?? ""}
                 teamFlag={fixture.away_team_flag}
               />
+            )}
+          </div>
+        )}
+
+        {/* ══ Qualifying top scorers (shared section, clearly labeled) ══ */}
+        {!isBracketSlot && fixture?.phase === "groups" &&
+          fixture.home_team_id && fixture.away_team_id && (
+          <FixtureTopScorers
+            homeTeamId={fixture.home_team_id}
+            awayTeamId={fixture.away_team_id}
+          />
+        )}
+
+        {/* ══ Head-to-head ════════════════════════════════════════════ */}
+        {!isBracketSlot && fixture && getApiKey() &&
+          fixture.home_team_id && fixture.away_team_id && (
+          <div className="rounded-2xl p-5 mb-5" style={cardStyle}>
+            <SectionTitle label="Enfrentamientos recientes" />
+            {h2h.length === 0 ? (
+              <p className="text-[#9ca3af] text-sm text-center py-4">
+                No hay enfrentamientos recientes disponibles.
+              </p>
+            ) : (
+              <div className="flex flex-col gap-0">
+                {h2h.map((m) => {
+                  const d = new Date(m.fixture.date)
+                  const dateLabel = d.toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" })
+                  return (
+                    <div key={m.fixture.id} className="flex items-center gap-3 py-2.5 border-t border-[#f3f4f6] first:border-t-0">
+                      <span className="text-[#9ca3af] text-xs flex-shrink-0 w-[90px]">{dateLabel}</span>
+                      <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                        {m.teams.home.logo && (
+                          <img src={m.teams.home.logo} alt="" className="w-4 h-4 object-contain flex-shrink-0" />
+                        )}
+                        <span className="text-[#111827] text-xs font-semibold truncate">{m.teams.home.name}</span>
+                      </div>
+                      <span className="text-sm font-black flex-shrink-0 tabular-nums" style={{ color: "#F5C518" }}>
+                        {m.goals.home ?? "–"}&nbsp;–&nbsp;{m.goals.away ?? "–"}
+                      </span>
+                      <div className="flex items-center gap-1.5 flex-1 min-w-0 justify-end">
+                        <span className="text-[#111827] text-xs font-semibold truncate text-right">{m.teams.away.name}</span>
+                        {m.teams.away.logo && (
+                          <img src={m.teams.away.logo} alt="" className="w-4 h-4 object-contain flex-shrink-0" />
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
             )}
           </div>
         )}
