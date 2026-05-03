@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import Link from "next/link"
 import type { Fixture } from "@/lib/types"
 
@@ -50,6 +51,16 @@ function StatusBadge({ fixture }: { fixture: Fixture }) {
 }
 
 export default function MundialCalendar({ fixtures }: Props) {
+  const [query, setQuery] = useState("")
+
+  const filtered = query.trim()
+    ? fixtures.filter(f =>
+        [f.home_team_name, f.away_team_name].some(
+          n => n?.toLowerCase().includes(query.toLowerCase().trim()),
+        )
+      )
+    : fixtures
+
   if (fixtures.length === 0) {
     return (
       <div className="text-center py-20">
@@ -61,7 +72,7 @@ export default function MundialCalendar({ fixtures }: Props) {
 
   // Group by local date
   const byDate = new Map<string, { label: string; items: Fixture[] }>()
-  for (const f of fixtures) {
+  for (const f of filtered) {
     const key = localDateKey(f.kickoff)
     if (!byDate.has(key)) byDate.set(key, { label: formatDateHeader(f.kickoff), items: [] })
     byDate.get(key)!.items.push(f)
@@ -69,8 +80,35 @@ export default function MundialCalendar({ fixtures }: Props) {
   const sortedDates = Array.from(byDate.entries()).sort(([a], [b]) => a.localeCompare(b))
 
   return (
-    <div className="space-y-8">
-      {sortedDates.map(([dateKey, { label, items }]) => (
+    <>
+      {/* Search bar */}
+      <div className="relative mb-5">
+        <input
+          type="text"
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          placeholder="Buscar equipo (ej. Spain, France)"
+          className="w-full px-4 py-2.5 pr-10 rounded-xl text-sm border border-[#d1d5db] bg-white focus:outline-none focus:border-[#6b7280] transition-colors"
+        />
+        {query && (
+          <button
+            onClick={() => setQuery("")}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9ca3af] hover:text-[#374151] text-xl leading-none"
+            aria-label="Limpiar búsqueda"
+          >
+            ×
+          </button>
+        )}
+      </div>
+
+      {query && filtered.length === 0 && (
+        <p className="text-[#9ca3af] text-sm text-center py-10">
+          No hay partidos que coincidan con &quot;{query}&quot;.
+        </p>
+      )}
+
+      <div className="space-y-8">
+        {sortedDates.map(([dateKey, { label, items }]) => (
         <div key={dateKey}>
           {/* Date header — appears once per day */}
           <div className="flex items-center gap-3 mb-3">
@@ -157,7 +195,8 @@ export default function MundialCalendar({ fixtures }: Props) {
             })}
           </div>
         </div>
-      ))}
-    </div>
+        ))}
+      </div>
+    </>
   )
 }

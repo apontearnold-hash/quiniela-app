@@ -39,8 +39,12 @@ export default function MundialGroups({ standings, fixtures, onTeamSelect }: Pro
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2">
-      {allGroups.map(groupName => {
+    <div>
+      <p className="text-[#6b7280] text-sm mb-4">
+        Toca un equipo para ver su información y partidos.
+      </p>
+      <div className="grid gap-4 md:grid-cols-2">
+        {allGroups.map(groupName => {
         const groupStandings = groupsMap.get(groupName) ?? []
         const groupFixtures  = fixturesMap.get(groupName) ?? []
 
@@ -64,14 +68,16 @@ export default function MundialGroups({ standings, fixtures, onTeamSelect }: Pro
             {groupStandings.length > 0 && (
               <>
                 <div
-                  className="grid gap-0 px-3 py-1.5 text-[#4b5563] text-xs font-bold uppercase tracking-wider"
-                  style={{ background: "#f9fafb", borderBottom: "1px solid #e5e7eb", gridTemplateColumns: "1fr 26px 26px 26px 26px 30px 34px 18px" }}
+                  className="grid gap-0 px-3 py-1.5 text-[#4b5563] text-xs font-bold uppercase tracking-wider grid-cols-[1fr_26px_26px_26px_26px_30px_34px_16px] sm:grid-cols-[1fr_22px_20px_20px_20px_22px_22px_28px_32px_14px]"
+                  style={{ background: "#f9fafb", borderBottom: "1px solid #e5e7eb" }}
                 >
                   <span>Equipo</span>
                   <span className="text-center">J</span>
                   <span className="text-center">G</span>
                   <span className="text-center">E</span>
                   <span className="text-center">P</span>
+                  <span className="hidden sm:block text-center">GF</span>
+                  <span className="hidden sm:block text-center">GC</span>
                   <span className="text-center">DG</span>
                   <span className="text-center text-[#d97706]">Pts</span>
                   <span />
@@ -86,8 +92,7 @@ export default function MundialGroups({ standings, fixtures, onTeamSelect }: Pro
                       teamFlag: team.team_flag,
                     })}
                     title={`Ver información de ${team.team_name}`}
-                    className={`w-full grid gap-0 px-3 py-2 items-center border-t border-[#f3f4f6] text-left transition-colors group hover:bg-[#fef3c7] ${idx < 2 ? "bg-[#fffbeb]" : "bg-white"}`}
-                    style={{ gridTemplateColumns: "1fr 26px 26px 26px 26px 30px 34px 18px" }}
+                    className={`w-full grid gap-0 px-3 py-2 items-center border-t border-[#f3f4f6] text-left transition-colors group hover:bg-[#fef3c7] grid-cols-[1fr_26px_26px_26px_26px_30px_34px_16px] sm:grid-cols-[1fr_22px_20px_20px_20px_22px_22px_28px_32px_14px] ${idx < 2 ? "bg-[#fffbeb]" : "bg-white"}`}
                   >
                     <div className="flex items-center gap-2 min-w-0">
                       {idx < 2
@@ -103,6 +108,8 @@ export default function MundialGroups({ standings, fixtures, onTeamSelect }: Pro
                     <span className="text-center text-green-600 text-xs font-medium">{team.won}</span>
                     <span className="text-center text-[#d97706] text-xs">{team.drawn}</span>
                     <span className="text-center text-red-500 text-xs">{team.lost}</span>
+                    <span className="hidden sm:block text-center text-[#374151] text-xs">{team.goals_for}</span>
+                    <span className="hidden sm:block text-center text-[#374151] text-xs">{team.goals_against}</span>
                     <span className="text-center text-[#374151] text-xs">
                       {team.goal_difference > 0 ? `+${team.goal_difference}` : team.goal_difference}
                     </span>
@@ -167,7 +174,8 @@ export default function MundialGroups({ standings, fixtures, onTeamSelect }: Pro
             )}
           </div>
         )
-      })}
+        })}
+      </div>
     </div>
   )
 }
