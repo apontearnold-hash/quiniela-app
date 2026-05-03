@@ -12,8 +12,10 @@ export async function POST(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  // Ownership + fetch bonus fields in one query
-  const { data: quiniela } = await supabase
+  // Use admin client so RLS never hides the owner's own quiniela
+  const admin = createAdminClient()
+
+  const { data: quiniela } = await admin
     .from("quinielas")
     .select("id, user_id, status, top_scorer_pick, most_goals_team_pick")
     .eq("id", id)
@@ -25,9 +27,19 @@ export async function POST(
     return NextResponse.json({ error: "Ya fue enviada" }, { status: 400 })
   }
 
-  // ── Validation ────────────────────────────────────────────────────────────────
-  // Use admin client so RLS doesn't interfere with counting fixtures/picks.
-  const admin = createAdminClient()
+  // Lock date check — drafts cannot be submitted after the deadline
+  const [lockCfgRes, firstKickoffRes] = await Promise.all([
+    admin.from("tournament_config").select("lock_date").eq("id", 1).maybeSingle(),
+    admin.from("fixtures").select("kickoff").eq("phase", "groups").not("kickoff", "is", null).order("kickoff", { ascending: true }).limit(1).maybeSingle(),
+  ])
+  let lockDate: string | null = (lockCfgRes.data?.lock_date as string | null) ?? null
+  if (!lockDate) {
+    const k = firstKickoffRes.data?.kickoff as string | null | undefined
+    if (k) lockDate = new Date(new Date(k).toDateString()).toISOString()
+  }
+  if (lockDate && Date.now() >= new Date(lockDate).getTime()) {
+    return NextResponse.json({ error: "El cierre de quinielas ya pasó" }, { status: 403 })
+  }
 
   const [
     { count: groupTotal },
@@ -89,10 +101,13 @@ export async function POST(
   }
 
   // ── Mark as submitted ─────────────────────────────────────────────────────────
-  const { error } = await supabase
+  // Admin client required: RLS blocks UPDATE even for the owner in SSR context.
+  // Ownership was already verified above (quiniela.user_id === user.id).
+  const { error } = await admin
     .from("quinielas")
     .update({ status: "submitted", submitted_at: new Date().toISOString() })
     .eq("id", id)
+    .eq("user_id", user.id)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ success: true })

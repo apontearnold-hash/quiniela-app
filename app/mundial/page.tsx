@@ -32,7 +32,7 @@ export default async function MundialPage() {
   let topScorers: TopScorer[] = []
   if (getApiKey()) {
     try {
-      const res = await apiFetch(`/players/topscorers?league=${LEAGUE_ID}&season=${SEASON}`)
+      const res = await apiFetch(`/players/topscorers?league=${LEAGUE_ID}&season=${SEASON}`, { revalidate: 1800 })
       if (res.ok) {
         const json = await res.json()
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

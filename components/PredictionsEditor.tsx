@@ -700,7 +700,7 @@ export default function PredictionsEditor({
   const handleSubmit = async () => {
     setSubmitting(true); setSubmitError(null)
     const res = await fetch(`/api/quiniela/${quinielaId}/submit`, { method: "POST" })
-    if (res.ok) { setStatus("submitted"); setShowConfirm(false) }
+    if (res.ok) { setStatus("submitted"); setShowConfirm(false); setIsDirty(false) }
     else { const d = await res.json().catch(() => ({})); setSubmitError(d.error ?? "Error al enviar") }
     setSubmitting(false)
   }

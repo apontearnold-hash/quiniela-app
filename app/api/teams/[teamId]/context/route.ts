@@ -80,8 +80,8 @@ function shapeTopScorers(response: ApiTopScorer[]) {
 /** Fetch fixtures + top scorers for a known league and return shaped data. */
 async function fetchLeagueDetails(cfg: LeagueConfig, teamId: number) {
   const [fxRes, tsRes] = await Promise.all([
-    apiFetch(`/fixtures?league=${cfg.leagueId}&season=${cfg.season}&team=${teamId}&last=5`),
-    apiFetch(`/players/topscorers?league=${cfg.leagueId}&season=${cfg.season}`),
+    apiFetch(`/fixtures?league=${cfg.leagueId}&season=${cfg.season}&team=${teamId}&last=5`, { revalidate: 3600 }),
+    apiFetch(`/players/topscorers?league=${cfg.leagueId}&season=${cfg.season}`, { revalidate: 3600 }),
   ])
   const [fxData, tsData] = await Promise.all([fxRes.json(), tsRes.json()])
   return {
@@ -121,7 +121,7 @@ export async function GET(
         hasStandings:  true,
       }
 
-      const stRes  = await apiFetch(`/standings?league=${cfg.leagueId}&season=${cfg.season}`)
+      const stRes  = await apiFetch(`/standings?league=${cfg.leagueId}&season=${cfg.season}`, { revalidate: 3600 })
       const stData = await stRes.json()
       const groups = stData.response?.[0]?.league?.standings ?? []
       const raw    = findTeamInStandings(groups, tid)
@@ -147,7 +147,7 @@ export async function GET(
 
     const standingsResults = await Promise.allSettled(
       standingCandidates.map(async (cfg) => {
-        const res  = await apiFetch(`/standings?league=${cfg.leagueId}&season=${cfg.season}`)
+        const res  = await apiFetch(`/standings?league=${cfg.leagueId}&season=${cfg.season}`, { revalidate: 3600 })
         const data = await res.json()
         const groups: unknown[][] = data.response?.[0]?.league?.standings ?? []
         const raw = findTeamInStandings(groups, tid)
@@ -170,7 +170,7 @@ export async function GET(
     // Phase 1b: OFC fallback — check recent fixtures for team
     if (!matchedCfg) {
       for (const cfg of noStandingCandidates) {
-        const fxRes  = await apiFetch(`/fixtures?league=${cfg.leagueId}&season=${cfg.season}&team=${tid}&last=1`)
+        const fxRes  = await apiFetch(`/fixtures?league=${cfg.leagueId}&season=${cfg.season}&team=${tid}&last=1`, { revalidate: 3600 })
         const fxData = await fxRes.json()
         if ((fxData.response ?? []).length > 0) {
           matchedCfg = cfg

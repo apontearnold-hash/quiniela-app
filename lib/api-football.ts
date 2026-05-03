@@ -56,13 +56,36 @@ export function getApiKey(): string | null {
  * Hace un fetch a API-Sports con los headers de autenticación correctos.
  * Solo debe llamarse desde rutas server-side (app/api/...).
  * Lanza error si falta la API key.
+ *
+ * @param revalidate  Segundos para cachear la respuesta (Next.js Data Cache).
+ *                    Omitir → cache: "no-store" (siempre fresco).
+ *                    Útil para datos que cambian poco:
+ *                      standings qualifier  → 3600 (1h)
+ *                      squads              → 86400 (24h)
+ *                      top scorers Mundial → 1800 (30min)
+ *                    NO usar para eventos/estadísticas de partidos en vivo.
  */
-export async function apiFetch(path: string): Promise<Response> {
+export async function apiFetch(
+  path: string,
+  options?: { revalidate?: number },
+): Promise<Response> {
   const key = getApiKey()
   if (!key) throw new Error("API_FOOTBALL_KEY no configurada en .env.local")
+
+  if (process.env.NODE_ENV === "development") {
+    const cacheLabel = options?.revalidate !== undefined
+      ? `cached(${options.revalidate}s)`
+      : "no-store"
+    console.log(`[api-football] ${cacheLabel} → GET ${path}`)
+  }
+
+  const cacheConfig: RequestInit = options?.revalidate !== undefined
+    ? ({ next: { revalidate: options.revalidate } } as RequestInit)
+    : { cache: "no-store" }
+
   return fetch(`${BASE_URL}${path}`, {
     headers: { "x-apisports-key": key },
-    cache: "no-store",
+    ...cacheConfig,
   })
 }
 

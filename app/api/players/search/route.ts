@@ -101,7 +101,7 @@ export async function GET(req: NextRequest) {
   // No nationality mismatch possible since all squad members belong to that team.
   if (teamId) {
     try {
-      const res = await apiFetch(`/players/squads?team=${teamId}`)
+      const res = await apiFetch(`/players/squads?team=${teamId}`, { revalidate: 86400 })
       if (res.ok) {
         const json = await res.json()
         const entries: SquadEntry[] = json.response ?? []

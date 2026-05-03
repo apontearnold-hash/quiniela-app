@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase-server"
+import { createClient, createAdminClient } from "@/lib/supabase-server"
 import { redirect, notFound } from "next/navigation"
 import Navbar from "@/components/Navbar"
 import PredictionsEditor from "@/components/PredictionsEditor"
@@ -19,15 +19,18 @@ export default async function EditQuinielaPage({ params }: { params: Promise<{ i
 
   const isAdmin = user.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL
   const t = await getServerT()
+  const admin = createAdminClient()
 
-  const { data: quiniela } = await supabase
+  // Use admin client so RLS never hides the owner's own quiniela
+  const { data: quiniela } = await admin
     .from("quinielas")
     .select("*")
     .eq("id", id)
-    .eq("user_id", user.id)
     .single()
 
   if (!quiniela) notFound()
+  // Only the owner (or admin) may edit
+  if (quiniela.user_id !== user.id && !isAdmin) notFound()
 
   // Pool price + user's already-submitted count in this pool (for confirm dialog)
   const poolId = quiniela.pool_id as string | null
@@ -36,7 +39,7 @@ export default async function EditQuinielaPage({ params }: { params: Promise<{ i
       ? supabase.from("pools").select("price_per_quiniela, currency, knockout_editing_open, prize_type, prize_1st, prize_2nd, prize_3rd").eq("id", poolId).single()
       : Promise.resolve({ data: null, error: null }),
     poolId
-      ? supabase.from("quinielas").select("id", { count: "exact", head: true })
+      ? admin.from("quinielas").select("id", { count: "exact", head: true })
           .eq("user_id", user.id).eq("pool_id", poolId).eq("status", "submitted")
       : Promise.resolve({ count: 0, error: null }),
     supabase.from("fixtures").select("bracket_position, status").not("bracket_position", "is", null),
@@ -62,8 +65,8 @@ export default async function EditQuinielaPage({ params }: { params: Promise<{ i
     ...BRACKET_FIXTURES,
   ]
 
-  // Group stage predictions (keyed by fixture_id)
-  const { data: existingPreds } = await supabase
+  // Group stage predictions (keyed by fixture_id) — admin client bypasses RLS on predictions
+  const { data: existingPreds } = await admin
     .from("predictions")
     .select("*")
     .eq("quiniela_id", id)
@@ -71,8 +74,8 @@ export default async function EditQuinielaPage({ params }: { params: Promise<{ i
   const predMap: Record<number, Prediction> = {}
   existingPreds?.forEach(p => { predMap[p.fixture_id] = p as Prediction })
 
-  // Bracket picks (keyed by slot_key)
-  const { data: existingBracketPicks } = await supabase
+  // Bracket picks (keyed by slot_key) — admin client bypasses RLS on bracket_picks
+  const { data: existingBracketPicks } = await admin
     .from("bracket_picks")
     .select("*")
     .eq("quiniela_id", id)
@@ -152,10 +155,10 @@ export default async function EditQuinielaPage({ params }: { params: Promise<{ i
             }}
             poolPrice={poolData?.price_per_quiniela ?? undefined}
             poolCurrency={poolData?.currency ?? undefined}
-            poolPrizeType={(poolData as any)?.prize_type === "physical" ? "physical" : "money"}
-            poolPrize1st={(poolData as any)?.prize_1st ?? null}
-            poolPrize2nd={(poolData as any)?.prize_2nd ?? null}
-            poolPrize3rd={(poolData as any)?.prize_3rd ?? null}
+            poolPrizeType={(poolData as { prize_type?: string } | null)?.prize_type === "physical" ? "physical" : "money"}
+            poolPrize1st={(poolData as { prize_1st?: string | null } | null)?.prize_1st ?? null}
+            poolPrize2nd={(poolData as { prize_2nd?: string | null } | null)?.prize_2nd ?? null}
+            poolPrize3rd={(poolData as { prize_3rd?: string | null } | null)?.prize_3rd ?? null}
             submittedCount={alreadySubmitted ?? 0}
             knockoutEditable={knockoutEditable}
             knockoutStatusMap={knockoutStatusMap}

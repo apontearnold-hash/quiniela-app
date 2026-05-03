@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase-server"
+import { createClient, createAdminClient } from "@/lib/supabase-server"
 import { redirect, notFound } from "next/navigation"
 import Navbar from "@/components/Navbar"
 import Link from "next/link"
@@ -21,8 +21,10 @@ export default async function QuinielaViewPage({ params }: { params: Promise<{ i
 
   const isAdmin = user.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL
   const t = await getServerT()
+  const admin = createAdminClient()
 
-  const { data: quiniela } = await supabase
+  // Use admin client for the initial fetch so RLS doesn't block pool-member access
+  const { data: quiniela } = await admin
     .from("quinielas")
     .select("*, profiles(display_name, email)")
     .eq("id", id)
@@ -31,8 +33,26 @@ export default async function QuinielaViewPage({ params }: { params: Promise<{ i
   if (!quiniela) notFound()
 
   const isOwner = quiniela.user_id === user.id
+  const q = quiniela as Quiniela
 
-  const { data: predictions } = await supabase
+  // ── Access control ──────────────────────────────────────────────────────────
+  if (!isOwner && !isAdmin) {
+    // Drafts are private — only the owner can view them
+    if (q.status === "draft") notFound()
+
+    // Submitted quinielas are visible only to members of the same pool
+    if (q.pool_id) {
+      const { count } = await supabase
+        .from("pool_members")
+        .select("*", { count: "exact", head: true })
+        .eq("pool_id", q.pool_id)
+        .eq("user_id", user.id)
+      if (!count) notFound()
+    }
+  }
+
+  // Use admin client for all data fetches so RLS never hides another member's data
+  const { data: predictions } = await admin
     .from("predictions")
     .select("*, fixtures(*)")
     .eq("quiniela_id", id)
@@ -48,7 +68,7 @@ export default async function QuinielaViewPage({ params }: { params: Promise<{ i
   })
 
   // Group fixtures (real API) — bracket slot fixtures come from static constant
-  const { data: groupFixtures } = await supabase
+  const { data: groupFixtures } = await admin
     .from("fixtures")
     .select("*")
     .eq("phase", "groups")
@@ -63,7 +83,7 @@ export default async function QuinielaViewPage({ params }: { params: Promise<{ i
   predictions?.forEach(p => { predMap[p.fixture_id] = p as Prediction })
 
   // Bracket picks for view
-  const { data: bracketPicksRaw } = await supabase
+  const { data: bracketPicksRaw } = await admin
     .from("bracket_picks")
     .select("*")
     .eq("quiniela_id", id)
@@ -82,7 +102,6 @@ export default async function QuinielaViewPage({ params }: { params: Promise<{ i
     return { phase, pts, played, total }
   }).filter(pb => pb.total > 0)
 
-  const q = quiniela as Quiniela
   const quinielaStatus = (q.status ?? "draft") as "draft" | "submitted"
 
   return (

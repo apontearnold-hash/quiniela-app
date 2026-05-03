@@ -35,7 +35,7 @@ export async function GET(
   if (!getApiKey()) return NextResponse.json({ players: [] })
 
   try {
-    const res = await apiFetch(`/players/squads?team=${tid}`)
+    const res = await apiFetch(`/players/squads?team=${tid}`, { revalidate: 86400 })
     if (!res.ok) return NextResponse.json({ players: [] })
 
     const json = await res.json()

@@ -124,11 +124,15 @@ export default async function DashboardPage() {
   const poolId = selectedPool.id
 
   // ── Leaderboard ─────────────────────────────────────────────────────
-  const { data: submittedQuinielas } = await supabase
+  // Use admin client: user JWT + RLS can return empty results for cross-user
+  // queries in server-side Next.js even when policies are correct. Business
+  // rules (pool membership) are enforced by the membership query above.
+  const { data: submittedQuinielas } = await admin
     .from("quinielas")
     .select("*, profiles(display_name, email, avatar_url)")
     .eq("status", "submitted")
     .eq("pool_id", poolId)
+    .eq("is_test", false)
     .order("total_points", { ascending: false })
     .order("exact_results", { ascending: false })
     .order("correct_winners", { ascending: false })
@@ -137,7 +141,8 @@ export default async function DashboardPage() {
   const quinielas = (submittedQuinielas ?? []) as (Quiniela & { profiles: { display_name: string | null; email: string | null } | null })[]
 
   // ── My quinielas (all statuses — drafts shown in filter view) ───────
-  const { data: myQuinielasData } = await supabase
+  // Admin client + explicit user_id filter is reliable regardless of RLS state.
+  const { data: myQuinielasData } = await admin
     .from("quinielas")
     .select("*")
     .eq("user_id", user.id)
@@ -159,11 +164,12 @@ export default async function DashboardPage() {
   const userOwes         = mySubmittedCount * price
 
   // ── Bonus pick stats ─────────────────────────────────────────────────
-  const { data: bonusPicks } = await supabase
+  const { data: bonusPicks } = await admin
     .from("quinielas")
     .select("top_scorer_pick, most_goals_team_pick")
     .eq("status", "submitted")
     .eq("pool_id", poolId)
+    .eq("is_test", false)
 
   function countPicks(field: "top_scorer_pick" | "most_goals_team_pick"): [string, number][] {
     const counts: Record<string, number> = {}
@@ -283,7 +289,7 @@ export default async function DashboardPage() {
         </div>
 
         {/* ── Pozo strip ───────────────────────────────────────────── */}
-        {totalQ > 0 && (
+        {(totalQ > 0 || isPhysicalPrize) && (
           <div
             className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-4 py-2.5 rounded-xl text-xs"
             style={{ background: "#0d1f11", border: "1px solid #2a5438" }}
