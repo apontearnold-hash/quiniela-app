@@ -55,7 +55,7 @@ export async function recalculateAllPoints(
       quiniela_id:    pred.quiniela_id,
       points_earned:  r.points,
       exact:          r.breakdown.exact,
-      winner:         !r.breakdown.exact && r.breakdown.base === 2,
+      winner:         r.breakdown.correctWinner,
     })
   }
 
@@ -73,14 +73,14 @@ export async function recalculateAllPoints(
   // ── 5. Score bracket_picks (knockout) ─────────────────────────────────
   // Bridge: bracket_picks.slot_key ↔ fixtures.bracket_position
   // Only picks whose slot has a real finished fixture can score.
-  type PickScore = { id: string; quiniela_id: string; points_earned: number }
+  type PickScore = { id: string; quiniela_id: string; points_earned: number; exact: boolean; winner: boolean }
 
   const scoredPicks: PickScore[] = []
   for (const pick of picks ?? []) {
     const fixture = fixtureByPos.get(pick.slot_key)
     if (!fixture) {
       // Fixture not published yet (or no result) — keep at 0
-      scoredPicks.push({ id: pick.id, quiniela_id: pick.quiniela_id, points_earned: 0 })
+      scoredPicks.push({ id: pick.id, quiniela_id: pick.quiniela_id, points_earned: 0, exact: false, winner: false })
       continue
     }
 
@@ -99,7 +99,13 @@ export async function recalculateAllPoints(
     }
 
     const r = calculatePredictionScore(fixture, syntheticPred)
-    scoredPicks.push({ id: pick.id, quiniela_id: pick.quiniela_id, points_earned: r.points })
+    scoredPicks.push({
+      id:            pick.id,
+      quiniela_id:   pick.quiniela_id,
+      points_earned: r.points,
+      exact:         r.breakdown.exact,
+      winner:        r.breakdown.correctWinner,
+    })
   }
 
   // ── 6. Batch-update bracket_picks ─────────────────────────────────────
@@ -126,6 +132,8 @@ export async function recalculateAllPoints(
   for (const s of scoredPicks) {
     const a = agg.get(s.quiniela_id) ?? { total: 0, exact: 0, winners: 0 }
     a.total += s.points_earned
+    if (s.exact)        a.exact++
+    else if (s.winner)  a.winners++
     agg.set(s.quiniela_id, a)
   }
 

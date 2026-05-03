@@ -86,10 +86,10 @@ export function calculatePredictionScore(
 export function getPhaseFromRound(round: string): Phase {
   const r = round.toLowerCase()
   if (r.includes('group') || r.includes('grupo')) return 'groups'
-  if (r.includes('round of 32') || r.includes('ronda de 32') || r.includes('r32')) return 'round_of_32'
-  if (r.includes('round of 16') || r.includes('16') || r.includes('octavo')) return 'round_of_16'
-  if (r.includes('quarter') || r.includes('cuarto')) return 'quarterfinals'
-  if (r.includes('semi') || r.includes('tercer')) return 'semifinals'
-  if (r.includes('final')) return 'final'
+  if (r.includes('round of 32') || r.includes('ronda de 32') || r.startsWith('r32')) return 'round_of_32'
+  if (r.includes('round of 16') || r.includes('octavo') || r.startsWith('r16')) return 'round_of_16'
+  if (r.includes('quarter') || r.includes('cuarto') || r.startsWith('qf')) return 'quarterfinals'
+  if (r.includes('semi') || r.includes('tercer') || r.startsWith('sf') || r === '3p') return 'semifinals'
+  if (r.includes('final') || r === 'fin') return 'final'
   return 'groups'
 }
