@@ -40,6 +40,8 @@ interface Props {
   knockoutEditable?: boolean
   /** Real fixture status per bracket_position / slot_key — used to lock started games */
   knockoutStatusMap?: Record<string, string>
+  /** Real knockout fixtures keyed by bracket_position — overlaid on static slots to provide team IDs */
+  realKnockoutFixtures?: Record<string, Fixture>
 }
 
 interface PredState {
@@ -421,6 +423,7 @@ export default function PredictionsEditor({
   poolPrice, poolCurrency, poolPrizeType = "money", poolPrize1st, poolPrize2nd, poolPrize3rd,
   submittedCount = 0,
   knockoutEditable = false, knockoutStatusMap = {},
+  realKnockoutFixtures = {},
 }: Props) {
   const supabase = createClient()
 
@@ -481,13 +484,32 @@ export default function PredictionsEditor({
   const [draftResult, setDraftResult]  = useState<"ok" | "error" | null>(null)
   const [draftError, setDraftError]    = useState<string | null>(null)
 
+  // ── Merge real team IDs from confirmed knockout fixtures onto static slots ────
+  const allFixturesMerged = useMemo(() => {
+    if (Object.keys(realKnockoutFixtures).length === 0) return allFixtures
+    return allFixtures.map(f => {
+      if (!f.bracket_position) return f
+      const real = realKnockoutFixtures[f.bracket_position]
+      if (!real) return f
+      return {
+        ...f,
+        home_team_id:   real.home_team_id,
+        home_team_name: real.home_team_name,
+        home_team_flag: real.home_team_flag,
+        away_team_id:   real.away_team_id,
+        away_team_name: real.away_team_name,
+        away_team_flag: real.away_team_flag,
+      }
+    })
+  }, [allFixtures, realKnockoutFixtures])
+
   // ── Fixtures by phase ────────────────────────────────────────────────────────
   const byPhase = useMemo(() => {
     const map: Partial<Record<Phase, Fixture[]>> = {}
     ALL_PHASES.forEach(p => { map[p] = [] })
-    allFixtures.forEach(f => { if (f.phase && map[f.phase]) map[f.phase]!.push(f) })
+    allFixturesMerged.forEach(f => { if (f.phase && map[f.phase]) map[f.phase]!.push(f) })
     return map
-  }, [allFixtures])
+  }, [allFixturesMerged])
 
   // ── Projected group standings ────────────────────────────────────────────────
   const groupProjections = useMemo(() => {
@@ -539,6 +561,9 @@ export default function PredictionsEditor({
     () => resolveKnockoutBracket(byPhase, groupProjections, best3rd, preds),
     [byPhase, groupProjections, best3rd, preds]
   )
+  // Kept in a ref so savePred (stale useCallback) always reads the latest value
+  const projectedBracketRef = useRef(projectedBracket)
+  projectedBracketRef.current = projectedBracket
 
   // Derive the projected World Cup champion from the final bracket pick
   const champion = useMemo<{ name: string; flag: string | null } | null>(() => {
@@ -600,8 +625,24 @@ export default function PredictionsEditor({
         setPreds(prev => ({ ...prev, [fixture.id]: { ...prev[fixture.id], saving: false, error: "Slot inválido" } }))
         return
       }
+      // Capture team IDs: prefer real fixture IDs, fall back to projected
+      const proj = projectedBracketRef.current[fixture.id]
+      const homeTeamId   = fixture.home_team_id   ?? proj?.homeId   ?? null
+      const awayTeamId   = fixture.away_team_id   ?? proj?.awayId   ?? null
+      const homeTeamName = fixture.home_team_name ?? proj?.homeName ?? null
+      const awayTeamName = fixture.away_team_name ?? proj?.awayName ?? null
+      const homeTeamFlag = fixture.home_team_flag ?? proj?.homeFlag ?? null
+      const awayTeamFlag = fixture.away_team_flag ?? proj?.awayFlag ?? null
       const res = await supabase.from("bracket_picks").upsert(
-        { quiniela_id: quinielaId, slot_key, home_score_pred: h, away_score_pred: a, predicts_penalties: pred.predicts_penalties, penalties_winner: pred.penalties_winner || null, updated_at: new Date().toISOString() },
+        {
+          quiniela_id: quinielaId, slot_key,
+          home_score_pred: h, away_score_pred: a,
+          predicts_penalties: pred.predicts_penalties, penalties_winner: pred.penalties_winner || null,
+          home_team_id_pred: homeTeamId, away_team_id_pred: awayTeamId,
+          home_team_name_pred: homeTeamName, away_team_name_pred: awayTeamName,
+          home_team_flag_pred: homeTeamFlag, away_team_flag_pred: awayTeamFlag,
+          updated_at: new Date().toISOString(),
+        },
         { onConflict: "quiniela_id,slot_key" }
       )
       error = res.error
@@ -625,13 +666,22 @@ export default function PredictionsEditor({
     setDraftError(null)
 
     type PredRow = { quiniela_id: string; fixture_id: number; home_score_pred: number; away_score_pred: number; predicts_penalties: boolean; penalties_winner: string | null }
-    type BpRow   = { quiniela_id: string; slot_key: string; home_score_pred: number; away_score_pred: number; predicts_penalties: boolean; penalties_winner: string | null; updated_at: string }
+    type BpRow   = {
+      quiniela_id: string; slot_key: string
+      home_score_pred: number; away_score_pred: number
+      predicts_penalties: boolean; penalties_winner: string | null
+      home_team_id_pred: number | null; away_team_id_pred: number | null
+      home_team_name_pred: string | null; away_team_name_pred: string | null
+      home_team_flag_pred: string | null; away_team_flag_pred: string | null
+      updated_at: string
+    }
 
     const predRows: PredRow[] = []
     const bpRows:   BpRow[]   = []
     let hasDrawErrors = false
+    const projBracket = projectedBracketRef.current
 
-    for (const fixture of allFixtures) {
+    for (const fixture of allFixturesMerged) {
       const pred = current[fixture.id]
       if (!pred) continue
       const hv = pred.home.trim(), av = pred.away.trim()
@@ -649,7 +699,19 @@ export default function PredictionsEditor({
       if (isBracketSlotId(fixture.id)) {
         const slot_key = slotKeyById(fixture.id)
         if (!slot_key) continue
-        bpRows.push({ quiniela_id: quinielaId, slot_key, home_score_pred: h, away_score_pred: a, predicts_penalties: pred.predicts_penalties, penalties_winner: pred.penalties_winner || null, updated_at: new Date().toISOString() })
+        const proj = projBracket[fixture.id]
+        bpRows.push({
+          quiniela_id: quinielaId, slot_key,
+          home_score_pred: h, away_score_pred: a,
+          predicts_penalties: pred.predicts_penalties, penalties_winner: pred.penalties_winner || null,
+          home_team_id_pred:   fixture.home_team_id   ?? proj?.homeId   ?? null,
+          away_team_id_pred:   fixture.away_team_id   ?? proj?.awayId   ?? null,
+          home_team_name_pred: fixture.home_team_name ?? proj?.homeName ?? null,
+          away_team_name_pred: fixture.away_team_name ?? proj?.awayName ?? null,
+          home_team_flag_pred: fixture.home_team_flag ?? proj?.homeFlag ?? null,
+          away_team_flag_pred: fixture.away_team_flag ?? proj?.awayFlag ?? null,
+          updated_at: new Date().toISOString(),
+        })
       } else {
         predRows.push({ quiniela_id: quinielaId, fixture_id: fixture.id, home_score_pred: h, away_score_pred: a, predicts_penalties: pred.predicts_penalties, penalties_winner: pred.penalties_winner || null })
       }
@@ -684,7 +746,7 @@ export default function PredictionsEditor({
         const next = { ...prev }
         predRows.forEach(r => { next[r.fixture_id] = { ...next[r.fixture_id], saved: true, error: null } })
         bpRows.forEach(r => {
-          const slot = allFixtures.find(f => slotKeyById(f.id) === r.slot_key)
+          const slot = allFixturesMerged.find(f => slotKeyById(f.id) === r.slot_key)
           if (slot) next[slot.id] = { ...next[slot.id], saved: true, error: null }
         })
         return next
@@ -694,7 +756,7 @@ export default function PredictionsEditor({
       setDraftError(hasDrawErrors ? `${total} predicciones guardadas · resuelve empates pendientes.` : null)
       setTimeout(() => setDraftResult(null), 4000)
     }
-  }, [quinielaId, supabase, allFixtures])
+  }, [quinielaId, supabase, allFixturesMerged])
 
   // ── Submit ───────────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
@@ -710,7 +772,7 @@ export default function PredictionsEditor({
   const groupFilled     = groupFixtures.filter(f => preds[f.id]?.home !== "" && preds[f.id]?.away !== "").length
   const groupTotal      = groupFixtures.length
 
-  const knockoutFixtures = allFixtures.filter(f => f.phase && f.phase !== "groups")
+  const knockoutFixtures = allFixturesMerged.filter(f => f.phase && f.phase !== "groups")
   const knockoutFilled   = knockoutFixtures.filter(f => preds[f.id]?.home !== "" && preds[f.id]?.away !== "").length
   const knockoutTotal    = knockoutFixtures.length
 
@@ -779,6 +841,21 @@ export default function PredictionsEditor({
           <div>
             <p className="font-bold text-sm" style={{ color: "#60a5fa" }}>Edición de eliminatorias abierta</p>
             <p className="text-xs mt-0.5" style={{ color: "#7ab88a" }}>Solo partidos no iniciados son editables. Los grupos están bloqueados.</p>
+          </div>
+        </div>
+      )}
+
+      {/* ══ Team update notice — shown when real knockout teams are available ═ */}
+      {isLocked && !readOnly && knockoutEditable && Object.keys(realKnockoutFixtures).length > 0 && (
+        <div className="rounded-xl px-4 py-3 flex items-start gap-3"
+          style={{ background: "rgba(245,197,24,0.06)", border: "1px solid rgba(245,197,24,0.3)" }}>
+          <span className="text-xl flex-shrink-0">⚠️</span>
+          <div>
+            <p className="font-bold text-sm" style={{ color: "#F5C518" }}>Equipos actualizados en eliminatorias</p>
+            <p className="text-xs mt-0.5" style={{ color: "#9ab8a0" }}>
+              Tus resultados se mantendrán pero pueden dejar de ser coherentes con los nuevos equipos.
+              Al guardar cada partido se registran los equipos reales del torneo.
+            </p>
           </div>
         </div>
       )}

@@ -39,6 +39,8 @@ export type ResolvedBracket = Record<
     awayName: string
     homeFlag: string | null
     awayFlag: string | null
+    homeId: number | null
+    awayId: number | null
     /** true when team is projected (not yet officially assigned) */
     homeIsProjected: boolean
     awayIsProjected: boolean
@@ -199,8 +201,8 @@ export function resolveKnockoutBracket(
   best3rd: ProjectedTeam[],
   preds: Record<number, { home: string; away: string; predicts_penalties?: boolean; penalties_winner?: string }>
 ): ResolvedBracket {
-  const winnerByPos = new Map<string, { name: string; flag: string | null }>()
-  const loserByPos  = new Map<string, { name: string; flag: string | null }>()
+  const winnerByPos = new Map<string, { name: string; flag: string | null; teamId: number | null }>()
+  const loserByPos  = new Map<string, { name: string; flag: string | null; teamId: number | null }>()
   const assignedBest3rd = new Set<number>() // teamId of already-assigned 3rd-place teams
   const result: ResolvedBracket = {}
 
@@ -208,11 +210,12 @@ export function resolveKnockoutBracket(
     placeholder: string | null,
     existingName: string | null,
     existingFlag: string | null,
-    pool: string[] | null
-  ): { name: string; flag: string | null; isProjected: boolean } {
+    pool: string[] | null,
+    existingTeamId: number | null
+  ): { name: string; flag: string | null; isProjected: boolean; teamId: number | null } {
     // Official assignment already in DB
-    if (existingName) return { name: existingName, flag: existingFlag, isProjected: false }
-    if (!placeholder)  return { name: "TBD",         flag: null,        isProjected: true  }
+    if (existingName) return { name: existingName, flag: existingFlag, isProjected: false, teamId: existingTeamId }
+    if (!placeholder)  return { name: "TBD",         flag: null,        isProjected: true,  teamId: null }
 
     // "1ro Grupo A" / "2do Grupo B"
     const gm = placeholder.match(/^([12])(?:ro|do)\s+Grupo\s+([A-L])$/i)
@@ -223,8 +226,8 @@ export function resolveKnockoutBracket(
       for (const [key, val] of groupProjections) {
         if (groupLetter(key) === letter) { st = val; break }
       }
-      if (st?.[idx]) return { name: st[idx].teamName, flag: st[idx].teamFlag, isProjected: true }
-      return { name: placeholder, flag: null, isProjected: true }
+      if (st?.[idx]) return { name: st[idx].teamName, flag: st[idx].teamFlag, isProjected: true, teamId: st[idx].teamId }
+      return { name: placeholder, flag: null, isProjected: true, teamId: null }
     }
 
     // "Mejor 3ro (A/B/C/D/F)" — greedy pool-aware assignment
@@ -236,32 +239,36 @@ export function resolveKnockoutBracket(
       })
       if (byPool) {
         assignedBest3rd.add(byPool.teamId)
-        return { name: byPool.teamName, flag: byPool.teamFlag, isProjected: true }
+        return { name: byPool.teamName, flag: byPool.teamFlag, isProjected: true, teamId: byPool.teamId }
       }
       // 2nd pass: any unassigned best-3rd (fallback when pool is fully taken)
       const any = best3rd.find(t => !assignedBest3rd.has(t.teamId))
       if (any) {
         assignedBest3rd.add(any.teamId)
-        return { name: any.teamName, flag: any.teamFlag, isProjected: true }
+        return { name: any.teamName, flag: any.teamFlag, isProjected: true, teamId: any.teamId }
       }
-      return { name: placeholder, flag: null, isProjected: true }
+      return { name: placeholder, flag: null, isProjected: true, teamId: null }
     }
 
     // "Ganador R32-01" / "Ganador QF-02" etc.
     const wm = placeholder.match(/^Ganador\s+((?:R32|R16|QF|SF)-\d+)$/i)
     if (wm) {
       const t = winnerByPos.get(wm[1])
-      return t ? { ...t, isProjected: true } : { name: placeholder, flag: null, isProjected: true }
+      return t
+        ? { name: t.name, flag: t.flag, isProjected: true, teamId: t.teamId }
+        : { name: placeholder, flag: null, isProjected: true, teamId: null }
     }
 
     // "Perdedor SF-01" (3rd-place game)
     const lm = placeholder.match(/^Perdedor\s+(SF-\d+)$/i)
     if (lm) {
       const t = loserByPos.get(lm[1])
-      return t ? { ...t, isProjected: true } : { name: placeholder, flag: null, isProjected: true }
+      return t
+        ? { name: t.name, flag: t.flag, isProjected: true, teamId: t.teamId }
+        : { name: placeholder, flag: null, isProjected: true, teamId: null }
     }
 
-    return { name: placeholder, flag: null, isProjected: true }
+    return { name: placeholder, flag: null, isProjected: true, teamId: null }
   }
 
   const knockoutPhases: Phase[] = ["round_of_32", "round_of_16", "quarterfinals", "semifinals", "final"]
@@ -283,12 +290,13 @@ export function resolveKnockoutBracket(
       const homePool = f.home_placeholder?.match(/^Mejor 3ro \(([A-L/]+)\)$/i)?.[1]?.split("/") ?? null
       const awayPool = f.away_placeholder?.match(/^Mejor 3ro \(([A-L/]+)\)$/i)?.[1]?.split("/") ?? null
 
-      const home = resolveSlot(f.home_placeholder, f.home_team_name, f.home_team_flag, homePool)
-      const away = resolveSlot(f.away_placeholder, f.away_team_name, f.away_team_flag, awayPool)
+      const home = resolveSlot(f.home_placeholder, f.home_team_name, f.home_team_flag, homePool, f.home_team_id ?? null)
+      const away = resolveSlot(f.away_placeholder, f.away_team_name, f.away_team_flag, awayPool, f.away_team_id ?? null)
 
       result[f.id] = {
         homeName: home.name, awayName: away.name,
         homeFlag: home.flag, awayFlag: away.flag,
+        homeId: home.teamId, awayId: away.teamId,
         homeIsProjected: home.isProjected,
         awayIsProjected: away.isProjected,
       }
@@ -308,11 +316,11 @@ export function resolveKnockoutBracket(
       )
 
       if (winner === "home") {
-        winnerByPos.set(f.bracket_position, { name: home.name, flag: home.flag })
-        loserByPos.set(f.bracket_position, { name: away.name, flag: away.flag })
+        winnerByPos.set(f.bracket_position, { name: home.name, flag: home.flag, teamId: home.teamId })
+        loserByPos.set(f.bracket_position, { name: away.name, flag: away.flag, teamId: away.teamId })
       } else if (winner === "away") {
-        winnerByPos.set(f.bracket_position, { name: away.name, flag: away.flag })
-        loserByPos.set(f.bracket_position, { name: home.name, flag: home.flag })
+        winnerByPos.set(f.bracket_position, { name: away.name, flag: away.flag, teamId: away.teamId })
+        loserByPos.set(f.bracket_position, { name: home.name, flag: home.flag, teamId: home.teamId })
       }
       // null → draw with no penalty result yet — next round keeps placeholder
     }

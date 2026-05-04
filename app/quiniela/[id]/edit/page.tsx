@@ -59,6 +59,20 @@ export default async function EditQuinielaPage({ params }: { params: Promise<{ i
     .eq("phase", "groups")
     .order("kickoff", { ascending: true })
 
+  // Real knockout fixtures (only those with team IDs confirmed) — used to override static slots
+  const { data: knockoutFixturesRaw } = await admin
+    .from("fixtures")
+    .select("*")
+    .not("bracket_position", "is", null)
+    .neq("phase", "groups")
+
+  const realKnockoutFixtures: Record<string, Fixture> = {}
+  for (const f of knockoutFixturesRaw ?? []) {
+    if (f.bracket_position && f.home_team_id !== null) {
+      realKnockoutFixtures[f.bracket_position] = f as Fixture
+    }
+  }
+
   // Merge: real group fixtures + static bracket slot fixtures
   const allFixtures: Fixture[] = [
     ...((groupFixtures ?? []) as Fixture[]),
@@ -162,6 +176,7 @@ export default async function EditQuinielaPage({ params }: { params: Promise<{ i
             submittedCount={alreadySubmitted ?? 0}
             knockoutEditable={knockoutEditable}
             knockoutStatusMap={knockoutStatusMap}
+            realKnockoutFixtures={realKnockoutFixtures}
           />
         )}
       </div>

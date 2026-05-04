@@ -1,6 +1,19 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { calculatePredictionScore } from "./scoring"
-import type { Fixture, Prediction } from "./types"
+import type { Fixture, Prediction, Phase } from "./types"
+import { PHASE_MULTIPLIER } from "./types"
+
+function resolveWinnerId(
+  homeId: number | null, awayId: number | null,
+  homeScore: number, awayScore: number,
+  penaltiesWinner: string | null
+): number | null {
+  if (homeScore > awayScore) return homeId
+  if (awayScore > homeScore) return awayId
+  if (penaltiesWinner === "home") return homeId
+  if (penaltiesWinner === "away") return awayId
+  return null
+}
 
 export async function recalculateAllPoints(
   supabase: SupabaseClient
@@ -71,41 +84,101 @@ export async function recalculateAllPoints(
   }
 
   // ── 5. Score bracket_picks (knockout) ─────────────────────────────────
-  // Bridge: bracket_picks.slot_key ↔ fixtures.bracket_position
-  // Only picks whose slot has a real finished fixture can score.
+  // Team validation:
+  //   • picks with team IDs + matching teams → full scoring via calculatePredictionScore
+  //   • picks with team IDs + mismatched teams → 3*multiplier if predicted winner played and won, else 0
+  //   • legacy picks (no team IDs) → winner direction only, never exact
   type PickScore = { id: string; quiniela_id: string; points_earned: number; exact: boolean; winner: boolean }
 
   const scoredPicks: PickScore[] = []
   for (const pick of picks ?? []) {
     const fixture = fixtureByPos.get(pick.slot_key)
     if (!fixture) {
-      // Fixture not published yet (or no result) — keep at 0
       scoredPicks.push({ id: pick.id, quiniela_id: pick.quiniela_id, points_earned: 0, exact: false, winner: false })
       continue
     }
 
-    // Synthesize a Prediction-shaped object so calculatePredictionScore works unchanged
-    const syntheticPred: Prediction = {
-      id:                  pick.id,
-      quiniela_id:         pick.quiniela_id,
-      fixture_id:          fixture.id,
-      home_score_pred:     pick.home_score_pred,
-      away_score_pred:     pick.away_score_pred,
-      predicts_penalties:  pick.predicts_penalties,
-      penalties_winner:    pick.penalties_winner,
-      points_earned:       pick.points_earned,
-      created_at:          pick.created_at,
-      updated_at:          pick.updated_at,
+    const phase = (fixture.phase ?? "groups") as Phase
+    const multiplier = PHASE_MULTIPLIER[phase] ?? 1
+
+    const actualWinnerId = resolveWinnerId(
+      fixture.home_team_id, fixture.away_team_id,
+      fixture.home_score!, fixture.away_score!,
+      fixture.penalties_winner
+    )
+
+    const hasTeamIds = pick.home_team_id_pred != null && pick.away_team_id_pred != null
+    const fixtureHasTeams = fixture.home_team_id != null && fixture.away_team_id != null
+
+    if (!hasTeamIds || !fixtureHasTeams) {
+      // Legacy: winner direction only, never exact
+      if (pick.home_score_pred == null || pick.away_score_pred == null) {
+        scoredPicks.push({ id: pick.id, quiniela_id: pick.quiniela_id, points_earned: 0, exact: false, winner: false })
+        continue
+      }
+      const hPred = pick.home_score_pred, aPred = pick.away_score_pred
+      const actualH = fixture.home_score!, actualA = fixture.away_score!
+      const predDir = hPred > aPred ? "home" : aPred > hPred ? "away" : "draw"
+      const actualDir = actualH > actualA ? "home" : actualA > actualH ? "away" : "draw"
+      let correctWinner = false
+      if (predDir === actualDir) {
+        if (predDir !== "draw") {
+          correctWinner = true
+        } else if (fixture.went_to_penalties && pick.penalties_winner) {
+          correctWinner = pick.penalties_winner === fixture.penalties_winner
+        }
+      }
+      scoredPicks.push({
+        id: pick.id, quiniela_id: pick.quiniela_id,
+        points_earned: correctWinner ? 3 * multiplier : 0,
+        exact: false, winner: correctWinner,
+      })
+      continue
     }
 
-    const r = calculatePredictionScore(fixture, syntheticPred)
-    scoredPicks.push({
-      id:            pick.id,
-      quiniela_id:   pick.quiniela_id,
-      points_earned: r.points,
-      exact:         r.breakdown.exact,
-      winner:        r.breakdown.correctWinner,
-    })
+    const teamsMatch =
+      pick.home_team_id_pred === fixture.home_team_id &&
+      pick.away_team_id_pred === fixture.away_team_id
+
+    if (teamsMatch) {
+      // Full scoring
+      const syntheticPred: Prediction = {
+        id:                  pick.id,
+        quiniela_id:         pick.quiniela_id,
+        fixture_id:          fixture.id,
+        home_score_pred:     pick.home_score_pred,
+        away_score_pred:     pick.away_score_pred,
+        predicts_penalties:  pick.predicts_penalties,
+        penalties_winner:    pick.penalties_winner,
+        points_earned:       pick.points_earned,
+        created_at:          pick.created_at,
+        updated_at:          pick.updated_at,
+      }
+      const r = calculatePredictionScore(fixture, syntheticPred)
+      scoredPicks.push({
+        id: pick.id, quiniela_id: pick.quiniela_id,
+        points_earned: r.points,
+        exact: r.breakdown.exact, winner: r.breakdown.correctWinner,
+      })
+    } else {
+      // Teams differ: check if predicted winner actually won
+      if (pick.home_score_pred == null || pick.away_score_pred == null) {
+        scoredPicks.push({ id: pick.id, quiniela_id: pick.quiniela_id, points_earned: 0, exact: false, winner: false })
+        continue
+      }
+      const hPred = pick.home_score_pred, aPred = pick.away_score_pred
+      let predictedWinnerId: number | null = null
+      if (hPred > aPred)                            predictedWinnerId = pick.home_team_id_pred
+      else if (aPred > hPred)                       predictedWinnerId = pick.away_team_id_pred
+      else if (pick.penalties_winner === "home")    predictedWinnerId = pick.home_team_id_pred
+      else if (pick.penalties_winner === "away")    predictedWinnerId = pick.away_team_id_pred
+      const correctWinner = predictedWinnerId != null && predictedWinnerId === actualWinnerId
+      scoredPicks.push({
+        id: pick.id, quiniela_id: pick.quiniela_id,
+        points_earned: correctWinner ? 3 * multiplier : 0,
+        exact: false, winner: correctWinner,
+      })
+    }
   }
 
   // ── 6. Batch-update bracket_picks ─────────────────────────────────────

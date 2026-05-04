@@ -135,6 +135,12 @@ export interface BracketPick {
   predicts_penalties: boolean
   penalties_winner: string | null
   points_earned: number
+  home_team_id_pred: number | null
+  away_team_id_pred: number | null
+  home_team_name_pred: string | null
+  away_team_name_pred: string | null
+  home_team_flag_pred: string | null
+  away_team_flag_pred: string | null
   created_at: string
   updated_at: string
 }
@@ -158,11 +164,11 @@ export interface GroupStanding {
 
 export const PHASE_MULTIPLIER: Record<Phase, number> = {
   groups:        1,
-  round_of_32:   1.25,
-  round_of_16:   1.5,
-  quarterfinals: 1.75,
-  semifinals:    2,
-  final:         2.5,
+  round_of_32:   2,
+  round_of_16:   3,
+  quarterfinals: 4,
+  semifinals:    5,
+  final:         6,
 }
 
 export const PHASE_LABELS: Record<Phase, string> = {

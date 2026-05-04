@@ -4,12 +4,9 @@ import { PHASE_MULTIPLIER } from './types'
 export interface ScoreResult {
   points: number
   breakdown: {
-    base: number
-    bonus: number
     multiplier: number
     exact: boolean
     correctWinner: boolean
-    correctDiff: boolean
     penaltyBonus: number
   }
 }
@@ -29,14 +26,12 @@ export function calculatePredictionScore(
     home_score === null || away_score === null ||
     home_score_pred === null || away_score_pred === null
   ) {
-    return { points: 0, breakdown: { base: 0, bonus: 0, multiplier, exact: false, correctWinner: false, correctDiff: false, penaltyBonus: 0 } }
+    return { points: 0, breakdown: { multiplier, exact: false, correctWinner: false, penaltyBonus: 0 } }
   }
 
   let base = 0
-  let bonus = 0
   let exact = false
   let correctWinner = false
-  let correctDiff = false
 
   // Exact result
   if (home_score_pred === home_score && away_score_pred === away_score) {
@@ -48,19 +43,8 @@ export function calculatePredictionScore(
     const predWinner = home_score_pred > away_score_pred ? 'home' : away_score_pred > home_score_pred ? 'away' : 'draw'
 
     if (actualWinner === predWinner) {
-      base = 2
+      base = 3
       correctWinner = actualWinner !== 'draw'
-      if (actualWinner === 'draw') correctWinner = false // it's a draw, counted separately
-
-      // Check goal difference bonus
-      const actualDiff = home_score - away_score
-      const predDiff = home_score_pred - away_score_pred
-      if (actualDiff === predDiff) {
-        bonus = 1
-        correctDiff = true
-      }
-    } else {
-      base = 0
     }
   }
 
@@ -68,18 +52,18 @@ export function calculatePredictionScore(
   let penaltyBonus = 0
   if (phase !== 'groups' && fixture.went_to_penalties) {
     if (prediction.predicts_penalties) {
-      penaltyBonus += 3 // Correctly predicted penalties
+      penaltyBonus += 3
       if (prediction.penalties_winner === fixture.penalties_winner) {
-        penaltyBonus += 5 // Correctly predicted winner
+        penaltyBonus += 5
       }
     }
   }
 
-  const totalPoints = Math.round((base + bonus) * multiplier) + penaltyBonus
+  const totalPoints = base * multiplier + penaltyBonus
 
   return {
     points: totalPoints,
-    breakdown: { base, bonus, multiplier, exact, correctWinner, correctDiff, penaltyBonus }
+    breakdown: { multiplier, exact, correctWinner, penaltyBonus }
   }
 }
 
