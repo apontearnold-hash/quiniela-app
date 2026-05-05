@@ -235,6 +235,74 @@ export async function POST() {
       }
     }
 
+    // ── Post-process: merge real API knockout fixtures into synthetic slots ──────
+    //
+    // Once API-Football publishes real R32+ fixtures (with real IDs and team data),
+    // the main upsert above inserts them as NEW rows (different IDs from synthetic
+    // slots 9000001+). This causes duplicate bracket_position rows and breaks score
+    // propagation to advance-bracket.
+    //
+    // Fix: match real API knockout fixtures to synthetic slots by kickoff time,
+    // update the synthetic slot with real team + score data (setting api_fixture_id),
+    // then delete the duplicate real-ID row.
+    const knockoutAPIFixtures = fixtures.filter(f => {
+      const ph = getPhaseFromRound(f.league?.round ?? "")
+      return ph !== null && ph !== "groups" && f.teams.home.id > 0 && f.teams.away.id > 0
+    })
+
+    let mergedKnockout = 0
+    if (knockoutAPIFixtures.length > 0) {
+      const { data: syntheticSlots } = await admin
+        .from("fixtures")
+        .select("id, kickoff")
+        .gte("id", 9000000)
+        .not("bracket_position", "is", null)
+
+      const slotByKickoff = new Map<string, number>()
+      for (const s of syntheticSlots ?? []) {
+        if (s.kickoff) slotByKickoff.set(new Date(s.kickoff).toISOString(), s.id)
+      }
+
+      for (const f of knockoutAPIFixtures) {
+        const apiKickoff = new Date(f.fixture.date).toISOString()
+        const syntheticId = slotByKickoff.get(apiKickoff)
+        if (!syntheticId) continue // no matching synthetic slot — not yet scheduled
+
+        const penHome = f.score?.penalty?.home ?? null
+        const penAway = f.score?.penalty?.away ?? null
+
+        const { error: mergeErr } = await admin.from("fixtures").update({
+          api_fixture_id:   f.fixture.id,
+          home_team_id:     f.teams.home.id,
+          home_team_name:   f.teams.home.name,
+          home_team_code:   f.teams.home.code ?? null,
+          home_team_flag:   f.teams.home.logo ?? null,
+          away_team_id:     f.teams.away.id,
+          away_team_name:   f.teams.away.name,
+          away_team_code:   f.teams.away.code ?? null,
+          away_team_flag:   f.teams.away.logo ?? null,
+          home_score:       f.goals?.home ?? null,
+          away_score:       f.goals?.away ?? null,
+          penalty_home:     penHome,
+          penalty_away:     penAway,
+          went_to_penalties: penHome !== null && penAway !== null,
+          penalties_winner:  penHome !== null && penAway !== null
+            ? penHome > penAway ? "home" : "away"
+            : null,
+          status:       mapStatus(f.fixture.status.short),
+          status_short: f.fixture.status.short,
+          status_long:  f.fixture.status.long ?? null,
+          result_source: f.goals?.home !== null ? "api" : null,
+          updated_at:   new Date().toISOString(),
+        }).eq("id", syntheticId)
+        if (mergeErr) console.error(`[sync] merge knockout ${f.fixture.id} → ${syntheticId}:`, mergeErr.message)
+
+        // Delete the duplicate real-ID row created by the main upsert
+        await admin.from("fixtures").delete().eq("id", f.fixture.id)
+        mergedKnockout++
+      }
+    }
+
     // Desglose por fase para diagnóstico (visible en la UI y en Network tab)
     const breakdown: Record<string, number> = {}
     for (const f of fixtures) {
@@ -253,13 +321,13 @@ export async function POST() {
       .is("group_name", null)
     const nullGroupCount = nullGroupRows?.length ?? 0
 
-    const msg = `✅ ${upserted} partidos importados`
+    const msg = `✅ ${upserted} partidos importados${mergedKnockout > 0 ? ` · ${mergedKnockout} slots de eliminatoria actualizados desde API` : ""}`
     await writeLog("fixtures", "success", msg, upserted)
     return NextResponse.json({
       message: msg,
       count: upserted,
+      mergedKnockout,
       timestamp: new Date().toISOString(),
-      // breakdown permite confirmar qué rounds devolvió la API
       breakdown: phases,
       groupsAssigned: !apiProvidesGroups && groupStageFixtures.length > 0
         ? `Grupos derivados por clustering (API no los envió)`

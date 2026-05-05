@@ -53,7 +53,8 @@ export interface Fixture {
   away_placeholder: string | null
 
   // Metadatos de sync
-  api_updated_at: string | null  // cuándo actualizó la API este fixture
+  api_fixture_id?: number | null  // real API fixture id for synthetic knockout slots
+  api_updated_at: string | null   // cuándo actualizó la API este fixture
   updated_at?: string
   created_at?: string
 
@@ -101,6 +102,7 @@ export interface Quiniela {
   most_goals_team_points: number
   champion_team_name: string | null
   champion_team_flag: string | null
+  r32_synced_at: string | null
   total_points: number
   exact_results: number
   correct_winners: number

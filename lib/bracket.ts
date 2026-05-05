@@ -193,6 +193,19 @@ export async function fillGroupAdvancers(
   supabase: SupabaseClient,
   standings: Record<string, Record<number, TeamRow>>
 ) {
+  // Guard: only run when ALL 72 group-stage games are finished with scores.
+  // Without this, partial standings sort alphabetically (teams with 0 pts ranked
+  // by name) and incorrectly corrupt R32 slot assignments.
+  const { count: finishedCount, error: countErr } = await supabase
+    .from("fixtures")
+    .select("id", { count: "exact", head: true })
+    .eq("phase", "groups")
+    .eq("status", "finished")
+    .not("home_score", "is", null)
+
+  if (countErr) throw new Error(`Count finished group games: ${countErr.message}`)
+  if ((finishedCount ?? 0) < 72) return 0
+
   let updated = 0
 
   // Fetch R32 fixtures that still have placeholders (no team assigned yet)
@@ -256,6 +269,10 @@ export async function fillGroupAdvancers(
 // 3. Assign best 3rd-place teams to "Mejor 3ro" slots
 // -------------------------------------------------------------------
 
+// Greedy pool-aware assignment: each "Mejor 3ro (A/B/C/D/F)" slot gets the
+// best unassigned 3rd-place team whose group letter is in the slot's pool.
+// API-Football is the preferred source of truth once knockout fixtures are
+// published — at that point sync/route.ts overwrites these slots with real teams.
 export async function assignBest3rd(
   supabase: SupabaseClient,
   standings: Record<string, Record<number, TeamRow>>

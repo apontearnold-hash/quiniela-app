@@ -121,6 +121,50 @@ export async function POST() {
       updated += rows.length
     }
 
+    // ── Propagate scores to synthetic knockout slots ─────────────────────
+    // Synthetic slots (id >= 9000000) store api_fixture_id once matched by
+    // sync/route.ts. Update them so advance-bracket and recalculate see real scores.
+    const playedIds = played.map(f => f.fixture.id)
+    if (playedIds.length > 0) {
+      const { data: syntheticMatches } = await admin
+        .from("fixtures")
+        .select("id, api_fixture_id")
+        .gte("id", 9000000)
+        .not("api_fixture_id", "is", null)
+        .in("api_fixture_id", playedIds)
+
+      if (syntheticMatches && syntheticMatches.length > 0) {
+        const apiMap = new Map<number, typeof played[0]>()
+        for (const f of played) apiMap.set(f.fixture.id, f)
+
+        await Promise.all(syntheticMatches.map(slot => {
+          const apiF = apiMap.get(slot.api_fixture_id!)
+          if (!apiF) return Promise.resolve()
+          const penHome = apiF.score?.penalty?.home ?? null
+          const penAway = apiF.score?.penalty?.away ?? null
+          return admin.from("fixtures").update({
+            status:       mapStatus(apiF.fixture.status.short),
+            status_short: apiF.fixture.status.short,
+            status_long:  apiF.fixture.status.long ?? null,
+            elapsed:      apiF.fixture.status.elapsed ?? null,
+            home_score:   apiF.goals?.home ?? null,
+            away_score:   apiF.goals?.away ?? null,
+            penalty_home: penHome,
+            penalty_away: penAway,
+            went_to_penalties: penHome !== null && penAway !== null,
+            penalties_winner:  penHome !== null && penAway !== null
+              ? penHome > penAway ? "home" : "away"
+              : null,
+            result_source: "api",
+            api_updated_at: apiF.fixture.timestamp
+              ? new Date(apiF.fixture.timestamp * 1000).toISOString()
+              : null,
+            updated_at: new Date().toISOString(),
+          }).eq("id", slot.id)
+        }))
+      }
+    }
+
     const baseMsg = `✅ ${updated} resultados actualizados`
 
     // ── Recalculate all prediction scores after updating fixtures ────────

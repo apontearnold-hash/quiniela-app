@@ -235,6 +235,9 @@ export default function PoolsPanel({ pools: initialPools }: { pools: PoolRow[] }
     })
     if (res.ok) {
       setPools(prev => prev.map(p => p.id === id ? { ...p, knockout_editing_open: !current } : p))
+      if (!current) {
+        setMsg({ text: "🔓 Edición de eliminatorias habilitada. Cada usuario verá un aviso al entrar a editar su quiniela.", ok: true })
+      }
     } else {
       const data = await res.json()
       setMsg({ text: data.error ?? "Error", ok: false })

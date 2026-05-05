@@ -110,6 +110,7 @@ export default function AdminPanel({ fixtures, defaultTab }: Props) {
   const [configLoading, setConfigLoading] = useState(false)
   const [configSaving, setConfigSaving] = useState(false)
   const [configMsg, setConfigMsg] = useState<string | null>(null)
+  const [lockSaving, setLockSaving] = useState(false)
 
   const phases: Phase[] = ["groups", "round_of_32", "round_of_16", "quarterfinals", "semifinals", "final"]
   const phaseFixtures = fixtures.filter(f => f.phase === selectedPhase)
@@ -185,6 +186,28 @@ export default function AdminPanel({ fixtures, defaultTab }: Props) {
     const data = await res.json()
     setConfigMsg(res.ok ? "Configuración guardada" : `Error: ${data.error}`)
     setConfigSaving(false)
+  }
+
+  async function setLock(lock: boolean) {
+    setLockSaving(true); setConfigMsg(null)
+    const lock_date = lock ? new Date().toISOString() : null
+    const res = await fetch("/api/admin/config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        quiniela_price: configPrice || "0",
+        currency: configCurrency,
+        lock_date,
+      }),
+    })
+    if (res.ok) {
+      setConfigLockDate(lock ? new Date().toISOString().slice(0, 16) : "")
+      setConfigMsg(lock ? "🔒 Predicciones cerradas" : "🔓 Predicciones abiertas")
+    } else {
+      const data = await res.json()
+      setConfigMsg(`Error: ${data.error}`)
+    }
+    setLockSaving(false)
   }
 
   async function saveResult(fixture: Fixture) {
@@ -734,63 +757,67 @@ export default function AdminPanel({ fixtures, defaultTab }: Props) {
       {activeTab === "config" && (
         <div className="flex flex-col gap-5">
 
-          {/* Bloque 1 — Configuración del torneo */}
+          {/* Bloque 1 — Configuración del torneo (oculto: precio lo define cada liga;
+               lock_date sigue funcionando via lib/lock-date.ts — reactivar si se necesita
+               control manual de fecha de cierre desde el panel admin) */}
+
+          {/* Bloque 0 — Control de bloqueo de predicciones */}
           <div className="rounded-2xl p-5" style={cardStyle}>
-            <h2 className="text-[#111827] font-bold mb-1">⚙️ Configuración del torneo</h2>
-            <p className="text-[#6b7280] text-xs mb-4">Precio por quiniela y fecha de cierre de predicciones. El precio aquí es un valor por defecto — cada liga puede definir su propio precio.</p>
+            <h2 className="text-[#111827] font-bold mb-1">🔒 Predicciones</h2>
+            <p className="text-[#6b7280] text-xs mb-4">
+              Controla si los usuarios pueden editar y enviar sus quinielas. El cierre automático
+              ocurre al inicio del primer partido, pero puedes adelantarlo o reabrirlo manualmente.
+            </p>
             {configLoading ? (
               <p className="text-[#6b7280] text-xs">Cargando...</p>
-            ) : (
-              <div className="flex flex-col gap-3">
-                <div className="flex flex-wrap gap-3">
-                  <div className="flex flex-col gap-1 flex-1 min-w-[120px]">
-                    <label className="text-[#7ab88a] text-xs font-medium">Precio por quiniela</label>
-                    <input
-                      type="number" min="0" step="0.5"
-                      value={configPrice}
-                      onChange={e => setConfigPrice(e.target.value)}
-                      className="px-3 py-2 rounded-lg text-sm"
-                      style={{ background: "white", border: "1px solid #d1d5db", color: "#111827" }}
-                    />
+            ) : (() => {
+              const manuallyLocked = !!configLockDate
+              const lockedDate = manuallyLocked ? new Date(configLockDate) : null
+              const alreadyPassed = lockedDate ? lockedDate.getTime() <= Date.now() : false
+              const statusLabel = manuallyLocked
+                ? alreadyPassed
+                  ? `Cerradas manualmente desde ${lockedDate!.toLocaleString("es-MX", { dateStyle: "short", timeStyle: "short" })}`
+                  : `Cierre programado para ${lockedDate!.toLocaleString("es-MX", { dateStyle: "short", timeStyle: "short" })}`
+                : "Abiertas (cierre automático al iniciar el primer partido)"
+              return (
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg"
+                    style={{
+                      background: manuallyLocked ? "rgba(239,68,68,0.08)" : "rgba(34,197,94,0.08)",
+                      border: `1px solid ${manuallyLocked ? "rgba(239,68,68,0.3)" : "rgba(34,197,94,0.3)"}`,
+                    }}>
+                    <span>{manuallyLocked ? "🔒" : "🔓"}</span>
+                    <span className="text-xs font-medium" style={{ color: manuallyLocked ? "#ef4444" : "#22c55e" }}>
+                      {statusLabel}
+                    </span>
                   </div>
-                  <div className="flex flex-col gap-1 w-28">
-                    <label className="text-[#7ab88a] text-xs font-medium">Moneda</label>
-                    <select
-                      value={configCurrency}
-                      onChange={e => setConfigCurrency(e.target.value)}
-                      className="px-3 py-2 rounded-lg text-sm"
-                      style={{ background: "white", border: "1px solid #d1d5db", color: "#111827" }}
-                    >
-                      <option value="USD">USD</option>
-                      <option value="MXN">MXN</option>
-                      <option value="EUR">EUR</option>
-                      <option value="ARS">ARS</option>
-                    </select>
+                  <div className="flex gap-2 flex-wrap">
+                    {!manuallyLocked ? (
+                      <button
+                        onClick={() => setLock(true)}
+                        disabled={lockSaving}
+                        className="py-2 px-5 rounded-lg font-bold text-white text-xs uppercase tracking-wide disabled:opacity-50"
+                        style={{ background: "#dc2626" }}>
+                        {lockSaving ? "Cerrando..." : "Cerrar predicciones"}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => setLock(false)}
+                        disabled={lockSaving}
+                        className="py-2 px-5 rounded-lg font-bold text-white text-xs uppercase tracking-wide disabled:opacity-50"
+                        style={{ background: "#16a34a" }}>
+                        {lockSaving ? "Abriendo..." : "Abrir predicciones"}
+                      </button>
+                    )}
                   </div>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[#7ab88a] text-xs font-medium">Fecha de cierre de predicciones</label>
-                  <input
-                    type="datetime-local"
-                    value={configLockDate}
-                    onChange={e => setConfigLockDate(e.target.value)}
-                    className="px-3 py-2 rounded-lg text-sm max-w-xs"
-                    style={{ background: "white", border: "1px solid #d1d5db", color: "#111827" }}
-                  />
-                  <p className="text-[#9ca3af] text-xs">Deja vacío para calcular automáticamente (kickoff del primer partido). Rellena solo si necesitas adelantar el cierre.</p>
-                </div>
-                <div className="flex items-center gap-3 flex-wrap">
-                  <button onClick={saveConfig} disabled={configSaving}
-                    className="py-2 px-5 rounded-lg font-bold text-black text-xs uppercase tracking-wide disabled:opacity-50"
-                    style={{ background: "linear-gradient(135deg, #F5C518, #FFD700)" }}>
-                    {configSaving ? "Guardando…" : "Guardar configuración"}
-                  </button>
                   {configMsg && (
-                    <p className={`text-xs ${configMsg.startsWith("Error") ? "text-red-400" : "text-green-500"}`}>{configMsg}</p>
+                    <p className={`text-xs ${configMsg.startsWith("Error") ? "text-red-400" : "text-green-500"}`}>
+                      {configMsg}
+                    </p>
                   )}
                 </div>
-              </div>
-            )}
+              )
+            })()}
           </div>
 
           {/* Bloque 2 — Fin del torneo */}

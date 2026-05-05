@@ -17,6 +17,27 @@ export async function POST() {
 
   try {
     const admin = await createAdminClient()
+
+    // Pre-validation: all 72 group games must be finished before running the pipeline.
+    // fillGroupAdvancers has its own internal guard but we return early here for a
+    // clear admin-facing message.
+    const { count: finishedCount, error: countErr } = await admin
+      .from("fixtures")
+      .select("id", { count: "exact", head: true })
+      .eq("phase", "groups")
+      .eq("status", "finished")
+      .not("home_score", "is", null)
+
+    if (countErr) return NextResponse.json({ error: countErr.message }, { status: 500 })
+
+    if ((finishedCount ?? 0) < 72) {
+      return NextResponse.json({
+        message: `⏳ Grupos incompletos — ${finishedCount ?? 0}/72 partidos terminados. El bracket de R32 se actualizará cuando termine la fase de grupos.`,
+        groupsFinished: finishedCount ?? 0,
+        groupsRequired: 72,
+      })
+    }
+
     const standings = await recalculateGroupStandings(admin)
     const groupFilled = await fillGroupAdvancers(admin, standings)
     const best3rdFilled = await assignBest3rd(admin, standings)

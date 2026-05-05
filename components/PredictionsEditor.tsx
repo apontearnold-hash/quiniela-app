@@ -42,6 +42,8 @@ interface Props {
   knockoutStatusMap?: Record<string, string>
   /** Real knockout fixtures keyed by bracket_position — overlaid on static slots to provide team IDs */
   realKnockoutFixtures?: Record<string, Fixture>
+  /** True when R32 has real teams and this quiniela's picks need to be synced */
+  r32NeedsSync?: boolean
 }
 
 interface PredState {
@@ -424,6 +426,7 @@ export default function PredictionsEditor({
   submittedCount = 0,
   knockoutEditable = false, knockoutStatusMap = {},
   realKnockoutFixtures = {},
+  r32NeedsSync = false,
 }: Props) {
   const supabase = createClient()
 
@@ -481,6 +484,10 @@ export default function PredictionsEditor({
   const [submitError, setSubmitError]  = useState<string | null>(null)
   const [isDirty, setIsDirty]          = useState(false)
   const [isSaving, setIsSaving]        = useState(false)
+  // R32 sync modal — shown once per page load when r32NeedsSync=true
+  const [showR32Modal, setShowR32Modal] = useState(r32NeedsSync)
+  const [r32Syncing, setR32Syncing]     = useState(false)
+  const [r32SyncError, setR32SyncError] = useState<string | null>(null)
   const [draftResult, setDraftResult]  = useState<"ok" | "error" | null>(null)
   const [draftError, setDraftError]    = useState<string | null>(null)
 
@@ -798,9 +805,77 @@ export default function PredictionsEditor({
 
   const canSubmit = missingItems.length === 0 && (groupTotal > 0 || knockoutTotal > 0)
 
+  // ── R32 sync handler ─────────────────────────────────────────────────────────
+  async function handleR32Sync() {
+    setR32Syncing(true)
+    setR32SyncError(null)
+    const res = await fetch(`/api/quiniela/${quinielaId}/sync-r32`, { method: "POST" })
+    if (res.ok) {
+      // Reload to get fresh bracket_picks with updated team IDs from server
+      window.location.reload()
+    } else {
+      const data = await res.json().catch(() => ({}))
+      setR32SyncError(data.error ?? "Error al sincronizar")
+      setR32Syncing(false)
+    }
+  }
+
   // ── Render ────────────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-8">
+
+      {/* ══ R32 sync modal — shown when knockout editing is open and teams changed ═ */}
+      {showR32Modal && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 50,
+          background: "rgba(0,0,0,0.6)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          padding: "16px",
+        }}>
+          <div style={{
+            background: "white", borderRadius: "20px", padding: "28px",
+            maxWidth: "440px", width: "100%",
+            boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+          }}>
+            <div style={{ fontSize: "32px", textAlign: "center", marginBottom: "16px" }}>🏆</div>
+            <h3 style={{ fontWeight: 800, fontSize: "17px", color: "#111827", margin: "0 0 12px", textAlign: "center" }}>
+              Los cruces de R32 ya están definidos
+            </h3>
+            <p style={{ fontSize: "14px", color: "#374151", lineHeight: 1.6, margin: "0 0 20px" }}>
+              Los equipos reales de la Ronda de 32 ya fueron asignados. Si continúas, actualizaremos
+              esta quiniela con los equipos reales. Tus marcadores guardados se mantendrán.
+            </p>
+            {r32SyncError && (
+              <p style={{ fontSize: "13px", color: "#dc2626", marginBottom: "12px" }}>{r32SyncError}</p>
+            )}
+            <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
+              <button
+                onClick={handleR32Sync}
+                disabled={r32Syncing}
+                style={{
+                  padding: "10px 24px", borderRadius: "10px", fontWeight: 700, fontSize: "14px",
+                  background: "linear-gradient(135deg, #F5C518, #FFD700)",
+                  color: "#111", border: "none", cursor: r32Syncing ? "not-allowed" : "pointer",
+                  opacity: r32Syncing ? 0.6 : 1,
+                }}
+              >
+                {r32Syncing ? "Actualizando..." : "Actualizar y continuar"}
+              </button>
+              <button
+                onClick={() => setShowR32Modal(false)}
+                disabled={r32Syncing}
+                style={{
+                  padding: "10px 20px", borderRadius: "10px", fontWeight: 600, fontSize: "14px",
+                  background: "white", color: "#374151",
+                  border: "1px solid #d1d5db", cursor: "pointer",
+                }}
+              >
+                Ahora no
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ══ Champion banner — readOnly mode: shown at top as first thing ═══════ */}
       {champion && readOnly && (

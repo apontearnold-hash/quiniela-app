@@ -22,9 +22,21 @@ const SECTIONS: Section[] = [
     title: { es: "Cómo funciona la quiniela", en: "How the pool works" },
     bullets: [
       { es: "Predice el marcador de todos los partidos del Mundial 2026.", en: "Predict the score of every match in the 2026 World Cup." },
-      { es: "Llena la fase de grupos, la eliminatoria y las dos preguntas bonus.", en: "Fill in the group stage, knockout bracket, and both bonus questions." },
-      { es: "Grupos ×1 · Ronda de 32 ×1.25 · Octavos ×1.5 · Cuartos ×1.75 · Semis ×2 · Final ×2.5.", en: "Groups ×1 · R32 ×1.25 · R16 ×1.5 · QF ×1.75 · SF ×2 · Final ×2.5." },
+      { es: "Llena la fase de grupos, toda la eliminatoria y las dos preguntas bonus.", en: "Fill in the group stage, the full knockout bracket, and both bonus questions." },
+      { es: "Multiplicadores por fase: Grupos ×1 · R32 ×2 · Octavos ×3 · Cuartos ×4 · Semis ×5 · Final ×6.", en: "Phase multipliers: Groups ×1 · R32 ×2 · R16 ×3 · QF ×4 · SF ×5 · Final ×6." },
       { es: "Compite contra los demás participantes de tu liga.", en: "Compete against the other players in your league." },
+    ],
+  },
+  {
+    id: "scoring",
+    icon: "📊",
+    title: { es: "Sistema de puntuación", en: "Scoring system" },
+    bullets: [
+      { es: "Acierto (resultado correcto: quién gana o empate): 3 puntos base.", en: "Correct outcome (who wins or draw): 3 base points." },
+      { es: "Exacto (marcador exacto, ej. 2-1): 5 puntos base.", en: "Exact score (e.g. 2-1): 5 base points." },
+      { es: "Los puntos base se multiplican por la fase: ×1 grupos hasta ×6 final.", en: "Base points are multiplied by the phase: ×1 groups up to ×6 final." },
+      { es: "Eliminatoria — penales: +3 si predices que va a penales · +5 si aciertas el ganador.", en: "Knockout — penalties: +3 for predicting penalties · +5 for correct penalty winner." },
+      { es: "Ejemplo: marcador exacto en la Final = 5 × 6 = 30 puntos.", en: "Example: exact score in the Final = 5 × 6 = 30 points." },
     ],
   },
   {
@@ -32,10 +44,10 @@ const SECTIONS: Section[] = [
     icon: "💾",
     title: { es: "Guardar vs Enviar", en: "Save vs Submit" },
     bullets: [
-      { es: "Borrador: guarda incompleta y edítala cuando quieras antes del cierre.", en: "Draft: save incomplete and edit any time before the deadline." },
+      { es: "Borrador: guarda incompleta y edítala cuando quieras antes del cierre de predicciones.", en: "Draft: save incomplete and edit any time before the predictions close." },
       { es: "Para enviar necesitas: todos los grupos, toda la eliminatoria y las dos preguntas bonus.", en: "To submit you need: all group matches, the full knockout bracket, and both bonus questions." },
       { es: "Al enviar, tu quiniela aparece en el ranking y cuenta en el pozo de premios.", en: "Once submitted, your quiniela appears in the rankings and counts toward prizes." },
-      { es: "Puedes seguir editando después de enviar, hasta el cierre del torneo.", en: "You can keep editing after submitting, until the tournament deadline." },
+      { es: "Puedes seguir editando hasta que se cierre la quiniela, no después.", en: "You can keep editing until predictions close — not after." },
     ],
   },
   {
@@ -57,7 +69,7 @@ const SECTIONS: Section[] = [
     bullets: [
       { es: "Escribe el marcador final que predices para cada partido (ej. 2 – 1).", en: "Enter your predicted final score for each match (e.g. 2 – 1)." },
       { es: "A la derecha ves la tabla proyectada de tu grupo según tus predicciones.", en: "On the right you see your group's projected standings based on your picks." },
-      { es: "Los partidos se bloquean automáticamente al cierre del torneo.", en: "Matches lock automatically at the tournament deadline." },
+      { es: "Los partidos se bloquean al cierre de predicciones y no se pueden cambiar.", en: "Matches lock at the predictions deadline and cannot be changed." },
     ],
   },
   {
@@ -74,11 +86,12 @@ const SECTIONS: Section[] = [
   {
     id: "lock",
     icon: "🔒",
-    title: { es: "Cierre del torneo", en: "Tournament deadline" },
+    title: { es: "Cierre de predicciones", en: "Predictions deadline" },
     bullets: [
-      { es: "El cierre coincide con el inicio del primer partido (o la fecha que fije el admin).", en: "The deadline matches the start of the first match (or a date set by the admin)." },
+      { es: "Las predicciones cierran automáticamente al inicio del primer partido, o en la fecha que fije el admin.", en: "Predictions close automatically at the start of the first match, or on a date set by the admin." },
       { es: "Después del cierre no se puede crear, editar ni enviar ninguna quiniela.", en: "After the deadline, no quiniela can be created, edited, or submitted." },
       { es: "Los borradores sin enviar quedan bloqueados y no puntúan.", en: "Unsubmitted drafts remain locked and score no points." },
+      { es: "La reapertura de eliminatorias es una acción separada — ver sección siguiente.", en: "Knockout editing reopening is a separate action — see next section." },
     ],
   },
   {
@@ -86,10 +99,11 @@ const SECTIONS: Section[] = [
     icon: "🔓",
     title: { es: "Reapertura de eliminatorias", en: "Knockout editing reopen" },
     bullets: [
-      { es: "El admin puede reabrir la eliminatoria una vez iniciado el torneo.", en: "Your admin can reopen knockout editing after the tournament starts." },
-      { es: "Solo los partidos no iniciados quedan editables.", en: "Only unstarted knockout matches are editable." },
-      { es: "Los grupos y las preguntas bonus siguen bloqueados.", en: "Group stage and bonus questions remain locked." },
-      { es: "Aplica solo mientras el admin mantenga la opción activa en tu liga.", en: "Available only while your admin has the option enabled for your league." },
+      { es: "Una vez iniciado el torneo, el admin puede habilitar la edición de la eliminatoria en tu liga.", en: "After the tournament starts, your admin can enable knockout editing for your league." },
+      { es: "Al entrar a tu quiniela verás un aviso para aceptar los equipos reales asignados a R32.", en: "When you open your quiniela, a dialog asks you to accept the real team assignments for R32." },
+      { es: "Solo los partidos aún no iniciados quedan editables; tus marcadores ya guardados se conservan.", en: "Only unstarted matches become editable — your existing score predictions are preserved." },
+      { es: "Los grupos y las preguntas bonus permanecen bloqueados.", en: "Group stage and bonus questions remain locked permanently." },
+      { es: "Disponible únicamente mientras el admin tenga la opción activa en tu liga.", en: "Available only while your admin has the option enabled for your league." },
     ],
   },
   {
@@ -120,11 +134,11 @@ interface FAQ { q: BiLang; a: BiLang }
 const FAQS: FAQ[] = [
   {
     q: { es: "¿Puedo guardar y terminar después?", en: "Can I save and finish later?" },
-    a: { es: "Sí. Guarda tu quiniela como borrador y vuelve cuando quieras antes del cierre del torneo.", en: "Yes. Save as a draft and return any time before the tournament deadline." },
+    a: { es: "Sí. Guarda tu quiniela como borrador y vuelve cuando quieras antes del cierre de predicciones.", en: "Yes. Save as a draft and return any time before predictions close." },
   },
   {
     q: { es: "¿Puedo editar mi quiniela después de enviarla?", en: "Can I edit after submitting?" },
-    a: { es: "Sí, hasta el cierre del torneo. Puedes modificar grupos, eliminatoria y bonus aunque ya hayas enviado. Una vez que llega el cierre, nada se puede cambiar.", en: "Yes, until the tournament deadline. You can modify groups, knockout picks, and bonus questions even after submitting. Once the deadline passes, nothing can be changed." },
+    a: { es: "Sí, hasta el cierre de predicciones. Una vez cerrada, solo podrás editar la eliminatoria si el admin reabre esa opción en tu liga. Los grupos y las preguntas bonus no se pueden cambiar tras el cierre.", en: "Yes, until predictions close. After that, you can only edit the knockout bracket if your admin reopens that option for your league. Group matches and bonus questions cannot be changed after the deadline." },
   },
   {
     q: { es: "¿Por qué no puedo enviar mi quiniela?", en: "Why can't I submit my quiniela?" },
@@ -139,12 +153,16 @@ const FAQS: FAQ[] = [
     a: { es: "Los equipos de rondas avanzadas todavía dependen de los resultados de rondas anteriores. Aun así debes llenar un marcador.", en: "Teams in advanced rounds depend on earlier results. You still need to enter a score prediction." },
   },
   {
+    q: { es: "¿Qué ocurre en la reapertura de eliminatorias?", en: "What happens when knockout editing reopens?" },
+    a: { es: "Al entrar a tu quiniela verás un aviso para aceptar los equipos reales asignados a R32. Al aceptar, tus marcadores se conservan y puedes editar los partidos que aún no hayan comenzado.", en: "When you open your quiniela, a dialog asks you to accept the real team assignments for R32. Accepting preserves your score predictions and lets you edit matches that haven't started yet." },
+  },
+  {
     q: { es: '¿Qué significa "Aciertos"?', en: 'What does "Aciertos" mean?' },
-    a: { es: "El número de partidos en los que predijiste correctamente el resultado: quién gana o si termina en empate.", en: "The number of matches where you correctly predicted the outcome: who wins or if it ends in a draw." },
+    a: { es: "Partidos donde predijiste correctamente el resultado (quién gana o empate): valen 3 puntos base × multiplicador de fase.", en: "Matches where you correctly predicted the outcome (who wins or draw): worth 3 base points × phase multiplier." },
   },
   {
     q: { es: '¿Qué son los "Exactos"?', en: 'What are "Exactos" (Exact)?' },
-    a: { es: "El número de partidos donde tu predicción de marcador fue exactamente igual al resultado final (ej. predijiste 2-1 y terminó 2-1).", en: "The number of matches where your score prediction exactly matched the final result (e.g. you predicted 2-1 and it ended 2-1)." },
+    a: { es: "Partidos donde tu marcador fue exactamente igual al resultado final (ej. predijiste 2-1 y terminó 2-1): valen 5 puntos base × multiplicador de fase.", en: "Matches where your score exactly matched the final result (e.g. you predicted 2-1 and it ended 2-1): worth 5 base points × phase multiplier." },
   },
   {
     q: { es: "¿Cómo se validan las preguntas bonus?", en: "How are bonus questions validated?" },

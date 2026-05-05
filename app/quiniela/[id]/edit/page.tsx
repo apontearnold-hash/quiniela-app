@@ -97,6 +97,30 @@ export default async function EditQuinielaPage({ params }: { params: Promise<{ i
   const bracketPickMap: Record<string, BracketPick> = {}
   existingBracketPicks?.forEach(bp => { bracketPickMap[bp.slot_key] = bp as BracketPick })
 
+  // Detect if the user needs to accept R32 team updates.
+  // Conditions: knockout editing is open + R32 has real teams + user hasn't synced yet
+  // (or R32 fixtures were updated after their last sync).
+  let r32NeedsSync = false
+  if (knockoutEditable) {
+    const r32HasRealTeams = Object.keys(realKnockoutFixtures).some(pos => pos.startsWith("R32-"))
+    if (r32HasRealTeams) {
+      const r32SyncedAt = (quiniela as { r32_synced_at?: string | null }).r32_synced_at ?? null
+      if (!r32SyncedAt) {
+        r32NeedsSync = true
+      } else {
+        // Check if any R32 fixture changed after the user's last accepted sync
+        const { data: changedAfterSync } = await admin
+          .from("fixtures")
+          .select("id")
+          .eq("phase", "round_of_32")
+          .not("bracket_position", "is", null)
+          .gt("updated_at", r32SyncedAt)
+          .limit(1)
+        r32NeedsSync = (changedAfterSync?.length ?? 0) > 0
+      }
+    }
+  }
+
   const lockDate = await getLockDate(supabase, groupFixtures ?? [])
 
   const isLocked = lockDate ? new Date().getTime() >= new Date(lockDate).getTime() : false
@@ -177,6 +201,7 @@ export default async function EditQuinielaPage({ params }: { params: Promise<{ i
             knockoutEditable={knockoutEditable}
             knockoutStatusMap={knockoutStatusMap}
             realKnockoutFixtures={realKnockoutFixtures}
+            r32NeedsSync={r32NeedsSync}
           />
         )}
       </div>
