@@ -66,6 +66,26 @@ export default function LeaderboardClient({
   const router = useRouter()
   const [filter, setFilter] = useState<"all" | "mine">("all")
 
+  // Draft delete state
+  const [deleteTarget, setDeleteTarget] = useState<Quiniela | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+
+  async function confirmDelete() {
+    if (!deleteTarget) return
+    setDeleting(true)
+    setDeleteError(null)
+    try {
+      const res = await fetch(`/api/quiniela/${deleteTarget.id}`, { method: "DELETE" })
+      const data = await res.json()
+      if (!res.ok) { setDeleteError(data.error ?? "Error al eliminar"); return }
+      setDeleteTarget(null)
+      router.refresh()
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   const rankMap = new Map(quinielas.map((q, i) => [q.id, i + 1]))
   const drafts  = myQuinielas.filter(q => q.status !== "submitted")
   const rows    = filter === "mine" ? quinielas.filter(q => q.user_id === currentUserId) : quinielas
@@ -109,15 +129,56 @@ export default function LeaderboardClient({
                 </p>
                 <p className="text-sm font-semibold truncate" style={{ color: "#111827" }}>{q.name}</p>
               </div>
-              <Link
-                href={`/quiniela/${q.id}/edit`}
-                className="flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold hover:opacity-90"
-                style={{ background: "#F5C518", color: "#1a1a00" }}
-              >
-                {t("complete_preds")}
-              </Link>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <button
+                  onClick={() => { setDeleteTarget(q); setDeleteError(null) }}
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold transition-colors"
+                  style={{ background: "#fee2e2", color: "#b91c1c", border: "1px solid #fca5a5" }}
+                >
+                  Eliminar
+                </button>
+                <Link
+                  href={`/quiniela/${q.id}/edit`}
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold hover:opacity-90"
+                  style={{ background: "#F5C518", color: "#1a1a00" }}
+                >
+                  {t("complete_preds")}
+                </Link>
+              </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* ── Delete confirmation modal ──────────────────────────────── */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.6)" }}>
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
+            <h2 className="font-black text-gray-900 text-base mb-2">Eliminar borrador</h2>
+            <p className="text-sm text-gray-600 mb-1">
+              Esto eliminará <strong>&ldquo;{deleteTarget.name}&rdquo;</strong> y no se podrá recuperar. ¿Continuar?
+            </p>
+            {deleteError && (
+              <p className="text-xs text-red-600 font-semibold mt-2">{deleteError}</p>
+            )}
+            <div className="flex gap-3 justify-end mt-5">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleting}
+                className="px-4 py-2 rounded-xl text-sm border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmDelete}
+                disabled={deleting}
+                className="px-4 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50"
+                style={{ background: deleting ? "#ef4444aa" : "#dc2626" }}
+              >
+                {deleting ? "Eliminando..." : "Sí, eliminar"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
