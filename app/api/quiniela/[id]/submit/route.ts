@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createClient, createAdminClient } from "@/lib/supabase-server"
 import { BRACKET_SLOTS } from "@/lib/bracket-slots"
+import { createQuinielaSnapshot } from "@/lib/snapshot"
 
 export async function POST(
   _req: Request,
@@ -110,5 +111,13 @@ export async function POST(
     .eq("user_id", user.id)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Snapshot: frozen copy at the moment of first submission
+  try {
+    await createQuinielaSnapshot(id, "initial_submit", { createdBy: user.id })
+  } catch (snapErr) {
+    console.error("[submit] snapshot failed (non-fatal):", snapErr)
+  }
+
   return NextResponse.json({ success: true })
 }

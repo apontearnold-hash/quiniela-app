@@ -6,6 +6,7 @@ import Link from "next/link"
 import type { Fixture, Phase } from "@/lib/types"
 import { PHASE_LABELS } from "@/lib/types"
 import { useT } from "@/components/LangProvider"
+import SnapshotsPanel from "@/components/SnapshotsPanel"
 
 interface Props {
   fixtures: Fixture[]
@@ -25,7 +26,7 @@ interface ResultState {
 
 interface AdminRow { id: string; email: string; created_at: string }
 
-const VALID_TABS = ["results", "sync", "ligas", "config"] as const
+const VALID_TABS = ["results", "sync", "ligas", "config", "snapshots"] as const
 type TabKey = typeof VALID_TABS[number]
 
 export default function AdminPanel({ fixtures, defaultTab }: Props) {
@@ -433,10 +434,11 @@ export default function AdminPanel({ fixtures, defaultTab }: Props) {
       {/* Tabs */}
       <div className="flex rounded-xl overflow-hidden border border-[#d1d5db]">
         {([
-          { key: "results", label: `🎯 Resultados / Pruebas` },
-          { key: "sync",    label: `🔄 Sincronización API` },
-          { key: "ligas",   label: `👥 Ligas y Acceso` },
-          { key: "config",  label: `⚙️ Configuración` },
+          { key: "results",   label: `🎯 Resultados / Pruebas` },
+          { key: "sync",      label: `🔄 Sincronización API` },
+          { key: "ligas",     label: `👥 Ligas y Acceso` },
+          { key: "config",    label: `⚙️ Configuración` },
+          { key: "snapshots", label: `💾 Snapshots` },
         ] as const).map(tab => (
           <button
             key={tab.key}
@@ -1053,6 +1055,9 @@ export default function AdminPanel({ fixtures, defaultTab }: Props) {
 
         </div>
       )}
+
+      {/* ── SNAPSHOTS ──────────────────────────────────────────────────────────── */}
+      {activeTab === "snapshots" && <SnapshotsPanel />}
     </div>
   )
 }

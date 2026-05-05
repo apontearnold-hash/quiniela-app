@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createClient, createAdminClient } from "@/lib/supabase-server"
+import { createQuinielaSnapshot } from "@/lib/snapshot"
 
 // POST /api/quiniela/[id]/sync-r32
 // Updates ONLY the R32 bracket_picks for this quiniela with real team assignments
@@ -73,6 +74,13 @@ export async function POST(
     }
   }
 
+  // Snapshot B: state immediately before overwriting R32 team assignments
+  try {
+    await createQuinielaSnapshot(id, "before_r32_sync", { createdBy: user.id })
+  } catch (snapErr) {
+    console.error("[sync-r32] before snapshot failed (non-fatal):", snapErr)
+  }
+
   // Fetch this quiniela's existing R32 bracket_picks
   const slotKeys = Array.from(slotMap.keys())
   const { data: picks, error: pickErr } = await admin
@@ -103,6 +111,13 @@ export async function POST(
     champion_team_name: null,
     champion_team_flag: null,
   }).eq("id", id)
+
+  // Snapshot C: state right after accepting real R32 teams (start of editing window)
+  try {
+    await createQuinielaSnapshot(id, "after_r32_submit", { createdBy: user.id })
+  } catch (snapErr) {
+    console.error("[sync-r32] after snapshot failed (non-fatal):", snapErr)
+  }
 
   return NextResponse.json({
     message: `✅ ${updated} picks de R32 actualizados con equipos reales`,
