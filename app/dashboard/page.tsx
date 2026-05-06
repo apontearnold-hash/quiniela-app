@@ -9,6 +9,7 @@ import type { Quiniela } from "@/lib/types"
 import { RecentFixtureTicker, UpcomingFixtureTicker } from "@/components/FixtureTicker"
 import type { RecentFixtureItem, UpcomingFixtureItem } from "@/components/FixtureTicker"
 import LeaderboardClient from "@/components/LeaderboardClient"
+import OnboardingModal from "@/components/OnboardingModal"
 import { getServerT } from "@/lib/server-lang"
 import { deriveChampions } from "@/lib/derive-champion"
 import type { Fixture } from "@/lib/types"
@@ -91,6 +92,13 @@ export default async function DashboardPage() {
   const isAdmin = user.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL
   const admin = createAdminClient()
   const t = await getServerT()
+
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("onboarding_seen")
+    .eq("id", user.id)
+    .single()
+  const onboardingSeen = (profile as { onboarding_seen?: boolean } | null)?.onboarding_seen ?? false
 
   // ── Pool selection ──────────────────────────────────────────────────
   const { data: memberships } = await admin
@@ -254,6 +262,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="min-h-screen" style={{ background: "#f0f2f5" }}>
+      <OnboardingModal show={!onboardingSeen} userId={user.id} />
       <Navbar userEmail={user.email} isAdmin={isAdmin} />
 
       <div className="max-w-5xl mx-auto px-4 py-6 space-y-5">
