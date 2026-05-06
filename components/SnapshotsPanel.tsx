@@ -1,6 +1,8 @@
 "use client"
 
 import { useState } from "react"
+import { useT } from "@/components/LangProvider"
+import { useLanguage } from "@/components/LangProvider"
 
 interface QuinielaResult {
   id: string
@@ -18,25 +20,30 @@ interface Snapshot {
   notes: string | null
 }
 
-const TYPE_STYLES: Record<string, { bg: string; color: string; label: string }> = {
-  initial_submit:  { bg: "#dcfce7", color: "#15803d", label: "Envío inicial" },
-  before_r32_sync: { bg: "#dbeafe", color: "#1d4ed8", label: "Antes R32 sync" },
-  after_r32_submit:{ bg: "#ede9fe", color: "#6d28d9", label: "Después R32 sync" },
-  manual_backup:   { bg: "#fef9c3", color: "#92400e", label: "Backup manual" },
-  restore_point:   { bg: "#fee2e2", color: "#b91c1c", label: "Restore point" },
-}
-
 function TypeBadge({ type }: { type: string }) {
-  const s = TYPE_STYLES[type] ?? { bg: "#f3f4f6", color: "#374151", label: type }
+  const t = useT()
+  const TYPE_STYLES: Record<string, { bg: string; color: string; labelKey: string }> = {
+    initial_submit:   { bg: "#dcfce7", color: "#15803d", labelKey: "snapshot_type_initial_submit" },
+    before_r32_sync:  { bg: "#dbeafe", color: "#1d4ed8", labelKey: "snapshot_type_before_r32" },
+    after_r32_submit: { bg: "#ede9fe", color: "#6d28d9", labelKey: "snapshot_type_after_r32" },
+    manual_backup:    { bg: "#fef9c3", color: "#92400e", labelKey: "snapshot_type_manual_backup" },
+    restore_point:    { bg: "#fee2e2", color: "#b91c1c", labelKey: "snapshot_type_restore_point" },
+  }
+  const s = TYPE_STYLES[type]
+  const label = s ? t(s.labelKey as Parameters<typeof t>[0]) : type
+  const bg    = s?.bg    ?? "#f3f4f6"
+  const color = s?.color ?? "#374151"
   return (
     <span className="px-2 py-0.5 rounded-full text-xs font-bold"
-      style={{ background: s.bg, color: s.color }}>
-      {s.label}
+      style={{ background: bg, color }}>
+      {label}
     </span>
   )
 }
 
 export default function SnapshotsPanel() {
+  const t = useT()
+  const { lang } = useLanguage()
   const [query, setQuery] = useState("")
   const [searching, setSearching] = useState(false)
   const [results, setResults] = useState<QuinielaResult[]>([])
@@ -51,6 +58,15 @@ export default function SnapshotsPanel() {
   const [restoring, setRestoring] = useState(false)
   const [restoreMsg, setRestoreMsg] = useState<string | null>(null)
 
+  const dateLocale = lang === "en" ? "en-US" : "es-MX"
+
+  function formatDate(iso: string) {
+    return new Date(iso).toLocaleString(dateLocale, {
+      day: "2-digit", month: "short", year: "numeric",
+      hour: "2-digit", minute: "2-digit",
+    })
+  }
+
   async function search() {
     if (!query.trim()) return
     setSearching(true)
@@ -64,7 +80,7 @@ export default function SnapshotsPanel() {
       const data = await res.json()
       if (!res.ok) { setSearchMsg(data.error ?? "Error"); return }
       setResults(data.results ?? [])
-      if ((data.results ?? []).length === 0) setSearchMsg("Sin resultados para esa búsqueda.")
+      if ((data.results ?? []).length === 0) setSearchMsg(t("snapshots_no_results"))
     } finally {
       setSearching(false)
     }
@@ -111,15 +127,15 @@ export default function SnapshotsPanel() {
 
   return (
     <div className="flex flex-col gap-5">
-      <p className="text-xs text-gray-500">Busca una quiniela para ver su historial de snapshots y restaurar un estado anterior.</p>
+      <p className="text-xs text-gray-500">{t("snapshots_intro")}</p>
 
       {/* ── Search ─────────────────────────────────────────────────────────────── */}
       <div className="rounded-2xl p-5 bg-white border border-gray-200 shadow-sm">
-        <h3 className="font-bold text-sm text-gray-900 mb-3">Buscar quiniela</h3>
+        <h3 className="font-bold text-sm text-gray-900 mb-3">{t("snapshots_search_title")}</h3>
         <div className="flex gap-2">
           <input
             className="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-            placeholder="Nombre de quiniela o UUID..."
+            placeholder={t("snapshots_search_ph")}
             value={query}
             onChange={e => setQuery(e.target.value)}
             onKeyDown={e => e.key === "Enter" && search()}
@@ -130,7 +146,7 @@ export default function SnapshotsPanel() {
             className="px-4 py-2 rounded-xl text-sm font-bold disabled:opacity-50 transition-colors"
             style={{ background: "#F5C518", color: "#111827" }}
           >
-            {searching ? "..." : "Buscar"}
+            {searching ? "..." : t("snapshots_search_btn")}
           </button>
         </div>
 
@@ -163,13 +179,13 @@ export default function SnapshotsPanel() {
       {selectedId && (
         <div className="rounded-2xl p-5 bg-white border border-gray-200 shadow-sm">
           <h3 className="font-bold text-sm text-gray-900 mb-3">
-            Snapshots de &ldquo;{selectedName}&rdquo;
+            {t("snapshots_panel_title")} &ldquo;{selectedName}&rdquo;
           </h3>
 
-          {loadingSnaps && <p className="text-xs text-gray-500">Cargando...</p>}
+          {loadingSnaps && <p className="text-xs text-gray-500">{t("snapshots_loading")}</p>}
 
           {!loadingSnaps && snapshots.length === 0 && (
-            <p className="text-xs text-gray-500">No hay snapshots para esta quiniela.</p>
+            <p className="text-xs text-gray-500">{t("snapshots_none")}</p>
           )}
 
           {!loadingSnaps && snapshots.length > 0 && (
@@ -177,9 +193,9 @@ export default function SnapshotsPanel() {
               <table className="w-full text-xs border-collapse">
                 <thead>
                   <tr style={{ color: "#6b7280", borderBottom: "1px solid #e5e7eb" }}>
-                    <th className="text-left py-2 pr-4">Tipo</th>
-                    <th className="text-left py-2 pr-4">Fecha</th>
-                    <th className="text-left py-2 pr-4">Notas</th>
+                    <th className="text-left py-2 pr-4">{t("snapshots_col_type")}</th>
+                    <th className="text-left py-2 pr-4">{t("snapshots_col_date")}</th>
+                    <th className="text-left py-2 pr-4">{t("snapshots_col_notes")}</th>
                     <th className="py-2" />
                   </tr>
                 </thead>
@@ -188,10 +204,7 @@ export default function SnapshotsPanel() {
                     <tr key={s.id} style={{ borderBottom: "1px solid #f3f4f6" }}>
                       <td className="py-2.5 pr-4"><TypeBadge type={s.snapshot_type} /></td>
                       <td className="py-2.5 pr-4" style={{ color: "#374151" }}>
-                        {new Date(s.created_at).toLocaleString("es-MX", {
-                          day: "2-digit", month: "short", year: "numeric",
-                          hour: "2-digit", minute: "2-digit",
-                        })}
+                        {formatDate(s.created_at)}
                       </td>
                       <td className="py-2.5 pr-4" style={{ color: "#6b7280" }}>{s.notes ?? "—"}</td>
                       <td className="py-2.5">
@@ -200,7 +213,7 @@ export default function SnapshotsPanel() {
                           className="px-3 py-1 rounded-lg text-xs font-bold transition-colors"
                           style={{ background: "#fee2e2", color: "#b91c1c", border: "1px solid #fca5a5" }}
                         >
-                          Restaurar
+                          {t("snapshots_restore_btn")}
                         </button>
                       </td>
                     </tr>
@@ -222,19 +235,18 @@ export default function SnapshotsPanel() {
       {restoreTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.65)" }}>
           <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
-            <h2 className="font-black text-gray-900 text-lg mb-2">Confirmar restauración</h2>
+            <h2 className="font-black text-gray-900 text-lg mb-2">{t("snapshots_confirm_title")}</h2>
             <p className="text-sm text-gray-600 mb-4">
-              Esto reemplazará las predicciones actuales de{" "}
-              <strong>{selectedName}</strong> con la copia del snapshot{" "}
-              <TypeBadge type={restoreTarget.snapshot_type} /> del{" "}
-              {new Date(restoreTarget.created_at).toLocaleString("es-MX", {
-                day: "2-digit", month: "short", year: "numeric",
-                hour: "2-digit", minute: "2-digit",
-              })}.
+              {t("snapshots_confirm_pre")}{" "}
+              <strong>{selectedName}</strong>{" "}
+              {t("snapshots_confirm_mid")}{" "}
+              <TypeBadge type={restoreTarget.snapshot_type} />{" "}
+              {t("snapshots_confirm_post")}{" "}
+              {formatDate(restoreTarget.created_at)}.
             </p>
             <div className="rounded-xl p-3 mb-5 text-xs font-semibold"
               style={{ background: "#fffbeb", border: "1px solid #fcd34d", color: "#92400e" }}>
-              Se creará un backup del estado actual antes de restaurar.
+              {t("snapshots_confirm_warning")}
             </div>
             <div className="flex gap-3 justify-end">
               <button
@@ -242,7 +254,7 @@ export default function SnapshotsPanel() {
                 disabled={restoring}
                 className="px-4 py-2 rounded-xl text-sm border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
               >
-                Cancelar
+                {t("cancel")}
               </button>
               <button
                 onClick={doRestore}
@@ -250,7 +262,7 @@ export default function SnapshotsPanel() {
                 className="px-4 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50 transition-colors"
                 style={{ background: restoring ? "#ef4444aa" : "#dc2626" }}
               >
-                {restoring ? "Restaurando..." : "Sí, restaurar ahora"}
+                {restoring ? t("snapshots_restoring") : t("snapshots_confirm_btn")}
               </button>
             </div>
           </div>

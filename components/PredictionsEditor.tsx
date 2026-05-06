@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from "react"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase-browser"
+import { useT } from "@/components/LangProvider"
 import type { Fixture, Prediction, BracketPick, Phase } from "@/lib/types"
 import { PHASE_LABELS, PHASE_MULTIPLIER } from "@/lib/types"
 import {
@@ -429,6 +430,7 @@ export default function PredictionsEditor({
   r32NeedsSync = false,
 }: Props) {
   const supabase = createClient()
+  const t = useT()
 
   const isLocked = lockDate ? Date.now() >= new Date(lockDate).getTime() : false
   const effectiveLock = isLocked || readOnly
@@ -729,7 +731,7 @@ export default function PredictionsEditor({
     if (predRows.length === 0 && bpRows.length === 0) {
       setIsSaving(false)
       setDraftResult("error")
-      setDraftError(hasDrawErrors ? "Resuelve los empates en eliminatorias." : "No hay predicciones que guardar.")
+      setDraftError(hasDrawErrors ? t("err_draw_resolve") : t("no_preds_to_save"))
       return
     }
 
@@ -762,7 +764,7 @@ export default function PredictionsEditor({
       })
       setIsDirty(hasDrawErrors)
       setDraftResult("ok")
-      setDraftError(hasDrawErrors ? `${total} predicciones guardadas · resuelve empates pendientes.` : null)
+      setDraftError(hasDrawErrors ? `${total} ${t("partial_saved")}` : null)
       setTimeout(() => setDraftResult(null), 4000)
     }
   }, [quinielaId, supabase, allFixturesMerged])
@@ -793,17 +795,17 @@ export default function PredictionsEditor({
   const missingItems: string[] = []
   if (groupTotal > 0 && groupFilled < groupTotal) {
     const n = groupTotal - groupFilled
-    missingItems.push(`${n} partido${n > 1 ? "s" : ""} de grupos sin completar`)
+    missingItems.push(`${n} ${n > 1 ? t("missing_group_matches") : t("missing_group_match")}`)
   }
   if (knockoutTotal > 0 && knockoutFilled < knockoutTotal) {
     const n = knockoutTotal - knockoutFilled
-    missingItems.push(`${n} partido${n > 1 ? "s" : ""} de eliminatoria sin completar`)
+    missingItems.push(`${n} ${n > 1 ? t("missing_knockout_matches") : t("missing_knockout_match")}`)
   }
   if (invalidKnockoutCount > 0) {
-    missingItems.push(`${invalidKnockoutCount} empate${invalidKnockoutCount > 1 ? "s" : ""} en eliminatoria sin definir penales`)
+    missingItems.push(`${invalidKnockoutCount} ${invalidKnockoutCount > 1 ? t("missing_knockout_ties") : t("missing_knockout_tie")}`)
   }
-  if (!bonusPicks.topScorer) missingItems.push("Goleador del torneo (bonus)")
-  if (!bonusPicks.mostGoalsTeam) missingItems.push("Equipo con más goles (bonus)")
+  if (!bonusPicks.topScorer) missingItems.push(t("missing_top_scorer_item"))
+  if (!bonusPicks.mostGoalsTeam) missingItems.push(t("missing_most_goals_item"))
 
   const canSubmit = missingItems.length === 0 && (groupTotal > 0 || knockoutTotal > 0)
 
@@ -841,11 +843,10 @@ export default function PredictionsEditor({
           }}>
             <div style={{ fontSize: "32px", textAlign: "center", marginBottom: "16px" }}>🏆</div>
             <h3 style={{ fontWeight: 800, fontSize: "17px", color: "#111827", margin: "0 0 12px", textAlign: "center" }}>
-              Los cruces de R32 ya están definidos
+              {t("r32_modal_title")}
             </h3>
             <p style={{ fontSize: "14px", color: "#374151", lineHeight: 1.6, margin: "0 0 20px" }}>
-              Los equipos reales de la Ronda de 32 ya fueron asignados. Si continúas, actualizaremos
-              esta quiniela con los equipos reales. Tus marcadores guardados se mantendrán.
+              {t("r32_modal_text")}
             </p>
             {r32SyncError && (
               <p style={{ fontSize: "13px", color: "#dc2626", marginBottom: "12px" }}>{r32SyncError}</p>
@@ -861,7 +862,7 @@ export default function PredictionsEditor({
                   opacity: r32Syncing ? 0.6 : 1,
                 }}
               >
-                {r32Syncing ? "Actualizando..." : "Actualizar y continuar"}
+                {r32Syncing ? t("r32_syncing_btn") : t("r32_sync_btn")}
               </button>
               <button
                 onClick={() => setShowR32Modal(false)}
@@ -872,7 +873,7 @@ export default function PredictionsEditor({
                   border: "1px solid #d1d5db", cursor: "pointer",
                 }}
               >
-                Ahora no
+                {t("r32_cancel_btn")}
               </button>
             </div>
           </div>
@@ -887,7 +888,7 @@ export default function PredictionsEditor({
             <div className="text-5xl flex-shrink-0">🏆</div>
             <div className="flex-1 min-w-0">
               <p className="text-xs uppercase tracking-widest font-bold mb-0.5" style={{ color: "#7ab88a" }}>
-                Campeón elegido
+                {t("champion_elected")}
               </p>
               <p className="text-xl font-black truncate" style={{ color: "#F5C518" }}>{champion.name}</p>
             </div>
@@ -904,8 +905,8 @@ export default function PredictionsEditor({
           style={{ background: "rgba(245,197,24,0.06)", border: "1px solid rgba(245,197,24,0.25)" }}>
           <span className="text-xl">🔒</span>
           <div>
-            <p className="text-[#F5C518] font-bold text-sm">El torneo ya comenzó</p>
-            <p className="text-[#7ab88a] text-xs mt-0.5">Las predicciones están bloqueadas.</p>
+            <p className="text-[#F5C518] font-bold text-sm">{t("locked_title")}</p>
+            <p className="text-[#7ab88a] text-xs mt-0.5">{t("locked_text")}</p>
           </div>
         </div>
       )}
@@ -916,8 +917,8 @@ export default function PredictionsEditor({
           style={{ background: "rgba(37,99,235,0.07)", border: "1px solid rgba(37,99,235,0.35)" }}>
           <span className="text-xl">🔓</span>
           <div>
-            <p className="font-bold text-sm" style={{ color: "#60a5fa" }}>Edición de eliminatorias abierta</p>
-            <p className="text-xs mt-0.5" style={{ color: "#7ab88a" }}>Solo partidos no iniciados son editables. Los grupos están bloqueados.</p>
+            <p className="font-bold text-sm" style={{ color: "#60a5fa" }}>{t("knockout_open_title")}</p>
+            <p className="text-xs mt-0.5" style={{ color: "#7ab88a" }}>{t("knockout_open_text")}</p>
           </div>
         </div>
       )}
@@ -928,11 +929,8 @@ export default function PredictionsEditor({
           style={{ background: "rgba(245,197,24,0.06)", border: "1px solid rgba(245,197,24,0.3)" }}>
           <span className="text-xl flex-shrink-0">⚠️</span>
           <div>
-            <p className="font-bold text-sm" style={{ color: "#F5C518" }}>Equipos actualizados en eliminatorias</p>
-            <p className="text-xs mt-0.5" style={{ color: "#9ab8a0" }}>
-              Tus resultados se mantendrán pero pueden dejar de ser coherentes con los nuevos equipos.
-              Al guardar cada partido se registran los equipos reales del torneo.
-            </p>
+            <p className="font-bold text-sm" style={{ color: "#F5C518" }}>{t("teams_updated_title")}</p>
+            <p className="text-xs mt-0.5" style={{ color: "#9ab8a0" }}>{t("teams_updated_text")}</p>
           </div>
         </div>
       )}
@@ -951,14 +949,14 @@ export default function PredictionsEditor({
               cursor: isSaving ? "not-allowed" : "pointer",
             }}
           >
-            {isSaving ? "Guardando…" : status === "draft" ? "Guardar borrador" : "Guardar cambios"}
+            {isSaving ? t("saving") : status === "draft" ? t("save_draft_btn") : t("save_changes_btn")}
           </button>
           {isDirty && !isSaving && draftResult !== "ok" && (
-            <span className="text-[#F5C518] text-xs">· cambios sin guardar</span>
+            <span className="text-[#F5C518] text-xs">{t("unsaved_changes")}</span>
           )}
           {draftResult === "ok" && (
             <span className="text-green-400 text-sm font-medium">
-              {draftError ?? "✓ Guardado"}
+              {draftError ?? t("saved")}
             </span>
           )}
           {draftResult === "error" && (
@@ -967,7 +965,7 @@ export default function PredictionsEditor({
           <Link href={`/quiniela/${quinielaId}`}
             className="ml-auto flex-shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
             style={{ background: "rgba(42,84,56,0.4)", color: "#7ab88a", border: "1px solid #2a5438" }}>
-            Ver quiniela
+            {t("view_quiniela")}
           </Link>
         </div>
       )}
@@ -1155,12 +1153,12 @@ export default function PredictionsEditor({
               </div>
             )}
             {isDirty && (
-              <p className="text-[#F5C518] text-xs">· Guarda el borrador antes de enviar para no perder cambios.</p>
+              <p className="text-[#F5C518] text-xs">{t("save_before_submit")}</p>
             )}
             {/* Missing items — blocking list */}
             {missingItems.length > 0 && (
               <div className="rounded-lg px-3 py-2.5 mt-1" style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)" }}>
-                <p className="text-red-400 text-xs font-semibold mb-1.5">Faltan los siguientes para enviar:</p>
+                <p className="text-red-400 text-xs font-semibold mb-1.5">{t("missing_intro")}</p>
                 <ul className="space-y-0.5">
                   {missingItems.map((item, i) => (
                     <li key={i} className="text-red-300 text-xs flex items-start gap-1.5">
@@ -1169,7 +1167,7 @@ export default function PredictionsEditor({
                     </li>
                   ))}
                 </ul>
-                <p className="text-[#6b7280] text-xs mt-2">Puedes guardarla como borrador mientras tanto.</p>
+                <p className="text-[#6b7280] text-xs mt-2">{t("missing_save_draft")}</p>
               </div>
             )}
           </div>
@@ -1178,38 +1176,38 @@ export default function PredictionsEditor({
             <button onClick={() => setShowConfirm(true)} disabled={!canSubmit}
               className="w-full py-3 rounded-xl font-bold text-sm uppercase tracking-wide transition-all"
               style={{ background: canSubmit ? "linear-gradient(135deg, #F5C518, #FFD700)" : "rgba(42,84,56,0.5)", color: canSubmit ? "#000" : "#4a7a5a", cursor: canSubmit ? "pointer" : "not-allowed" }}>
-              Enviar Quiniela
+              {t("submit_btn")}
             </button>
           ) : (
             <div className="rounded-xl p-4" style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(245,197,24,0.4)" }}>
-              <p className="text-white font-bold text-sm mb-1">¿Confirmar envío?</p>
-              <p className="text-[#7ab88a] text-xs mb-3">Una vez enviada, tu quiniela queda registrada oficialmente.</p>
+              <p className="text-white font-bold text-sm mb-1">{t("submit_confirm_title")}</p>
+              <p className="text-[#7ab88a] text-xs mb-3">{t("submit_confirm_text")}</p>
               {poolPrizeType === "physical" ? (
                 <div className="mb-3 space-y-1.5 text-xs" style={{ borderLeft: "2px solid rgba(245,197,24,0.4)", paddingLeft: "10px" }}>
-                  <p className="text-[#7ab88a]">Esta liga usa premios físicos en lugar de pozo en dinero.</p>
+                  <p className="text-[#7ab88a]">{t("submit_physical_note")}</p>
                   {[
                     { icon: "🥇", label: "1º", value: poolPrize1st },
                     { icon: "🥈", label: "2º", value: poolPrize2nd },
                     { icon: "🥉", label: "3º", value: poolPrize3rd },
                   ].map(({ icon, label, value }) => (
                     <div key={label} className="flex justify-between">
-                      <span className="text-[#7ab88a]">{icon} Premios de la liga {label}</span>
-                      <span className="text-white font-semibold">{value ?? "Por definir"}</span>
+                      <span className="text-[#7ab88a]">{icon} {t("league_prize_label")} {label}</span>
+                      <span className="text-white font-semibold">{value ?? t("prize_tbd")}</span>
                     </div>
                   ))}
                 </div>
               ) : poolPrice !== undefined ? (
                 <div className="mb-3 space-y-1 text-xs" style={{ borderLeft: "2px solid rgba(245,197,24,0.4)", paddingLeft: "10px" }}>
                   <div className="flex justify-between">
-                    <span className="text-[#7ab88a]">Precio por quiniela</span>
+                    <span className="text-[#7ab88a]">{t("submit_price_per_q")}</span>
                     <span className="text-white font-semibold">${poolPrice} {poolCurrency ?? "USD"}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-[#7ab88a]">Tus quinielas enviadas</span>
+                    <span className="text-[#7ab88a]">{t("submit_submitted_count")}</span>
                     <span className="text-white font-semibold">{submittedCount + 1}</span>
                   </div>
                   <div className="flex justify-between" style={{ borderTop: "1px solid rgba(245,197,24,0.2)", paddingTop: "4px", marginTop: "4px" }}>
-                    <span className="text-[#F5C518] font-bold">Total a pagar</span>
+                    <span className="text-[#F5C518] font-bold">{t("submit_total_due")}</span>
                     <span className="text-[#F5C518] font-black">${(submittedCount + 1) * poolPrice} {poolCurrency ?? "USD"}</span>
                   </div>
                 </div>
@@ -1219,12 +1217,12 @@ export default function PredictionsEditor({
                 <button onClick={handleSubmit} disabled={submitting}
                   className="flex-1 py-2.5 rounded-xl font-bold text-black text-sm uppercase tracking-wide"
                   style={{ background: "linear-gradient(135deg, #F5C518, #FFD700)" }}>
-                  {submitting ? "Enviando…" : "Confirmar"}
+                  {submitting ? t("submitting_btn") : t("submit_confirm_btn")}
                 </button>
                 <button onClick={() => { setShowConfirm(false); setSubmitError(null) }} disabled={submitting}
                   className="px-4 py-2.5 rounded-xl text-sm font-medium"
                   style={{ background: "rgba(42,84,56,0.5)", color: "#7ab88a" }}>
-                  Cancelar
+                  {t("cancel")}
                 </button>
               </div>
             </div>
@@ -1236,17 +1234,17 @@ export default function PredictionsEditor({
           <div className="flex items-center gap-3 mb-3">
             <span className="text-2xl">✅</span>
             <div>
-              <p className="text-white font-bold">Quiniela Enviada</p>
+              <p className="text-white font-bold">{t("submitted_title")}</p>
               <p className="text-[#7ab88a] text-xs mt-0.5">
                 {knockoutEditable
-                  ? "Edición de eliminatorias disponible. Guarda tus cambios en partidos no iniciados."
-                  : "Apareces en el ranking y en el pozo. Puedes seguir editando tus predicciones hasta el inicio del torneo."}
+                  ? t("submitted_knockout_text")
+                  : t("submitted_editable_text")}
               </p>
             </div>
           </div>
           <div>
             <div className="flex justify-between text-xs mb-1">
-              <span className="text-[#7ab88a]">Fase de grupos completada</span>
+              <span className="text-[#7ab88a]">{t("groups_completed")}</span>
               <span className={groupFilled === groupTotal && groupTotal > 0 ? "text-green-400 font-bold" : "text-[#4a7a5a]"}>{groupFilled}/{groupTotal}</span>
             </div>
             <div className="h-1 rounded-full overflow-hidden" style={{ background: "#0a1208" }}>
@@ -1255,15 +1253,15 @@ export default function PredictionsEditor({
             </div>
           </div>
           {isDirty && (
-            <p className="text-[#F5C518] text-xs mt-2">· Tienes cambios sin guardar — usa &quot;Guardar cambios&quot; arriba.</p>
+            <p className="text-[#F5C518] text-xs mt-2">{t("unsaved_warning_full")}</p>
           )}
         </div>
       ) : (
         /* ── After deadline: static read-only banner ── */
         <div className="rounded-2xl p-5 text-center" style={{ background: "linear-gradient(135deg, #0d2a1a, #0a1a0d)", border: "2px solid #2a7a4a" }}>
           <div className="text-3xl mb-2">✅</div>
-          <p className="text-white font-bold">Quiniela Enviada Oficialmente</p>
-          <p className="text-[#7ab88a] text-sm mt-1">Apareces en el ranking y en el pozo.</p>
+          <p className="text-white font-bold">{t("submitted_final_title")}</p>
+          <p className="text-[#7ab88a] text-sm mt-1">{t("submitted_final_text")}</p>
         </div>
       ))}
 
@@ -1282,11 +1280,11 @@ export default function PredictionsEditor({
                 cursor: isSaving ? "not-allowed" : "pointer",
               }}
             >
-              {isSaving ? "Guardando…" : status === "draft" ? "Guardar borrador" : "Guardar cambios"}
+              {isSaving ? t("saving") : status === "draft" ? t("save_draft_btn") : t("save_changes_btn")}
             </button>
           )}
           {draftResult === "ok" && (
-            <span className="text-green-400 text-sm font-medium">{draftError ?? "✓ Guardado"}</span>
+            <span className="text-green-400 text-sm font-medium">{draftError ?? t("saved")}</span>
           )}
           {draftResult === "error" && (
             <span className="text-red-400 text-xs">{draftError}</span>
@@ -1294,7 +1292,7 @@ export default function PredictionsEditor({
           <Link href={`/quiniela/${quinielaId}`}
             className="ml-auto flex-shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
             style={{ background: "rgba(42,84,56,0.4)", color: "#7ab88a", border: "1px solid #2a5438" }}>
-            Ver quiniela
+            {t("view_quiniela")}
           </Link>
         </div>
       )}

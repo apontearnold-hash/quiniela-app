@@ -186,7 +186,7 @@ export default function AdminPanel({ fixtures, defaultTab }: Props) {
       }),
     })
     const data = await res.json()
-    setConfigMsg(res.ok ? "Configuración guardada" : `Error: ${data.error}`)
+    setConfigMsg(res.ok ? t("admin_config_saved") : `Error: ${data.error}`)
     setConfigSaving(false)
   }
 
@@ -204,7 +204,7 @@ export default function AdminPanel({ fixtures, defaultTab }: Props) {
     })
     if (res.ok) {
       setConfigLockDate(lock ? new Date().toISOString().slice(0, 16) : "")
-      setConfigMsg(lock ? "🔒 Predicciones cerradas" : "🔓 Predicciones abiertas")
+      setConfigMsg(lock ? t("admin_predictions_locked_msg") : t("admin_predictions_unlocked_msg"))
     } else {
       const data = await res.json()
       setConfigMsg(`Error: ${data.error}`)
@@ -435,12 +435,12 @@ export default function AdminPanel({ fixtures, defaultTab }: Props) {
       {/* Tabs */}
       <div className="flex rounded-xl overflow-hidden border border-[#d1d5db]">
         {([
-          { key: "results",   label: `🎯 Resultados / Pruebas` },
-          { key: "sync",      label: `🔄 Sincronización API` },
-          { key: "ligas",     label: `👥 Ligas y Acceso` },
-          { key: "config",    label: `⚙️ Configuración` },
-          { key: "snapshots", label: `💾 Snapshots` },
-          { key: "pagos",     label: `💰 Pagos` },
+          { key: "results",   label: t("admin_tab_results_label") },
+          { key: "sync",      label: t("admin_tab_sync_label") },
+          { key: "ligas",     label: t("admin_tab_ligas_label") },
+          { key: "config",    label: t("admin_tab_config_label") },
+          { key: "snapshots", label: t("admin_tab_snapshots_label") },
+          { key: "pagos",     label: t("admin_tab_pagos_label") },
         ] as const).map(tab => (
           <button
             key={tab.key}
@@ -802,7 +802,7 @@ export default function AdminPanel({ fixtures, defaultTab }: Props) {
                         disabled={lockSaving}
                         className="py-2 px-5 rounded-lg font-bold text-white text-xs uppercase tracking-wide disabled:opacity-50"
                         style={{ background: "#dc2626" }}>
-                        {lockSaving ? "Cerrando..." : "Cerrar predicciones"}
+                        {lockSaving ? t("admin_locking") : t("admin_lock_predictions")}
                       </button>
                     ) : (
                       <button
@@ -810,7 +810,7 @@ export default function AdminPanel({ fixtures, defaultTab }: Props) {
                         disabled={lockSaving}
                         className="py-2 px-5 rounded-lg font-bold text-white text-xs uppercase tracking-wide disabled:opacity-50"
                         style={{ background: "#16a34a" }}>
-                        {lockSaving ? "Abriendo..." : "Abrir predicciones"}
+                        {lockSaving ? t("admin_unlocking") : t("admin_unlock_predictions")}
                       </button>
                     )}
                   </div>

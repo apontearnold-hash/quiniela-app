@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import { useT } from "@/components/LangProvider"
 
 interface PoolOption { id: string; name: string }
 interface PaymentRow {
@@ -17,6 +18,7 @@ interface PaymentRow {
 interface PoolInfo { name: string; price_per_quiniela: number; currency: string }
 
 export default function PaymentsPanel() {
+  const t = useT()
   const [pools, setPools] = useState<PoolOption[]>([])
   const [selectedPoolId, setSelectedPoolId] = useState<string>("")
   const [poolInfo, setPoolInfo] = useState<PoolInfo | null>(null)
@@ -37,7 +39,8 @@ export default function PaymentsPanel() {
         setPools(list)
         if (list.length > 0) setSelectedPoolId(list[0].id)
       })
-      .catch(() => setError("No se pudieron cargar las ligas"))
+      .catch(() => setError(t("payments_err_leagues")))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const loadPayments = useCallback(async (poolId: string) => {
@@ -46,14 +49,15 @@ export default function PaymentsPanel() {
     try {
       const res = await fetch(`/api/admin/payments?pool_id=${poolId}`)
       const data = await res.json()
-      if (!res.ok) { setError(data.error ?? "Error al cargar pagos"); return }
+      if (!res.ok) { setError(data.error ?? t("payments_err_load")); return }
       setPoolInfo(data.pool)
       setRows(data.rows ?? [])
     } catch {
-      setError("Error de red")
+      setError(t("payments_err_network"))
     } finally {
       setLoading(false)
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -91,7 +95,7 @@ export default function PaymentsPanel() {
     const data = await res.json()
     setSaving(prev => ({ ...prev, [userId]: false }))
     if (res.ok) {
-      setSaveMsg(prev => ({ ...prev, [userId]: "✓ Guardado" }))
+      setSaveMsg(prev => ({ ...prev, [userId]: t("saved") }))
       cancelEdit(userId)
       loadPayments(selectedPoolId)
     } else {
@@ -99,10 +103,10 @@ export default function PaymentsPanel() {
     }
   }
 
-  const totalDue   = rows.reduce((s, r) => s + r.total_due, 0)
-  const totalPaid  = rows.reduce((s, r) => s + r.amount_paid, 0)
+  const totalDue     = rows.reduce((s, r) => s + r.total_due, 0)
+  const totalPaid    = rows.reduce((s, r) => s + r.amount_paid, 0)
   const totalPending = rows.reduce((s, r) => s + r.pending, 0)
-  const currency   = poolInfo?.currency ?? rows[0]?.currency ?? "USD"
+  const currency     = poolInfo?.currency ?? rows[0]?.currency ?? "USD"
 
   return (
     <div className="flex flex-col gap-4">
@@ -115,17 +119,17 @@ export default function PaymentsPanel() {
           style={{ background: "white", border: "1px solid #d1d5db", color: "#111827" }}
         >
           {pools.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-          {pools.length === 0 && <option value="">Cargando ligas…</option>}
+          {pools.length === 0 && <option value="">{t("payments_loading_leagues")}</option>}
         </select>
         {poolInfo && (
           <span className="text-xs text-[#6b7280]">
-            Precio: <strong className="text-[#111827]">${poolInfo.price_per_quiniela} {poolInfo.currency}</strong> por quiniela
+            {t("payments_price_label")} <strong className="text-[#111827]">${poolInfo.price_per_quiniela} {poolInfo.currency}</strong> {t("payments_per_q")}
           </span>
         )}
       </div>
 
       {error && <p className="text-red-400 text-xs">{error}</p>}
-      {loading && <p className="text-[#6b7280] text-xs">Cargando…</p>}
+      {loading && <p className="text-[#6b7280] text-xs">{t("payments_loading")}</p>}
 
       {/* Summary strip */}
       {rows.length > 0 && (
@@ -134,24 +138,24 @@ export default function PaymentsPanel() {
           style={{ background: "#0d1f11", border: "1px solid #2a5438" }}
         >
           <div className="flex items-center gap-1.5">
-            <span className="text-[#7ab88a]">Total esperado:</span>
+            <span className="text-[#7ab88a]">{t("payments_total_expected")}</span>
             <span className="text-white font-bold">${totalDue.toFixed(0)} {currency}</span>
           </div>
           <span className="text-[#2a5438]">·</span>
           <div className="flex items-center gap-1.5">
-            <span className="text-[#7ab88a]">Pagado:</span>
+            <span className="text-[#7ab88a]">{t("payments_paid_lbl")}</span>
             <span className="text-green-400 font-bold">${totalPaid.toFixed(0)}</span>
           </div>
           <span className="text-[#2a5438]">·</span>
           <div className="flex items-center gap-1.5">
-            <span className="text-[#7ab88a]">Pendiente:</span>
+            <span className="text-[#7ab88a]">{t("payments_pending_lbl")}</span>
             <span className={`font-bold ${totalPending > 0 ? "text-[#F5C518]" : "text-green-400"}`}>
               ${totalPending.toFixed(0)}
             </span>
           </div>
           <span className="text-[#2a5438]">·</span>
           <div className="flex items-center gap-1.5">
-            <span className="text-[#7ab88a]">Participantes:</span>
+            <span className="text-[#7ab88a]">{t("payments_participants")}</span>
             <span className="text-white font-bold">{rows.length}</span>
           </div>
         </div>
@@ -173,12 +177,12 @@ export default function PaymentsPanel() {
               color: "#6b7280",
             }}
           >
-            <span>Participante</span>
+            <span>{t("payments_col_participant")}</span>
             <span className="text-right">Q</span>
-            <span className="text-right">Debe</span>
-            <span className="text-right">Pagado</span>
-            <span className="text-right">Pendiente</span>
-            <span className="pl-2">Notas</span>
+            <span className="text-right">{t("payments_col_owes")}</span>
+            <span className="text-right">{t("payments_col_paid")}</span>
+            <span className="text-right">{t("payments_col_pending")}</span>
+            <span className="pl-2">{t("payments_col_notes")}</span>
             <span />
           </div>
 
@@ -244,14 +248,14 @@ export default function PaymentsPanel() {
                     className="text-right text-xs font-bold"
                     style={{ color: isPaid ? "#16a34a" : row.pending > 0 ? "#F5C518" : "#9ca3af" }}
                   >
-                    {isPaid ? "✓ Al día" : `$${row.pending.toFixed(0)}`}
+                    {isPaid ? t("payments_up_to_date") : `$${row.pending.toFixed(0)}`}
                   </span>
 
                   {/* Notes */}
                   {isEditing ? (
                     <input
                       type="text"
-                      placeholder="Nota…"
+                      placeholder={t("payments_note_ph")}
                       value={editing[row.user_id].notes}
                       onChange={e => setEditing(prev => ({
                         ...prev,
@@ -293,7 +297,7 @@ export default function PaymentsPanel() {
                         className="px-2 py-1 rounded text-xs font-medium hover:bg-gray-100"
                         style={{ border: "1px solid #e5e7eb", color: "#6b7280" }}
                       >
-                        Editar
+                        {t("edit")}
                       </button>
                     )}
                   </div>
@@ -312,7 +316,7 @@ export default function PaymentsPanel() {
       )}
 
       {!loading && rows.length === 0 && selectedPoolId && !error && (
-        <p className="text-[#9ca3af] text-xs">No hay miembros en esta liga.</p>
+        <p className="text-[#9ca3af] text-xs">{t("payments_no_members")}</p>
       )}
     </div>
   )

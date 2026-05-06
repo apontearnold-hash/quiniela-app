@@ -78,7 +78,7 @@ export default function LeaderboardClient({
     try {
       const res = await fetch(`/api/quiniela/${deleteTarget.id}`, { method: "DELETE" })
       const data = await res.json()
-      if (!res.ok) { setDeleteError(data.error ?? "Error al eliminar"); return }
+      if (!res.ok) { setDeleteError(data.error ?? t("err_delete")); return }
       setDeleteTarget(null)
       router.refresh()
     } finally {
@@ -106,7 +106,7 @@ export default function LeaderboardClient({
               ? { background: "#111827", color: "#fff" }
               : { background: "#fff", color: "#6b7280", border: "1px solid #d1d5db" }}
           >
-            {f === "all" ? "Todas" : t("my_quinielas")}
+            {f === "all" ? t("all_label") : t("my_quinielas")}
           </button>
         ))}
         <span className="text-xs ml-1" style={{ color: "#9ca3af" }}>
@@ -135,7 +135,7 @@ export default function LeaderboardClient({
                   className="px-3 py-1.5 rounded-lg text-xs font-bold transition-colors"
                   style={{ background: "#fee2e2", color: "#b91c1c", border: "1px solid #fca5a5" }}
                 >
-                  Eliminar
+                  {t("delete_btn")}
                 </button>
                 <Link
                   href={`/quiniela/${q.id}/edit`}
@@ -154,9 +154,9 @@ export default function LeaderboardClient({
       {deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.6)" }}>
           <div className="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
-            <h2 className="font-black text-gray-900 text-base mb-2">Eliminar borrador</h2>
+            <h2 className="font-black text-gray-900 text-base mb-2">{t("delete_draft_title")}</h2>
             <p className="text-sm text-gray-600 mb-1">
-              Esto eliminará <strong>&ldquo;{deleteTarget.name}&rdquo;</strong> y no se podrá recuperar. ¿Continuar?
+              {t("delete_draft_pre")} <strong>&ldquo;{deleteTarget.name}&rdquo;</strong> {t("delete_draft_post")}
             </p>
             {deleteError && (
               <p className="text-xs text-red-600 font-semibold mt-2">{deleteError}</p>
@@ -167,7 +167,7 @@ export default function LeaderboardClient({
                 disabled={deleting}
                 className="px-4 py-2 rounded-xl text-sm border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
               >
-                Cancelar
+                {t("cancel")}
               </button>
               <button
                 onClick={confirmDelete}
@@ -175,7 +175,7 @@ export default function LeaderboardClient({
                 className="px-4 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50"
                 style={{ background: deleting ? "#ef4444aa" : "#dc2626" }}
               >
-                {deleting ? "Eliminando..." : "Sí, eliminar"}
+                {deleting ? t("deleting_label") : t("delete_confirm_btn")}
               </button>
             </div>
           </div>
@@ -203,11 +203,11 @@ export default function LeaderboardClient({
             >
               <span className={thCtr} style={{ color: "#9ca3af" }}>#</span>
               <span className={thBase} style={{ color: "#374151" }}>{t("player_col")}</span>
-              <span className={thBase} style={{ color: "#7c3aed" }}>🏆 Campeón</span>
+              <span className={thBase} style={{ color: "#7c3aed" }}>🏆 {t("champion_col")}</span>
               <span className={thBase} style={{ color: "#374151" }}>⚽ {t("bonus_scorer_lbl")}</span>
               <span className={thBase} style={{ color: "#374151" }}>🎯 {t("bonus_goals_lbl")}</span>
-              <span className={thCtr} style={{ color: "#2563eb" }}>Aciertos</span>
-              <span className={thCtr} style={{ color: "#16a34a" }}>Scores</span>
+              <span className={thCtr} style={{ color: "#2563eb" }}>{t("correct_col")}</span>
+              <span className={thCtr} style={{ color: "#16a34a" }}>{t("scores_col")}</span>
               <span className={thCtr} style={{ color: "#d97706" }}>{t("pts")}</span>
             </div>
 

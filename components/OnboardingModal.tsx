@@ -3,45 +3,27 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase-browser"
+import { useT } from "@/components/LangProvider"
 
 interface Props {
   show: boolean
   userId: string
 }
 
-const SECTIONS = [
-  {
-    icon: "⚽",
-    title: "Crea tu quiniela",
-    text: "Completa grupos, eliminatorias y las dos preguntas bonus.",
-  },
-  {
-    icon: "💾",
-    title: "Guarda o envía",
-    text: "Guarda como borrador y envía cuando esté lista, antes del cierre.",
-  },
-  {
-    icon: "👥",
-    title: "Revisa tus ligas",
-    text: "Tienes otro código de invitación? Úsalo para unirte. Para crear una liga nueva, contacta al administrador.",
-  },
-  {
-    icon: "🌍",
-    title: "Explora el Mundial",
-    text: "Calendario, grupos, equipos, partidos y estadísticas.",
-  },
-  {
-    icon: "📖",
-    title: "Consulta Ayuda",
-    text: "Reglas, puntuación, cierre de predicciones y reapertura de eliminatorias.",
-  },
-]
-
 export default function OnboardingModal({ show, userId }: Props) {
   const [visible, setVisible] = useState(show)
   const router = useRouter()
+  const t = useT()
 
   if (!visible) return null
+
+  const SECTIONS = [
+    { icon: "⚽", title: t("onboarding_s1_title"), text: t("onboarding_s1_text") },
+    { icon: "💾", title: t("onboarding_s2_title"), text: t("onboarding_s2_text") },
+    { icon: "👥", title: t("onboarding_s3_title"), text: t("onboarding_s3_text") },
+    { icon: "🌍", title: t("onboarding_s4_title"), text: t("onboarding_s4_text") },
+    { icon: "📖", title: t("onboarding_s5_title"), text: t("onboarding_s5_text") },
+  ]
 
   function markSeen() {
     setVisible(false)
@@ -78,7 +60,7 @@ export default function OnboardingModal({ show, userId }: Props) {
         <button
           onClick={markSeen}
           className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-xl leading-none"
-          aria-label="Cerrar"
+          aria-label={t("close_label")}
         >
           ×
         </button>
@@ -88,10 +70,10 @@ export default function OnboardingModal({ show, userId }: Props) {
           <div className="mb-4">
             <div className="text-3xl mb-2">🏆</div>
             <h2 className="text-xl font-black" style={{ color: "#111827" }}>
-              Bienvenido a la Quiniela Mundial 2026
+              {t("onboarding_title")}
             </h2>
             <p className="text-sm mt-2" style={{ color: "#6b7280" }}>
-              Ya estás dentro de una liga usando tu código de invitación. Desde aquí puedes crear tu quiniela, revisar tus ligas, seguir el Mundial y consultar las reglas.
+              {t("onboarding_subtitle")}
             </p>
           </div>
 
@@ -123,21 +105,21 @@ export default function OnboardingModal({ show, userId }: Props) {
             className="flex-1 py-2.5 rounded-xl text-sm font-bold hover:opacity-90 transition-opacity"
             style={{ background: "#F5C518", color: "#1a1a00" }}
           >
-            Crear mi quiniela
+            {t("onboarding_btn_create")}
           </button>
           <button
             onClick={goHelp}
             className="flex-1 py-2.5 rounded-xl text-sm font-bold hover:opacity-90 transition-opacity"
             style={{ background: "#f3f4f6", color: "#111827" }}
           >
-            Ver ayuda
+            {t("onboarding_btn_help")}
           </button>
           <button
             onClick={markSeen}
             className="flex-1 py-2.5 rounded-xl text-sm font-medium hover:opacity-80 transition-opacity"
             style={{ color: "#9ca3af" }}
           >
-            No mostrar de nuevo
+            {t("onboarding_btn_dismiss")}
           </button>
         </div>
       </div>
