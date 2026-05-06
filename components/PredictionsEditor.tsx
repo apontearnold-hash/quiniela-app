@@ -594,7 +594,9 @@ export default function PredictionsEditor({
       supabase.from("quinielas").update({
         champion_team_name: champion?.name ?? null,
         champion_team_flag: champion?.flag ?? null,
-      }).eq("id", quinielaId)
+      }).eq("id", quinielaId).then(({ error }) => {
+        if (error) console.error("[champion-sync] failed:", error.message)
+      })
     }, 800)
     return () => clearTimeout(timeout)
   // eslint-disable-next-line react-hooks/exhaustive-deps

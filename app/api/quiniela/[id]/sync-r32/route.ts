@@ -26,6 +26,7 @@ export async function POST(
 
   if (!quiniela) return NextResponse.json({ error: "Not found" }, { status: 404 })
   if (quiniela.user_id !== user.id) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  if (!quiniela.pool_id) return NextResponse.json({ error: "La quiniela no pertenece a ninguna liga" }, { status: 403 })
 
   // Verify pool has knockout editing open
   if (quiniela.pool_id) {
