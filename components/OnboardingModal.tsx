@@ -44,10 +44,15 @@ export default function OnboardingModal({ show, userId }: Props) {
   if (!visible) return null
 
   function markSeen() {
-    const supabase = createClient()
-    // Fire and forget — modal closes immediately; update runs in background
-    supabase.from("profiles").update({ onboarding_seen: true }).eq("id", userId)
     setVisible(false)
+    // Supabase query builder is lazy — must call .then() to actually execute it
+    createClient()
+      .from("profiles")
+      .update({ onboarding_seen: true })
+      .eq("id", userId)
+      .then(({ error }) => {
+        if (error) console.error("[onboarding] failed to mark seen:", error.message)
+      })
   }
 
   function goCreate() {
