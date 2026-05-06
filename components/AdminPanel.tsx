@@ -7,6 +7,7 @@ import type { Fixture, Phase } from "@/lib/types"
 import { PHASE_LABELS } from "@/lib/types"
 import { useT } from "@/components/LangProvider"
 import SnapshotsPanel from "@/components/SnapshotsPanel"
+import PaymentsPanel from "@/components/PaymentsPanel"
 
 interface Props {
   fixtures: Fixture[]
@@ -26,7 +27,7 @@ interface ResultState {
 
 interface AdminRow { id: string; email: string; created_at: string }
 
-const VALID_TABS = ["results", "sync", "ligas", "config", "snapshots"] as const
+const VALID_TABS = ["results", "sync", "ligas", "config", "snapshots", "pagos"] as const
 type TabKey = typeof VALID_TABS[number]
 
 export default function AdminPanel({ fixtures, defaultTab }: Props) {
@@ -439,6 +440,7 @@ export default function AdminPanel({ fixtures, defaultTab }: Props) {
           { key: "ligas",     label: `👥 Ligas y Acceso` },
           { key: "config",    label: `⚙️ Configuración` },
           { key: "snapshots", label: `💾 Snapshots` },
+          { key: "pagos",     label: `💰 Pagos` },
         ] as const).map(tab => (
           <button
             key={tab.key}
@@ -1058,6 +1060,9 @@ export default function AdminPanel({ fixtures, defaultTab }: Props) {
 
       {/* ── SNAPSHOTS ──────────────────────────────────────────────────────────── */}
       {activeTab === "snapshots" && <SnapshotsPanel />}
+
+      {/* ── PAGOS ──────────────────────────────────────────────────────────── */}
+      {activeTab === "pagos" && <PaymentsPanel />}
     </div>
   )
 }

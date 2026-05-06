@@ -171,6 +171,16 @@ export default async function DashboardPage() {
   const mySubmittedCount = myQuinielas.filter(q => q.status === "submitted").length
   const userOwes         = mySubmittedCount * price
 
+  // ── My payment record ────────────────────────────────────────────────
+  const { data: myPaymentRow } = await admin
+    .from("pool_payments")
+    .select("amount_paid")
+    .eq("pool_id", poolId)
+    .eq("user_id", user.id)
+    .maybeSingle()
+  const myAmountPaid = myPaymentRow ? Number((myPaymentRow as { amount_paid: number }).amount_paid) : 0
+  const myPending    = Math.max(0, userOwes - myAmountPaid)
+
   // ── Bonus pick stats ─────────────────────────────────────────────────
   const { data: bonusPicks } = await admin
     .from("quinielas")
@@ -323,9 +333,28 @@ export default async function DashboardPage() {
                   </div>
                 ))}
                 {mySubmittedCount > 0 && (
-                  <div className="w-full flex items-center gap-2 text-xs" style={{ borderTop: "1px solid #2a5438", paddingTop: "6px", marginTop: "2px" }}>
+                  <div className="w-full flex items-center gap-2 flex-wrap text-xs" style={{ borderTop: "1px solid #2a5438", paddingTop: "6px", marginTop: "2px" }}>
                     <span className="text-[#7ab88a]">Tus quinielas:</span>
                     <span className="text-white font-semibold">{mySubmittedCount}</span>
+                    {userOwes > 0 && (
+                      <>
+                        <span className="text-[#2a5438]">·</span>
+                        <span className="text-[#7ab88a]">Total:</span>
+                        <span className="text-white font-semibold">${userOwes.toFixed(0)} {currency}</span>
+                        {myPending > 0 ? (
+                          <>
+                            <span className="text-[#2a5438]">·</span>
+                            <span className="text-[#7ab88a]">Pendiente:</span>
+                            <span className="text-[#F5C518] font-black">${myPending.toFixed(0)}</span>
+                          </>
+                        ) : myAmountPaid >= userOwes ? (
+                          <>
+                            <span className="text-[#2a5438]">·</span>
+                            <span className="text-green-400 font-bold">✓ Al día</span>
+                          </>
+                        ) : null}
+                      </>
+                    )}
                   </div>
                 )}
               </>
@@ -352,12 +381,31 @@ export default async function DashboardPage() {
                   </div>
                 ))}
                 {mySubmittedCount > 0 && (
-                  <div className="w-full flex items-center gap-2 text-xs" style={{ borderTop: "1px solid #2a5438", paddingTop: "6px", marginTop: "2px" }}>
+                  <div className="w-full flex items-center gap-2 flex-wrap text-xs" style={{ borderTop: "1px solid #2a5438", paddingTop: "6px", marginTop: "2px" }}>
                     <span className="text-[#7ab88a]">Tus quinielas:</span>
                     <span className="text-white font-semibold">{mySubmittedCount}</span>
                     <span className="text-[#2a5438]">·</span>
-                    <span className="text-[#7ab88a]">Total a pagar:</span>
-                    <span className="text-[#F5C518] font-black">${userOwes.toFixed(0)} {currency}</span>
+                    <span className="text-[#7ab88a]">Total:</span>
+                    <span className="text-white font-semibold">${userOwes.toFixed(0)} {currency}</span>
+                    {myAmountPaid > 0 && (
+                      <>
+                        <span className="text-[#2a5438]">·</span>
+                        <span className="text-[#7ab88a]">Pagado:</span>
+                        <span className="text-green-400 font-semibold">${myAmountPaid.toFixed(0)}</span>
+                      </>
+                    )}
+                    {myPending > 0 ? (
+                      <>
+                        <span className="text-[#2a5438]">·</span>
+                        <span className="text-[#7ab88a]">Pendiente:</span>
+                        <span className="text-[#F5C518] font-black">${myPending.toFixed(0)}</span>
+                      </>
+                    ) : myAmountPaid >= userOwes && userOwes > 0 ? (
+                      <>
+                        <span className="text-[#2a5438]">·</span>
+                        <span className="text-green-400 font-bold">✓ Al día</span>
+                      </>
+                    ) : null}
                   </div>
                 )}
               </>
