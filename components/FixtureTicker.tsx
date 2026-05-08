@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
+import { useLanguage } from "@/components/LangProvider"
 
 export interface RecentFixtureItem {
   id: string
@@ -70,8 +71,11 @@ const TICKER_TZ = "America/Chicago"
 const TICKER_TZ_LABEL = "CT"
 
 function UpcomingCard({ f }: { f: UpcomingFixtureItem }) {
+  const { lang } = useLanguage()
+  const locale = lang === "en" ? "en-US" : "es-MX"
+
   const date = f.kickoff
-    ? new Date(f.kickoff).toLocaleDateString("es-MX", {
+    ? new Date(f.kickoff).toLocaleDateString(locale, {
         weekday: "short",
         day: "numeric",
         month: "short",

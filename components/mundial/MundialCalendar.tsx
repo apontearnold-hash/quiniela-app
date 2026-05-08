@@ -3,15 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import type { Fixture } from "@/lib/types"
-
-const PHASE_SHORT: Record<string, string> = {
-  groups:        "",
-  round_of_32:   "R32",
-  round_of_16:   "Octavos",
-  quarterfinals: "Cuartos",
-  semifinals:    "Semis",
-  final:         "Final",
-}
+import { useT, useLanguage } from "@/components/LangProvider"
 
 interface Props {
   fixtures: Fixture[]
@@ -23,19 +15,19 @@ function localDateKey(kickoff: string | null): string {
   return new Date(kickoff).toLocaleDateString("en-CA")
 }
 
-function formatDateHeader(kickoff: string | null): string {
-  if (!kickoff) return "Sin fecha"
-  return new Date(kickoff).toLocaleDateString("es-MX", {
+function formatDateHeader(kickoff: string | null, locale: string, noDateLabel: string): string {
+  if (!kickoff) return noDateLabel
+  return new Date(kickoff).toLocaleDateString(locale, {
     weekday: "long", day: "numeric", month: "long",
   })
 }
 
-function formatHour(kickoff: string | null): string {
+function formatHour(kickoff: string | null, locale: string): string {
   if (!kickoff) return "?"
-  return new Date(kickoff).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })
+  return new Date(kickoff).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })
 }
 
-function StatusBadge({ fixture }: { fixture: Fixture }) {
+function StatusBadge({ fixture, locale }: { fixture: Fixture; locale: string }) {
   if (fixture.status === "live") {
     return (
       <span className="flex items-center gap-1 text-[10px] font-bold text-red-500 animate-pulse">
@@ -47,10 +39,23 @@ function StatusBadge({ fixture }: { fixture: Fixture }) {
   if (fixture.status === "finished" || fixture.status_short === "FT" || fixture.status_short === "AET" || fixture.status_short === "PEN") {
     return <span className="text-[10px] font-bold text-green-600">{fixture.status_short ?? "FT"}</span>
   }
-  return <span className="text-[10px] text-[#9ca3af]">{formatHour(fixture.kickoff)}</span>
+  return <span className="text-[10px] text-[#9ca3af]">{formatHour(fixture.kickoff, locale)}</span>
 }
 
 export default function MundialCalendar({ fixtures }: Props) {
+  const t = useT()
+  const { lang } = useLanguage()
+  const locale = lang === "en" ? "en-US" : "es-MX"
+
+  const PHASE_SHORT: Record<string, string> = {
+    groups:        "",
+    round_of_32:   "R32",
+    round_of_16:   t("mundial_phase_r16"),
+    quarterfinals: t("mundial_phase_qf"),
+    semifinals:    t("mundial_phase_sf"),
+    final:         t("mundial_phase_final"),
+  }
+
   const [query, setQuery] = useState("")
 
   const filtered = query.trim()
@@ -65,7 +70,7 @@ export default function MundialCalendar({ fixtures }: Props) {
     return (
       <div className="text-center py-20">
         <div className="text-5xl mb-4">📅</div>
-        <p className="font-bold text-[#111827]">Sin partidos disponibles</p>
+        <p className="font-bold text-[#111827]">{t("mundial_no_fixtures")}</p>
       </div>
     )
   }
@@ -74,7 +79,7 @@ export default function MundialCalendar({ fixtures }: Props) {
   const byDate = new Map<string, { label: string; items: Fixture[] }>()
   for (const f of filtered) {
     const key = localDateKey(f.kickoff)
-    if (!byDate.has(key)) byDate.set(key, { label: formatDateHeader(f.kickoff), items: [] })
+    if (!byDate.has(key)) byDate.set(key, { label: formatDateHeader(f.kickoff, locale, t("mundial_no_date")), items: [] })
     byDate.get(key)!.items.push(f)
   }
   const sortedDates = Array.from(byDate.entries()).sort(([a], [b]) => a.localeCompare(b))
@@ -87,14 +92,14 @@ export default function MundialCalendar({ fixtures }: Props) {
           type="text"
           value={query}
           onChange={e => setQuery(e.target.value)}
-          placeholder="Buscar equipo (ej. Spain, France)"
+          placeholder={t("mundial_search_ph")}
           className="w-full px-4 py-2.5 pr-10 rounded-xl text-sm border border-[#d1d5db] bg-white focus:outline-none focus:border-[#6b7280] transition-colors"
         />
         {query && (
           <button
             onClick={() => setQuery("")}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9ca3af] hover:text-[#374151] text-xl leading-none"
-            aria-label="Limpiar búsqueda"
+            aria-label={t("mundial_search_clear")}
           >
             ×
           </button>
@@ -103,7 +108,7 @@ export default function MundialCalendar({ fixtures }: Props) {
 
       {query && filtered.length === 0 && (
         <p className="text-[#9ca3af] text-sm text-center py-10">
-          No hay partidos que coincidan con &quot;{query}&quot;.
+          {t("mundial_no_results_for")} &quot;{query}&quot;.
         </p>
       )}
 
@@ -116,7 +121,9 @@ export default function MundialCalendar({ fixtures }: Props) {
               {label}
             </h2>
             <div className="flex-1 h-px bg-[#e5e7eb]" />
-            <span className="text-[#9ca3af] text-xs flex-shrink-0">{items.length} partidos</span>
+            <span className="text-[#9ca3af] text-xs flex-shrink-0">
+              {items.length} {items.length === 1 ? t("mundial_match_singular") : t("mundial_match_plural")}
+            </span>
           </div>
 
           {/* Match cards grid — 1 col on mobile, 2 on md+ */}
@@ -146,7 +153,7 @@ export default function MundialCalendar({ fixtures }: Props) {
                     <span className="text-[#9ca3af] text-[10px] font-semibold uppercase tracking-wider">
                       {phaseTag || (f.group_name ?? "")}
                     </span>
-                    <StatusBadge fixture={f} />
+                    <StatusBadge fixture={f} locale={locale} />
                   </div>
 
                   {/* Main match row — links to detail */}

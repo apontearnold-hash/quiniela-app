@@ -2,8 +2,10 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { useT } from "@/components/LangProvider"
 
 export default function JoinLeagueButton() {
+  const t = useT()
   const router = useRouter()
   const [open, setOpen]       = useState(false)
   const [code, setCode]       = useState("")
@@ -29,22 +31,22 @@ export default function JoinLeagueButton() {
       const data = await res.json()
 
       if (res.status === 409) {
-        setStatus({ type: "error", msg: "Ya perteneces a esta liga." })
+        setStatus({ type: "error", msg: t("join_already_member") })
       } else if (!res.ok) {
         const msgs: Record<string, string> = {
-          invalid_code:    "Código inválido o no encontrado.",
-          inactive_code:   "Este código ya no está activo.",
-          code_exhausted:  "Este código ya alcanzó su límite.",
-          inactive_league: "Esta liga no está activa.",
+          invalid_code:    t("join_err_invalid_code"),
+          inactive_code:   t("join_err_inactive_code"),
+          code_exhausted:  t("join_err_code_exhausted"),
+          inactive_league: t("join_err_inactive_league"),
         }
-        setStatus({ type: "error", msg: msgs[data.error] ?? "Error al unirse. Intenta de nuevo." })
+        setStatus({ type: "error", msg: msgs[data.error] ?? t("join_err_join_failed") })
       } else {
         document.cookie = `selected_pool=${data.pool.id}; path=/; max-age=31536000; SameSite=Lax`
-        setStatus({ type: "success", msg: `¡Te uniste a ${data.pool.name}!` })
+        setStatus({ type: "success", msg: t("join_success").replace("{name}", data.pool.name) })
         setTimeout(() => { setOpen(false); setCode(""); setStatus(null); router.refresh() }, 1500)
       }
     } catch {
-      setStatus({ type: "error", msg: "Error al unirse. Intenta de nuevo." })
+      setStatus({ type: "error", msg: t("join_err_join_failed") })
     } finally {
       setLoading(false)
     }
@@ -71,7 +73,7 @@ export default function JoinLeagueButton() {
         }}
       >
         <span style={{ color: "#F5C518", fontWeight: 900 }}>+</span>
-        <span>Unirme a otra liga</span>
+        <span>{t("join_another_league")}</span>
       </button>
 
       {open && (
@@ -88,10 +90,10 @@ export default function JoinLeagueButton() {
             background: "white", boxShadow: "0 25px 50px rgba(0,0,0,0.25)", padding: "24px",
           }}>
             <h2 style={{ fontSize: "18px", fontWeight: 900, color: "#111827", margin: "0 0 4px" }}>
-              Unirme a otra liga
+              {t("join_another_league")}
             </h2>
             <p style={{ fontSize: "14px", color: "#6b7280", margin: "0 0 16px" }}>
-              Ingresa el código de invitación para unirte a una liga.
+              {t("join_league_subtitle")}
             </p>
 
             <form onSubmit={handleJoin} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
@@ -99,7 +101,7 @@ export default function JoinLeagueButton() {
                 type="text"
                 value={code}
                 onChange={e => { setCode(e.target.value.replace(/\s+/g, " ").toUpperCase()); setStatus(null) }}
-                placeholder="CÓDIGO"
+                placeholder={t("join_code_placeholder")}
                 maxLength={20}
                 autoFocus
                 disabled={loading}
@@ -113,7 +115,7 @@ export default function JoinLeagueButton() {
                 }}
               />
               <p style={{ fontSize: "11px", color: "#9ca3af", textAlign: "center", margin: "-4px 0 0" }}>
-                El código no distingue mayúsculas ni espacios
+                {t("join_code_hint")}
               </p>
 
               {status && (
@@ -136,7 +138,7 @@ export default function JoinLeagueButton() {
                     fontSize: "14px", fontWeight: 600, color: "#4b5563", cursor: "pointer",
                   }}
                 >
-                  Cancelar
+                  {t("cancel")}
                 </button>
                 <button
                   type="submit"
@@ -149,7 +151,7 @@ export default function JoinLeagueButton() {
                     opacity: loading || !normalize(code) ? 0.5 : 1,
                   }}
                 >
-                  {loading ? "Uniéndome…" : "Unirme"}
+                  {loading ? t("join_joining") : t("join_btn")}
                 </button>
               </div>
             </form>

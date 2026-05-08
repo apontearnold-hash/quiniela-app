@@ -3,21 +3,15 @@
 import Link from "next/link"
 import type { Fixture, Phase } from "@/lib/types"
 import { BRACKET_FIXTURES } from "@/lib/bracket-slots"
+import { useT, useLanguage } from "@/components/LangProvider"
 
 const PHASES: Phase[] = ["round_of_32", "round_of_16", "quarterfinals", "semifinals", "final"]
-const PHASE_LABELS: Record<string, string> = {
-  round_of_32:   "R32",
-  round_of_16:   "Octavos",
-  quarterfinals: "Cuartos",
-  semifinals:    "Semis",
-  final:         "Final",
-}
 
 interface Props {
   fixtures: Fixture[]
 }
 
-function BracketCard({ fixture }: { fixture: Fixture }) {
+function BracketCard({ fixture, locale }: { fixture: Fixture; locale: string }) {
   const homeName  = fixture.home_team_name ?? fixture.home_placeholder ?? "TBD"
   const awayName  = fixture.away_team_name ?? fixture.away_placeholder ?? "TBD"
   const hasResult = fixture.home_score !== null
@@ -54,7 +48,7 @@ function BracketCard({ fixture }: { fixture: Fixture }) {
         )}
         {!isLive && !hasResult && fixture.kickoff && (
           <span className="text-[10px] text-[#9ca3af]">
-            {new Date(fixture.kickoff).toLocaleDateString("es-MX", { day: "numeric", month: "short" })}
+            {new Date(fixture.kickoff).toLocaleDateString(locale, { day: "numeric", month: "short" })}
           </span>
         )}
       </div>
@@ -118,6 +112,18 @@ function BracketCard({ fixture }: { fixture: Fixture }) {
 }
 
 export default function MundialKnockouts({ fixtures }: Props) {
+  const t = useT()
+  const { lang } = useLanguage()
+  const locale = lang === "en" ? "en-US" : "es-MX"
+
+  const PHASE_LABELS: Record<string, string> = {
+    round_of_32:   "R32",
+    round_of_16:   t("mundial_phase_r16"),
+    quarterfinals: t("mundial_phase_qf"),
+    semifinals:    t("mundial_phase_sf"),
+    final:         t("mundial_phase_final"),
+  }
+
   // Merge: BRACKET_FIXTURES as template, real Supabase data overrides by bracket_position
   const realByPosition = new Map<string, Fixture>()
   fixtures.forEach(f => {
@@ -149,8 +155,8 @@ export default function MundialKnockouts({ fixtures }: Props) {
         style={{ background: "linear-gradient(90deg, #0d3318, #0d1f11)" }}
       >
         <span className="text-[#F5C518] font-black text-sm">🏆</span>
-        <h2 className="font-black text-white text-sm uppercase tracking-wider">Fase Eliminatoria · Mundial 2026</h2>
-        <span className="ml-auto text-[#4a7a5a] text-xs">scroll →</span>
+        <h2 className="font-black text-white text-sm uppercase tracking-wider">{t("mundial_knockout_title")}</h2>
+        <span className="ml-auto text-[#4a7a5a] text-xs">{t("mundial_scroll_hint")}</span>
       </div>
 
       {/* Bracket body */}
@@ -172,20 +178,22 @@ export default function MundialKnockouts({ fixtures }: Props) {
                     <p className="text-[#374151] font-bold text-xs uppercase tracking-wider">
                       {PHASE_LABELS[phase]}
                     </p>
-                    <p className="text-[#9ca3af] text-[10px]">{phaseFixtures.length} partidos</p>
+                    <p className="text-[#9ca3af] text-[10px]">
+                      {phaseFixtures.length} {phaseFixtures.length === 1 ? t("mundial_match_singular") : t("mundial_match_plural")}
+                    </p>
                   </div>
 
                   {phaseFixtures.map(f => (
-                    <BracketCard key={f.id} fixture={f} />
+                    <BracketCard key={f.id} fixture={f} locale={locale} />
                   ))}
 
                   {/* Third-place under SF column */}
                   {phase === "semifinals" && thirdPlace && (
                     <div className="mt-4">
                       <p className="text-[#6b7280] text-[10px] text-center mb-2 font-bold uppercase tracking-wider">
-                        3er Lugar
+                        {t("mundial_third_place")}
                       </p>
-                      <BracketCard fixture={thirdPlace} />
+                      <BracketCard fixture={thirdPlace} locale={locale} />
                     </div>
                   )}
                 </div>
@@ -209,18 +217,18 @@ export default function MundialKnockouts({ fixtures }: Props) {
       >
         <div className="flex items-center gap-1.5">
           <span className="w-3 h-0.5 rounded bg-green-500 inline-block" />
-          <span className="text-[10px] text-[#6b7280]">Finalizado</span>
+          <span className="text-[10px] text-[#6b7280]">{t("mundial_finished_lbl")}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="w-3 h-0.5 rounded bg-amber-400 inline-block" />
-          <span className="text-[10px] text-[#6b7280]">En vivo</span>
+          <span className="text-[10px] text-[#6b7280]">{t("mundial_live_lbl")}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="w-3 h-0.5 rounded bg-[#d1d5db] inline-block" />
-          <span className="text-[10px] text-[#6b7280]">Por disputarse</span>
+          <span className="text-[10px] text-[#6b7280]">{t("mundial_upcoming_lbl")}</span>
         </div>
         <span className="text-[10px] text-[#9ca3af] ml-auto">
-          {fixtures.length === 0 ? "Estructura pre-torneo" : `${fixtures.length} partidos reales`}
+          {fixtures.length === 0 ? t("mundial_pretournament") : `${fixtures.length} ${t("mundial_real_matches")}`}
         </span>
       </div>
     </div>

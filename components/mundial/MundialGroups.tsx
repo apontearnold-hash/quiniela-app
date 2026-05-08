@@ -3,6 +3,7 @@
 import Link from "next/link"
 import type { Fixture, GroupStanding } from "@/lib/types"
 import type { SelectedTeam } from "./MundialContent"
+import { useT, useLanguage } from "@/components/LangProvider"
 
 interface Props {
   standings: GroupStanding[]
@@ -11,6 +12,9 @@ interface Props {
 }
 
 export default function MundialGroups({ standings, fixtures, onTeamSelect }: Props) {
+  const t = useT()
+  const { lang } = useLanguage()
+  const locale = lang === "en" ? "en-US" : "es-MX"
   const groupsMap = new Map<string, GroupStanding[]>()
   standings.forEach(s => {
     if (!groupsMap.has(s.group_name)) groupsMap.set(s.group_name, [])
@@ -19,7 +23,7 @@ export default function MundialGroups({ standings, fixtures, onTeamSelect }: Pro
 
   const fixturesMap = new Map<string, Fixture[]>()
   fixtures.forEach(f => {
-    const g = f.group_name ?? "Sin Grupo"
+    const g = f.group_name ?? t("mundial_no_group")
     if (!fixturesMap.has(g)) fixturesMap.set(g, [])
     fixturesMap.get(g)!.push(f)
   })
@@ -32,8 +36,8 @@ export default function MundialGroups({ standings, fixtures, onTeamSelect }: Pro
     return (
       <div className="text-center py-20">
         <div className="text-5xl mb-4">⏳</div>
-        <p className="font-bold mb-1" style={{ color: "#111827" }}>Sin datos de grupos todavía</p>
-        <p className="text-[#6b7280] text-sm">Los standings se actualizan durante el torneo</p>
+        <p className="font-bold mb-1" style={{ color: "#111827" }}>{t("mundial_no_groups")}</p>
+        <p className="text-[#6b7280] text-sm">{t("mundial_standings_update")}</p>
       </div>
     )
   }
@@ -41,7 +45,7 @@ export default function MundialGroups({ standings, fixtures, onTeamSelect }: Pro
   return (
     <div>
       <p className="text-[#6b7280] text-sm mb-4">
-        Toca un equipo para ver su información y partidos.
+        {t("mundial_tap_team")}
       </p>
       <div className="grid gap-4 md:grid-cols-2">
         {allGroups.map(groupName => {
@@ -61,7 +65,7 @@ export default function MundialGroups({ standings, fixtures, onTeamSelect }: Pro
             >
               <span className="text-[#F5C518] font-black text-sm">⚽</span>
               <h2 className="font-black text-white text-sm uppercase tracking-wider">{groupName}</h2>
-              <span className="ml-auto text-[#4a7a5a] text-xs font-medium">Selecciona un equipo</span>
+              <span className="ml-auto text-[#4a7a5a] text-xs font-medium">{t("mundial_select_team_hint")}</span>
             </div>
 
             {/* Standings — each row is a button that selects the team */}
@@ -127,11 +131,11 @@ export default function MundialGroups({ standings, fixtures, onTeamSelect }: Pro
             {groupFixtures.length > 0 && (
               <div className="border-t-2 border-[#e5e7eb]">
                 <div className="px-3 py-1 bg-[#f9fafb]">
-                  <span className="text-[#9ca3af] text-xs font-semibold uppercase tracking-wider">Partidos</span>
+                  <span className="text-[#9ca3af] text-xs font-semibold uppercase tracking-wider">{t("mundial_groups_matches")}</span>
                 </div>
                 {groupFixtures.map(f => {
                   const kickoff   = f.kickoff
-                    ? new Date(f.kickoff).toLocaleDateString("es-MX", { day: "numeric", month: "short" })
+                    ? new Date(f.kickoff).toLocaleDateString(locale, { day: "numeric", month: "short" })
                     : "?"
                   const hasResult = f.home_score !== null
                   const isLive    = f.status === "live"

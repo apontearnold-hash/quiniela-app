@@ -1,3 +1,7 @@
+"use client"
+
+import { useT } from "@/components/LangProvider"
+
 export interface TopScorer {
   playerId: number
   playerName: string
@@ -24,15 +28,17 @@ function Medal({ rank }: { rank: number }) {
 }
 
 export default function TopScorers({ topScorers }: Props) {
+  const t = useT()
+
   if (topScorers.length === 0) {
     return (
       <div className="text-center py-16">
         <div className="text-5xl mb-4">⚽</div>
         <p className="font-bold mb-1" style={{ color: "#111827" }}>
-          Aún no hay goleadores
+          {t("mundial_no_scorers_title")}
         </p>
         <p className="text-sm" style={{ color: "#6b7280" }}>
-          Los goleadores aparecerán cuando el torneo comience.
+          {t("mundial_no_scorers_sub")}
         </p>
       </div>
     )
@@ -100,7 +106,7 @@ export default function TopScorers({ topScorers }: Props) {
               {player.goals}
             </span>
             <span className="text-[10px] font-medium mt-0.5" style={{ color: "#9ca3af" }}>
-              goles
+              {t("mundial_goals_lbl")}
             </span>
           </div>
         </div>

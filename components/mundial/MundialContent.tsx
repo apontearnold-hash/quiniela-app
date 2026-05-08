@@ -8,6 +8,7 @@ import MundialKnockouts from "./MundialKnockouts"
 import MundialTeams from "./MundialTeams"
 import TopScorers from "./TopScorers"
 import type { TopScorer } from "./TopScorers"
+import { useT } from "@/components/LangProvider"
 
 type Tab = "grupos" | "calendario" | "fase-eliminatoria" | "equipos" | "goleadores"
 
@@ -23,17 +24,18 @@ interface Props {
   topScorers: TopScorer[]
 }
 
-const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: "grupos",             label: "Grupos",            icon: "🏟" },
-  { id: "calendario",         label: "Calendario",        icon: "📅" },
-  { id: "fase-eliminatoria",  label: "Fase Eliminatoria", icon: "🏆" },
-  { id: "equipos",            label: "Equipos",           icon: "🌍" },
-  { id: "goleadores",         label: "Goleadores",        icon: "⚽" },
-]
-
 export default function MundialContent({ standings, fixtures, topScorers }: Props) {
+  const t = useT()
   const [tab, setTab] = useState<Tab>("grupos")
   const [selectedTeam, setSelectedTeam] = useState<SelectedTeam | null>(null)
+
+  const TABS: { id: Tab; label: string; icon: string }[] = [
+    { id: "grupos",            label: t("mundial_tab_grupos"),      icon: "🏟" },
+    { id: "calendario",        label: t("mundial_tab_calendario"),  icon: "📅" },
+    { id: "fase-eliminatoria", label: t("mundial_tab_knockout"),    icon: "🏆" },
+    { id: "equipos",           label: t("mundial_tab_equipos"),     icon: "🌍" },
+    { id: "goleadores",        label: t("mundial_tab_goleadores"),  icon: "⚽" },
+  ]
 
   // Used by Groups & Calendar: select team AND switch to Equipos tab
   function handleTeamSelectWithNav(team: SelectedTeam) {
@@ -115,17 +117,17 @@ export default function MundialContent({ standings, fixtures, topScorers }: Prop
       {tab === "goleadores" && (
         <div>
           <h2 className="text-lg font-black mb-4" style={{ color: "#111827" }}>
-            Máximos goleadores
+            {t("mundial_top_scorers_heading")}
           </h2>
           <TopScorers topScorers={topScorers} />
 
           {teamGoals.length > 0 && (
             <div className="mt-8">
               <h2 className="text-lg font-black mb-4" style={{ color: "#111827" }}>
-                País con más goles
+                {t("mundial_top_goals_heading")}
               </h2>
               <div className="flex flex-col gap-2 max-w-xl mx-auto">
-                {teamGoals.map((t, i) => (
+                {teamGoals.map((tg, i) => (
                   <div
                     key={i}
                     className="flex items-center gap-3 px-4 py-3 rounded-xl"
@@ -138,18 +140,18 @@ export default function MundialContent({ standings, fixtures, topScorers }: Prop
                         : <span className="text-xs font-black w-5 text-center" style={{ color: "#6b7280" }}>{i + 1}</span>
                       }
                     </div>
-                    {t.flag && (
+                    {tg.flag && (
                       <img
-                        src={t.flag}
-                        alt={t.name}
+                        src={tg.flag}
+                        alt={tg.name}
                         className="w-8 h-5 object-contain flex-shrink-0 rounded-sm"
                         style={{ border: "1px solid #e5e7eb" }}
                       />
                     )}
-                    <span className="flex-1 text-sm font-bold truncate" style={{ color: "#111827" }}>{t.name}</span>
+                    <span className="flex-1 text-sm font-bold truncate" style={{ color: "#111827" }}>{tg.name}</span>
                     <div className="flex flex-col items-center flex-shrink-0">
-                      <span className="text-xl font-black leading-none" style={{ color: "#111827" }}>{t.goals}</span>
-                      <span className="text-[10px] font-medium mt-0.5" style={{ color: "#9ca3af" }}>goles</span>
+                      <span className="text-xl font-black leading-none" style={{ color: "#111827" }}>{tg.goals}</span>
+                      <span className="text-[10px] font-medium mt-0.5" style={{ color: "#9ca3af" }}>{t("mundial_goals_lbl")}</span>
                     </div>
                   </div>
                 ))}

@@ -4,6 +4,7 @@ import TeamContextCard from "@/components/TeamContextCard"
 import TeamSquad from "@/components/TeamSquad"
 import type { Fixture, GroupStanding } from "@/lib/types"
 import type { SelectedTeam } from "./MundialContent"
+import { useT } from "@/components/LangProvider"
 
 interface TeamEntry {
   teamId:    number
@@ -58,6 +59,7 @@ function buildGroupsMap(
 }
 
 export default function MundialTeams({ standings, groupFixtures, selectedTeam, onTeamSelect }: Props) {
+  const t = useT()
   const groupsMap = buildGroupsMap(standings, groupFixtures)
   const allGroups = Array.from(groupsMap.keys()).sort()
   const hasTeams  = allGroups.length > 0
@@ -78,13 +80,15 @@ export default function MundialTeams({ standings, groupFixtures, selectedTeam, o
           >
             <span className="text-[#F5C518] font-black text-sm">🌍</span>
             <h2 className="font-black text-white text-sm uppercase tracking-wider">
-              {hasTeams ? `${allGroups.length} Grupos · ${standings.length || groupFixtures.length > 0 ? "48 equipos" : ""}` : "Equipos"}
+              {hasTeams
+                ? `${allGroups.length} ${t("mundial_groups_lbl")} · ${standings.length || groupFixtures.length > 0 ? t("mundial_48_teams") : ""}`
+                : t("mundial_tab_equipos")}
             </h2>
           </div>
 
           {!hasTeams ? (
             <div className="px-4 py-8 text-center">
-              <p className="text-[#9ca3af] text-sm">Sin datos de equipos todavía</p>
+              <p className="text-[#9ca3af] text-sm">{t("mundial_no_teams")}</p>
             </div>
           ) : (
             <div className="overflow-y-auto" style={{ maxHeight: "calc(100vh - 260px)", minHeight: "200px" }}>
@@ -145,7 +149,7 @@ export default function MundialTeams({ standings, groupFixtures, selectedTeam, o
             className="md:hidden mb-4 flex items-center gap-1.5 text-sm font-semibold transition-colors"
             style={{ color: "#374151" }}
           >
-            ← Volver a equipos
+            {t("mundial_back_to_teams")}
           </button>
         )}
         {!selectedTeam ? (
@@ -154,11 +158,11 @@ export default function MundialTeams({ standings, groupFixtures, selectedTeam, o
             style={{ background: "white", border: "1px solid #d1d5db", minHeight: "180px" }}
           >
             <p className="text-3xl mb-2">👈</p>
-            <p className="font-bold text-[#111827]">Selecciona un equipo</p>
+            <p className="font-bold text-[#111827]">{t("mundial_select_team_title")}</p>
             <p className="text-[#6b7280] text-sm mt-1 max-w-xs">
               {hasTeams
-                ? "Elige un país de la lista para ver su información de clasificación."
-                : "La información estará disponible cuando el torneo comience."}
+                ? t("mundial_select_team_sub")
+                : t("mundial_select_team_sub_soon")}
             </p>
           </div>
         ) : (
@@ -169,7 +173,7 @@ export default function MundialTeams({ standings, groupFixtures, selectedTeam, o
               )}
               <div>
                 <h2 className="font-black text-[#111827] text-lg leading-tight">{selectedTeam.teamName}</h2>
-                <p className="text-[#6b7280] text-xs mt-0.5">Contexto de clasificación al Mundial 2026</p>
+                <p className="text-[#6b7280] text-xs mt-0.5">{t("mundial_team_context_sub")}</p>
               </div>
             </div>
             <TeamContextCard
