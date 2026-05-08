@@ -241,6 +241,7 @@ const t = {
     copy_locked:              "Bloqueado",
     err_copy:                 "Error al copiar",
     copy_source_label:        "Copia de:",
+    copy_modal_desc:          "Se creará una copia con todos tus picks para que puedas hacer variaciones.",
 
     // Common
     close_label:              "Cerrar",
@@ -677,6 +678,7 @@ const t = {
     copy_locked:              "Locked",
     err_copy:                 "Error copying",
     copy_source_label:        "Copy of:",
+    copy_modal_desc:          "A full copy will be created so you can make variations.",
 
     // Common
     close_label:              "Close",

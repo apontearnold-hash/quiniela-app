@@ -75,7 +75,8 @@ export default function CopyQuinielaButton({
         >
           <div className="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
             <h2 className="font-black text-gray-900 text-base mb-1">{t("copy_title")}</h2>
-            <p className="text-xs text-gray-500 mb-4">
+            <p className="text-sm text-gray-500 mb-1">{t("copy_modal_desc")}</p>
+            <p className="text-xs text-gray-400 mb-4">
               {t("copy_source_label")} <strong>{quinielaName}</strong>
             </p>
 
