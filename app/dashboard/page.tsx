@@ -248,6 +248,20 @@ export default async function DashboardPage() {
     })
   }
 
+  // ── Lock date ───────────────────────────────────────────────────────
+  const [lockCfgRes, firstKickoffRes] = await Promise.all([
+    admin.from("tournament_config").select("lock_date").eq("id", 1).maybeSingle(),
+    admin.from("fixtures").select("kickoff")
+      .eq("phase", "groups").not("kickoff", "is", null)
+      .order("kickoff", { ascending: true }).limit(1).maybeSingle(),
+  ])
+  let lockDate: string | null = (lockCfgRes.data?.lock_date as string | null) ?? null
+  if (!lockDate) {
+    const k = firstKickoffRes.data?.kickoff as string | null | undefined
+    if (k) lockDate = new Date(new Date(k).toDateString()).toISOString()
+  }
+  const isBeforeLockDate = !lockDate || Date.now() < new Date(lockDate).getTime()
+
   // ── Fixtures ────────────────────────────────────────────────────────
   const [{ data: recentFixturesRaw }, { data: upcomingFixturesRaw }] = await Promise.all([
     supabase
@@ -444,6 +458,8 @@ export default async function DashboardPage() {
             myQuinielas={myQuinielas}
             currentUserId={user.id}
             teamFlagsRecord={teamFlagsRecord}
+            isBeforeLockDate={isBeforeLockDate}
+            userPools={userPools.map(p => ({ id: p.id, name: p.name }))}
           />
         </div>
 

@@ -229,6 +229,19 @@ const t = {
     join_err_inactive_league: "Esta liga no está activa.",
     join_err_join_failed:     "Error al unirse. Intenta de nuevo.",
 
+    // Copy quiniela
+    copy_btn:                 "Copiar",
+    copy_title:               "Copiar quiniela",
+    copy_name_label:          "Nombre de la copia",
+    copy_pool_label:          "Liga destino",
+    copy_copying:             "Copiando...",
+    copy_confirm_btn:         "Crear copia →",
+    copy_name_suffix:         " - copia",
+    copy_duplicate_name:      "Ya tienes una quiniela con ese nombre en esta liga.",
+    copy_locked:              "Bloqueado",
+    err_copy:                 "Error al copiar",
+    copy_source_label:        "Copia de:",
+
     // Common
     close_label:              "Cerrar",
 
@@ -651,6 +664,19 @@ const t = {
     join_err_code_exhausted:  "This code has reached its usage limit.",
     join_err_inactive_league: "This league is not active.",
     join_err_join_failed:     "Failed to join. Please try again.",
+
+    // Copy quiniela
+    copy_btn:                 "Copy",
+    copy_title:               "Copy bracket",
+    copy_name_label:          "Copy name",
+    copy_pool_label:          "Target league",
+    copy_copying:             "Copying...",
+    copy_confirm_btn:         "Create copy →",
+    copy_name_suffix:         " - copy",
+    copy_duplicate_name:      "You already have a bracket with that name in this league.",
+    copy_locked:              "Locked",
+    err_copy:                 "Error copying",
+    copy_source_label:        "Copy of:",
 
     // Common
     close_label:              "Close",
