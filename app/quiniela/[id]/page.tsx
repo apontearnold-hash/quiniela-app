@@ -3,6 +3,7 @@ import { redirect, notFound } from "next/navigation"
 import Navbar from "@/components/Navbar"
 import Link from "next/link"
 import PredictionsEditor from "@/components/PredictionsEditor"
+import CopyQuinielaButton from "@/components/CopyQuinielaButton"
 import type { Quiniela, Fixture, Prediction, BracketPick, Phase } from "@/lib/types"
 import { PHASE_LABELS, PHASE_MULTIPLIER } from "@/lib/types"
 import { BRACKET_FIXTURES } from "@/lib/bracket-slots"
@@ -106,6 +107,20 @@ export default async function QuinielaViewPage({ params }: { params: Promise<{ i
   bracketPicksRaw?.forEach(bp => { bracketPickMap[bp.slot_key] = bp as BracketPick })
 
   const lockDate = await getLockDate(supabase, groupFixtures ?? [])
+  const isBeforeLockDate = !lockDate || Date.now() < new Date(lockDate).getTime()
+
+  // User pools — needed for copy modal pool selector (only when owner)
+  let userPools: { id: string; name: string }[] = []
+  if (isOwner) {
+    const { data: memberships } = await admin
+      .from("pool_members")
+      .select("pool_id, pools(id, name)")
+      .eq("user_id", user.id)
+    userPools = (memberships ?? []).map(m => {
+      const p = (m.pools as unknown) as { id: string; name: string } | null
+      return { id: m.pool_id, name: p?.name ?? "General" }
+    })
+  }
 
   // Phase breakdown: pts per phase
   const phaseBreakdown = ALL_PHASES.map(phase => {
@@ -135,13 +150,23 @@ export default async function QuinielaViewPage({ params }: { params: Promise<{ i
             )}
           </div>
           {isOwner && (
-            <Link
-              href={`/quiniela/${id}/edit`}
-              className="flex items-center gap-2 py-2.5 px-5 rounded-xl font-bold text-black text-sm uppercase tracking-wide flex-shrink-0"
-              style={{ background: 'linear-gradient(135deg, #F5C518, #FFD700)' }}
-            >
-              ✏️ {t("edit")}
-            </Link>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {isBeforeLockDate && (
+                <CopyQuinielaButton
+                  quinielaId={id}
+                  quinielaName={q.name}
+                  currentPoolId={q.pool_id ?? null}
+                  userPools={userPools}
+                />
+              )}
+              <Link
+                href={`/quiniela/${id}/edit`}
+                className="flex items-center gap-2 py-2.5 px-5 rounded-xl font-bold text-black text-sm uppercase tracking-wide"
+                style={{ background: 'linear-gradient(135deg, #F5C518, #FFD700)' }}
+              >
+                ✏️ {t("edit")}
+              </Link>
+            </div>
           )}
         </div>
 

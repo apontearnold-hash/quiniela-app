@@ -16,8 +16,6 @@ interface Props {
   currentUserId: string
   /** team name → flag URL (for most_goals_team_pick flags) */
   teamFlagsRecord: Record<string, string>
-  isBeforeLockDate: boolean
-  userPools: { id: string; name: string }[]
 }
 
 // # | Jugador/Quiniela | Campeón | Goleador | País goles | Aciertos | Scores | Pts
@@ -63,8 +61,6 @@ export default function LeaderboardClient({
   myQuinielas,
   currentUserId,
   teamFlagsRecord,
-  isBeforeLockDate,
-  userPools,
 }: Props) {
   const t = useT()
   const router = useRouter()
@@ -74,42 +70,6 @@ export default function LeaderboardClient({
   const [deleteTarget, setDeleteTarget] = useState<Quiniela | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
-
-  // Copy state
-  const [copyTarget, setCopyTarget]   = useState<Quiniela | null>(null)
-  const [copyName, setCopyName]       = useState("")
-  const [copyPoolId, setCopyPoolId]   = useState("")
-  const [copying, setCopying]         = useState(false)
-  const [copyError, setCopyError]     = useState<string | null>(null)
-
-  function openCopy(q: Quiniela) {
-    setCopyTarget(q)
-    setCopyName(q.name + t("copy_name_suffix"))
-    setCopyPoolId(q.pool_id ?? userPools[0]?.id ?? "")
-    setCopyError(null)
-  }
-
-  async function confirmCopy() {
-    if (!copyTarget) return
-    setCopying(true)
-    setCopyError(null)
-    try {
-      const res = await fetch(`/api/quiniela/${copyTarget.id}/copy`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: copyName.trim(), pool_id: copyPoolId }),
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        setCopyError(data.error === "duplicate_name" ? t("copy_duplicate_name") : (data.error ?? t("err_copy")))
-        return
-      }
-      setCopyTarget(null)
-      router.push(`/quiniela/${data.id}/edit`)
-    } finally {
-      setCopying(false)
-    }
-  }
 
   async function confirmDelete() {
     if (!deleteTarget) return
@@ -177,15 +137,6 @@ export default function LeaderboardClient({
                 >
                   {t("delete_btn")}
                 </button>
-                {isBeforeLockDate && (
-                  <button
-                    onClick={() => openCopy(q)}
-                    className="px-3 py-1.5 rounded-lg text-xs font-bold transition-colors"
-                    style={{ background: "#e0f2fe", color: "#0369a1", border: "1px solid #7dd3fc" }}
-                  >
-                    {t("copy_btn")}
-                  </button>
-                )}
                 <Link
                   href={`/quiniela/${q.id}/edit`}
                   className="px-3 py-1.5 rounded-lg text-xs font-bold hover:opacity-90"
@@ -226,70 +177,6 @@ export default function LeaderboardClient({
               >
                 {deleting ? t("deleting_label") : t("delete_confirm_btn")}
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Copy modal ────────────────────────────────────────────── */}
-      {copyTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.6)" }}>
-          <div className="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
-            <h2 className="font-black text-gray-900 text-base mb-1">{t("copy_title")}</h2>
-            <p className="text-xs text-gray-500 mb-4">
-              {t("copy_source_label")} <strong>{copyTarget.name}</strong>
-            </p>
-
-            <div className="flex flex-col gap-3">
-              <div>
-                <label className="text-xs font-bold text-gray-700 block mb-1">{t("copy_name_label")}</label>
-                <input
-                  type="text"
-                  value={copyName}
-                  onChange={e => { setCopyName(e.target.value); setCopyError(null) }}
-                  className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-                  disabled={copying}
-                  autoFocus
-                />
-              </div>
-
-              {userPools.length > 1 && (
-                <div>
-                  <label className="text-xs font-bold text-gray-700 block mb-1">{t("copy_pool_label")}</label>
-                  <select
-                    value={copyPoolId}
-                    onChange={e => { setCopyPoolId(e.target.value); setCopyError(null) }}
-                    className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-                    disabled={copying}
-                  >
-                    {userPools.map(p => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {copyError && (
-                <p className="text-xs text-red-600 font-semibold">{copyError}</p>
-              )}
-
-              <div className="flex gap-3 justify-end mt-2">
-                <button
-                  onClick={() => setCopyTarget(null)}
-                  disabled={copying}
-                  className="px-4 py-2 rounded-xl text-sm border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                >
-                  {t("cancel")}
-                </button>
-                <button
-                  onClick={confirmCopy}
-                  disabled={copying || !copyName.trim()}
-                  className="px-4 py-2 rounded-xl text-sm font-bold disabled:opacity-50"
-                  style={{ background: "#F5C518", color: "#1a1a00" }}
-                >
-                  {copying ? t("copy_copying") : t("copy_confirm_btn")}
-                </button>
-              </div>
             </div>
           </div>
         </div>
@@ -352,8 +239,8 @@ export default function LeaderboardClient({
                   (quinielas[rank]?.total_points     === q.total_points)
                 const accentColor = rank === 1 ? "#F5C518" : rank === 2 ? "#9ca3af" : "#cd7f32"
 
-                const champion   = q.champion_team_name ? { name: q.champion_team_name, flag: q.champion_team_flag ?? null } : null
-                const goalsFlag  = q.most_goals_team_pick ? (teamFlagsRecord[q.most_goals_team_pick] ?? null) : null
+                const champion  = q.champion_team_name ? { name: q.champion_team_name, flag: q.champion_team_flag ?? null } : null
+                const goalsFlag = q.most_goals_team_pick ? (teamFlagsRecord[q.most_goals_team_pick] ?? null) : null
 
                 return (
                   <div
@@ -430,15 +317,6 @@ export default function LeaderboardClient({
                         style={{ color: rank <= 3 || isMine ? "#d97706" : "#374151" }}>
                         {q.total_points}
                       </span>
-                      {isMine && isBeforeLockDate && (
-                        <button
-                          onClick={e => { e.stopPropagation(); openCopy(q) }}
-                          className="block mx-auto mt-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded leading-tight"
-                          style={{ background: "#e0f2fe", color: "#0369a1" }}
-                        >
-                          {t("copy_btn")}
-                        </button>
-                      )}
                     </div>
                   </div>
                 )
