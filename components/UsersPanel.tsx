@@ -65,6 +65,10 @@ export default function UsersPanel({
   const [addPoolFor, setAddPoolFor] = useState<string | null>(null)
   const [addPoolId, setAddPoolId] = useState("")
 
+  // Remove-from-pool confirmation
+  const [removeConfirm, setRemoveConfirm] = useState<{ userId: string; poolId: string; poolName: string } | null>(null)
+  const [removeConfirming, setRemoveConfirming] = useState(false)
+
   async function createTestUser() {
     setCreateLoading(true)
     setCreateMsg(null)
@@ -128,22 +132,25 @@ export default function UsersPanel({
   }
 
   async function removeFromPool(userId: string, poolId: string) {
-    setLoading(userId + "removepool" + poolId)
+    setRemoveConfirming(true)
     const res = await fetch("/api/admin/pool-members", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ user_id: userId, pool_id: poolId }),
     })
+    const d = await res.json()
     if (res.ok) {
       setMemberships(prev => ({
         ...prev,
         [userId]: (prev[userId] ?? []).filter(m => m.pool_id !== poolId),
       }))
+      const deleted = d.deleted_quinielas ?? 0
+      setMsg({ text: `Removido de la liga. ${deleted > 0 ? `${deleted} quiniela${deleted !== 1 ? "s" : ""} eliminada${deleted !== 1 ? "s" : ""}.` : ""}`, ok: true })
     } else {
-      const d = await res.json()
       setMsg({ text: d.error ?? "Error al remover", ok: false })
     }
-    setLoading(null)
+    setRemoveConfirming(false)
+    setRemoveConfirm(null)
   }
 
   const filtered = filter === "all" ? users : users.filter(u => u.status === filter)
@@ -286,6 +293,33 @@ export default function UsersPanel({
         </div>
       )}
 
+      {/* ── Remove-from-pool confirmation modal ── */}
+      {removeConfirm && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.6)" }}>
+          <div style={{ background: "white", borderRadius: "16px", padding: "24px", maxWidth: "380px", width: "calc(100% - 32px)", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
+            <h2 style={{ fontSize: "15px", fontWeight: 900, color: "#0f172a", margin: "0 0 10px" }}>Remover de liga</h2>
+            <p style={{ fontSize: "13px", color: "#475569", margin: "0 0 6px" }}>
+              Esto quitará al usuario de la liga <strong>&ldquo;{removeConfirm.poolName}&rdquo;</strong> y borrará todas sus quinielas en esta liga.
+            </p>
+            <p style={{ fontSize: "12px", color: "#dc2626", margin: "0 0 20px", fontWeight: 600 }}>Esta acción no se puede deshacer.</p>
+            <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setRemoveConfirm(null)}
+                disabled={removeConfirming}
+                style={{ ...btnSecondary, opacity: removeConfirming ? 0.5 : 1 }}>
+                Cancelar
+              </button>
+              <button
+                onClick={() => removeFromPool(removeConfirm.userId, removeConfirm.poolId)}
+                disabled={removeConfirming}
+                style={{ ...btnDestructiveConfirm, opacity: removeConfirming ? 0.5 : 1 }}>
+                {removeConfirming ? "Removiendo..." : "Sí, remover y borrar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── User list ── */}
       <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
         {filtered.length === 0 && (
@@ -366,8 +400,9 @@ export default function UsersPanel({
                         border: "1px solid #e2e8f0",
                       }}>
                         {m.name}
-                        {m.pool_id !== LEGACY_POOL_ID && !isCurrentAdmin && (
-                          <button onClick={() => removeFromPool(u.id, m.pool_id)}
+                        {!isCurrentAdmin && (
+                          <button
+                            onClick={() => setRemoveConfirm({ userId: u.id, poolId: m.pool_id, poolName: m.name })}
                             disabled={loading !== null}
                             style={{ background: "none", border: "none", padding: "0", cursor: "pointer", color: "#94a3b8", fontSize: "13px", lineHeight: 1, marginLeft: "2px" }}>
                             ×

@@ -78,12 +78,25 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: "user_id y pool_id son requeridos" }, { status: 400 })
   }
 
-  // Prevent removing from General pool — it's the fallback
-  if (pool_id === LEGACY_POOL_ID) {
-    return NextResponse.json({ error: "No se puede remover de la liga General" }, { status: 400 })
+  const admin = createAdminClient()
+
+  // Cascade-delete quinielas (and their dependents) for this user in this pool
+  const { data: quinielas } = await admin
+    .from("quinielas")
+    .select("id")
+    .eq("user_id", user_id)
+    .eq("pool_id", pool_id)
+
+  const qIds = (quinielas ?? []).map(q => q.id)
+
+  if (qIds.length > 0) {
+    await admin.from("predictions").delete().in("quiniela_id", qIds)
+    await admin.from("bracket_picks").delete().in("quiniela_id", qIds)
+    await admin.from("quiniela_snapshots").delete().in("quiniela_id", qIds)
+    const { error: qErr } = await admin.from("quinielas").delete().in("id", qIds)
+    if (qErr) return NextResponse.json({ error: qErr.message }, { status: 500 })
   }
 
-  const admin = createAdminClient()
   const { error } = await admin
     .from("pool_members")
     .delete()
@@ -91,5 +104,5 @@ export async function DELETE(request: Request) {
     .eq("user_id", user_id)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ success: true })
+  return NextResponse.json({ success: true, deleted_quinielas: qIds.length })
 }
