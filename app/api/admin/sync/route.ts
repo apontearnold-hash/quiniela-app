@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { createClient, createAdminClient } from "@/lib/supabase-server"
 import { getPhaseFromRound } from "@/lib/scoring"
 import { apiFetch, mapStatus, writeLog, LEAGUE_ID, SEASON, type FixtureAPIResponse } from "@/lib/api-football"
+import { validateGroups, formatGroupWarnings, buildActualGroupMap } from "@/lib/group-validation"
 
 // ── Verificación de admin ─────────────────────────────────────────────────
 
@@ -205,6 +206,26 @@ export async function POST() {
     const updatedGroupCount = groupUpdates.filter(u => groupStageIds.has(u.id)).length
     const missingGroupCount = groupStageFixtures.length - updatedGroupCount
 
+    // ── Group validation against expected FIFA assignment ───────────────────
+    // Build the actual group map from what the API returned (not from DB, so
+    // this catches wrong data before it gets persisted on a future re-sync).
+    const apiGroupMap = buildActualGroupMap(
+      fixtures.map(f => {
+        const rawGroup = f.league?.group ?? null
+        const match = rawGroup?.match(/([A-L])$/i)
+        return {
+          group_name:     match ? `Grupo ${match[1].toUpperCase()}` : null,
+          home_team_name: f.teams.home.name,
+          away_team_name: f.teams.away.name,
+        }
+      })
+    )
+    const groupValidationWarnings = validateGroups(apiGroupMap)
+    const groupValidationFormatted = formatGroupWarnings(groupValidationWarnings)
+    if (groupValidationFormatted.length > 0) {
+      for (const w of groupValidationFormatted) console.warn(`[sync] ${w}`)
+    }
+
     // ── Post-process: merge real API knockout fixtures into synthetic slots ──────
     //
     // Once API-Football publishes real R32+ fixtures (with real IDs and team data),
@@ -303,6 +324,9 @@ export async function POST() {
       timestamp: new Date().toISOString(),
       breakdown: phases,
       groupsAssigned,
+      ...(groupValidationFormatted.length > 0
+        ? { groupValidationWarnings: groupValidationFormatted }
+        : {}),
     })
   } catch (err) {
     const msg = String(err)

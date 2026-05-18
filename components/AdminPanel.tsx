@@ -75,10 +75,14 @@ export default function AdminPanel({ fixtures, defaultTab }: Props) {
   const [syncMsg, setSyncMsg] = useState<string | null>(null)
   const [syncError, setSyncError] = useState(false)
   const [syncBreakdown, setSyncBreakdown] = useState<string[] | null>(null)
+  const [syncGroupWarnings, setSyncGroupWarnings] = useState<string[] | null>(null)
   // Sync tab — refrescar resultados
   const [refreshing, setRefreshing] = useState(false)
   const [refreshMsg, setRefreshMsg] = useState<string | null>(null)
   const [refreshError, setRefreshError] = useState(false)
+  // Sync tab — validar grupos
+  const [validating, setValidating] = useState(false)
+  const [validateResult, setValidateResult] = useState<{ valid: boolean; warnings: string[]; checked: string[] } | null>(null)
   // Sync tab — API diagnostics
   const [diagLoading, setDiagLoading] = useState(false)
   const [diag, setDiag] = useState<{
@@ -360,13 +364,15 @@ export default function AdminPanel({ fixtures, defaultTab }: Props) {
   }
 
   async function syncFixtures() {
-    setSyncing(true); setSyncMsg("Importando fixtures..."); setSyncError(false); setSyncBreakdown(null)
+    setSyncing(true); setSyncMsg("Importando fixtures..."); setSyncError(false)
+    setSyncBreakdown(null); setSyncGroupWarnings(null)
     try {
       const res = await fetch("/api/admin/sync", { method: "POST" })
       const data = await res.json()
       if (res.ok) {
         setSyncMsg(data.message ?? "Listo")
         setSyncBreakdown(data.breakdown ?? null)
+        setSyncGroupWarnings(data.groupValidationWarnings ?? null)
         setSyncError(false)
       } else {
         setSyncMsg(data.error ?? "Error desconocido")
@@ -378,6 +384,16 @@ export default function AdminPanel({ fixtures, defaultTab }: Props) {
     }
     setSyncing(false)
     loadSyncLog()
+  }
+
+  async function validateGroupAssignments() {
+    setValidating(true); setValidateResult(null)
+    try {
+      const res = await fetch("/api/admin/validate-groups")
+      const data = await res.json()
+      if (res.ok) setValidateResult({ valid: data.valid, warnings: data.warnings, checked: data.checked })
+    } catch { /* ignore */ }
+    setValidating(false)
   }
 
   async function refreshResults() {
@@ -635,7 +651,6 @@ export default function AdminPanel({ fixtures, defaultTab }: Props) {
             {syncMsg && (
               <div className="mb-4 p-3 rounded-xl text-sm" style={{ background: "#f9fafb", border: "1px solid #e5e7eb" }}>
                 <p className={syncError ? "text-red-400" : "text-[#F5C518]"}>{syncMsg}</p>
-                {/* Desglose de rounds que devolvió la API */}
                 {syncBreakdown && syncBreakdown.length > 0 && (
                   <details className="mt-2">
                     <summary className="text-[#6b7280] text-xs cursor-pointer">Ver desglose por ronda ({syncBreakdown.length} rondas)</summary>
@@ -646,6 +661,24 @@ export default function AdminPanel({ fixtures, defaultTab }: Props) {
                     </div>
                   </details>
                 )}
+              </div>
+            )}
+
+            {/* Group validation warnings from sync */}
+            {syncGroupWarnings && syncGroupWarnings.length > 0 && (
+              <div className="mb-4 p-4 rounded-xl" style={{ background: "#fef3c7", border: "2px solid #f59e0b" }}>
+                <p className="text-[#92400e] font-bold text-sm mb-2">⚠ Inconsistencia de grupos detectada</p>
+                <p className="text-[#78350f] text-xs mb-3">
+                  Los grupos del API no coinciden con la asignación oficial FIFA. No se modificaron datos automáticamente.
+                  Corrige <code className="bg-amber-100 px-1 rounded">fixtures.group_name</code> manualmente en Supabase.
+                </p>
+                <div className="flex flex-col gap-2">
+                  {syncGroupWarnings.map((w, i) => (
+                    <pre key={i} className="text-[#92400e] text-xs font-mono bg-amber-50 rounded px-3 py-2 whitespace-pre-wrap break-words">
+                      {w}
+                    </pre>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -685,6 +718,50 @@ export default function AdminPanel({ fixtures, defaultTab }: Props) {
               className="py-2.5 px-6 rounded-xl font-bold text-black text-sm uppercase tracking-wide disabled:opacity-50"
               style={{ background: 'linear-gradient(135deg, #F5C518, #FFD700)' }}>
               {refreshing ? "Actualizando..." : "⚡ Refrescar Resultados"}
+            </button>
+          </div>
+
+          {/* Acción 3: Validar grupos */}
+          <div className="rounded-2xl p-5"
+            style={{ background: "white", border: "1px solid #d1d5db", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+            <h2 className="text-[#111827] font-bold mb-1">🔍 Validar grupos del Mundial</h2>
+            <p className="text-[#9ca3af] text-xs mb-4">
+              Compara el <code className="bg-gray-100 px-1 rounded text-[10px]">group_name</code> en DB
+              contra la asignación oficial FIFA. No modifica datos.
+              También se ejecuta automáticamente al importar fixtures.
+            </p>
+
+            {validateResult && (
+              <div className="mb-4 p-3 rounded-xl" style={{
+                background: validateResult.valid ? "#f0fdf4" : "#fef3c7",
+                border: `1px solid ${validateResult.valid ? "#bbf7d0" : "#f59e0b"}`,
+              }}>
+                {validateResult.valid ? (
+                  <p className="text-green-700 text-sm font-semibold">
+                    ✅ Grupos correctos — {validateResult.checked.length} grupo{validateResult.checked.length !== 1 ? "s" : ""} verificado{validateResult.checked.length !== 1 ? "s" : ""}
+                    {validateResult.checked.length === 0 && " (ningún grupo configurado aún en group-validation.ts)"}
+                  </p>
+                ) : (
+                  <>
+                    <p className="text-[#92400e] font-bold text-sm mb-2">
+                      ⚠ {validateResult.warnings.length} grupo{validateResult.warnings.length !== 1 ? "s" : ""} inconsistente{validateResult.warnings.length !== 1 ? "s" : ""}
+                    </p>
+                    <div className="flex flex-col gap-2">
+                      {validateResult.warnings.map((w, i) => (
+                        <pre key={i} className="text-[#92400e] text-xs font-mono bg-amber-50 rounded px-3 py-2 whitespace-pre-wrap break-words">
+                          {w}
+                        </pre>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            <button onClick={validateGroupAssignments} disabled={validating}
+              className="py-2 px-5 rounded-xl font-bold text-sm disabled:opacity-50"
+              style={{ background: "#f3f4f6", color: "#374151", border: "1px solid #d1d5db" }}>
+              {validating ? "Verificando..." : "🔍 Verificar grupos ahora"}
             </button>
           </div>
 
