@@ -54,21 +54,21 @@ export type GroupStanding = { group: string; entries: StandingEntry[] }
 // ── Fetch helpers ─────────────────────────────────────────────────────────────
 
 async function fetchLive(): Promise<TournamentFixture[]> {
-  const res = await apiFetch(`/fixtures?league=${LEAGUE_ID}&season=${SEASON}&live=all`)
+  const res = await apiFetch(`/fixtures?league=${LEAGUE_ID}&season=${SEASON}&live=all`, { revalidate: 60 })
   if (!res.ok) return []
   const json = await res.json()
   return mapFixtures(json.response ?? [])
 }
 
 async function fetchUpcoming(): Promise<TournamentFixture[]> {
-  const res = await apiFetch(`/fixtures?league=${LEAGUE_ID}&season=${SEASON}&next=12`)
+  const res = await apiFetch(`/fixtures?league=${LEAGUE_ID}&season=${SEASON}&next=12`, { revalidate: 300 })
   if (!res.ok) return []
   const json = await res.json()
   return mapFixtures(json.response ?? [])
 }
 
 async function fetchStandings(): Promise<GroupStanding[]> {
-  const res = await apiFetch(`/standings?league=${LEAGUE_ID}&season=${SEASON}`)
+  const res = await apiFetch(`/standings?league=${LEAGUE_ID}&season=${SEASON}`, { revalidate: 600 })
   if (!res.ok) return []
   const json = await res.json()
   const leagueData = json.response?.[0]?.league
