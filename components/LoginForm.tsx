@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase-browser"
 import { useRouter } from "next/navigation"
 import { useLanguage } from "@/components/LangProvider"
@@ -96,7 +96,24 @@ export default function LoginForm() {
   const { lang, setLang } = useLanguage()
   const c = COPY[lang] ?? COPY.es
 
-  // ── Auth handlers (UNCHANGED) ─────────────────────────────────────────────
+  // Pre-fill invite code from URL params (?invite_code=ABC or ?code=ABC)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const urlCode = (params.get("invite_code") ?? params.get("code") ?? "").trim().toUpperCase()
+    if (urlCode) {
+      setInviteCode(urlCode)
+      setMode("register")
+    }
+  }, [])
+
+  // ── Helpers ──────────────────────────────────────────────────────────────
+
+  function clearInvitePending() {
+    document.cookie = "pending_invite_code=; path=/; max-age=0; SameSite=Lax"
+    sessionStorage.removeItem("pending_invite_code")
+  }
+
+  // ── Auth handlers ─────────────────────────────────────────────────────────
 
   async function handleGoogleLogin() {
     setError(null)
@@ -141,6 +158,9 @@ export default function LoginForm() {
       if (error) { setError(error.message); setLoading(false) }
     } else {
       setLoading(true)
+      // Erase any leftover register cookie before a plain login OAuth
+      // so a shared-computer session cannot accidentally pick it up.
+      clearInvitePending()
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: { redirectTo: `${window.location.origin}/auth/callback` },
@@ -310,7 +330,7 @@ export default function LoginForm() {
             <button
               key={m}
               type="button"
-              onClick={() => { setMode(m); setError(null) }}
+              onClick={() => { setMode(m); setError(null); if (m === "login") clearInvitePending() }}
               style={{
                 flex: 1,
                 padding: "8px 0",
