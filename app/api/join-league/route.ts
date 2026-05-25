@@ -37,7 +37,8 @@ export async function POST(req: NextRequest) {
     .maybeSingle()
 
   if (existing) {
-    return NextResponse.json({ error: "already_member", pool: { id: pool.id, name: pool.name } }, { status: 409 })
+    // Idempotent: already a member is not an error — return success with a flag
+    return NextResponse.json({ already_member: true, pool: { id: pool.id, name: pool.name } })
   }
 
   // 3. Add to pool

@@ -30,7 +30,7 @@ export default function JoinLeagueButton() {
       })
       const data = await res.json()
 
-      if (res.status === 409) {
+      if (data.already_member) {
         setStatus({ type: "error", msg: t("join_already_member") })
       } else if (!res.ok) {
         const msgs: Record<string, string> = {

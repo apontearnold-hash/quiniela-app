@@ -125,10 +125,17 @@ export default function LoginForm() {
         return
       }
 
+      // Save invite code in a cookie so the server-side callback can recover it
+      // if the OAuth provider strips query params from the redirectTo URL.
+      const codeToSave = inviteCode.trim().toUpperCase()
+      document.cookie = `pending_invite_code=${encodeURIComponent(codeToSave)}; path=/; max-age=300; SameSite=Lax`
+      sessionStorage.setItem("pending_invite_code", codeToSave)
+      console.log("[login] invite code saved before OAuth redirect:", codeToSave)
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?invite_code=${encodeURIComponent(inviteCode.trim().toUpperCase())}`,
+          redirectTo: `${window.location.origin}/auth/callback?invite_code=${encodeURIComponent(codeToSave)}`,
         },
       })
       if (error) { setError(error.message); setLoading(false) }
