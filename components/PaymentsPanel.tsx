@@ -161,10 +161,10 @@ export default function PaymentsPanel() {
         </div>
       )}
 
-      {/* Member table */}
+      {/* ── DESKTOP TABLE (md+) ────────────────────────────────────────── */}
       {rows.length > 0 && (
         <div
-          className="rounded-2xl overflow-hidden"
+          className="hidden md:block rounded-2xl overflow-hidden"
           style={{ background: "white", border: "1px solid #d1d5db", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}
         >
           {/* Table header */}
@@ -198,117 +198,200 @@ export default function PaymentsPanel() {
                 key={row.user_id}
                 style={{ borderTop: i > 0 ? "1px solid #f3f4f6" : undefined }}
               >
-                {/* Main row */}
                 <div
                   className="grid items-center px-4 py-3 text-sm"
                   style={{ gridTemplateColumns: "1fr 60px 80px 80px 80px 120px 72px" }}
                 >
-                  {/* Name */}
                   <div className="min-w-0">
                     <p className="font-medium truncate" style={{ color: "#111827" }}>{name}</p>
                     {row.display_name && (
                       <p className="text-xs truncate" style={{ color: "#9ca3af" }}>{row.email}</p>
                     )}
                   </div>
-
-                  {/* Quiniela count */}
-                  <span className="text-right text-xs font-bold" style={{ color: "#374151" }}>
-                    {row.quiniela_count}
-                  </span>
-
-                  {/* Total due */}
-                  <span className="text-right text-xs" style={{ color: "#374151" }}>
-                    ${row.total_due.toFixed(0)}
-                  </span>
-
-                  {/* Amount paid */}
+                  <span className="text-right text-xs font-bold" style={{ color: "#374151" }}>{row.quiniela_count}</span>
+                  <span className="text-right text-xs" style={{ color: "#374151" }}>${row.total_due.toFixed(0)}</span>
                   {isEditing ? (
                     <div className="flex justify-end pr-1">
                       <input
-                        type="number"
-                        min="0"
-                        step="0.01"
+                        type="number" min="0" step="0.01"
                         value={editing[row.user_id].amount}
-                        onChange={e => setEditing(prev => ({
-                          ...prev,
-                          [row.user_id]: { ...prev[row.user_id], amount: e.target.value },
-                        }))}
+                        onChange={e => setEditing(prev => ({ ...prev, [row.user_id]: { ...prev[row.user_id], amount: e.target.value } }))}
                         className="w-16 px-1.5 py-1 rounded text-xs text-right"
                         style={{ border: "1px solid #d1d5db", color: "#111827" }}
                       />
                     </div>
                   ) : (
-                    <span className="text-right text-xs font-semibold text-green-600">
-                      ${row.amount_paid.toFixed(0)}
-                    </span>
+                    <span className="text-right text-xs font-semibold text-green-600">${row.amount_paid.toFixed(0)}</span>
                   )}
-
-                  {/* Pending */}
-                  <span
-                    className="text-right text-xs font-bold"
-                    style={{ color: isPaid ? "#16a34a" : row.pending > 0 ? "#F5C518" : "#9ca3af" }}
-                  >
+                  <span className="text-right text-xs font-bold" style={{ color: isPaid ? "#16a34a" : row.pending > 0 ? "#F5C518" : "#9ca3af" }}>
                     {isPaid ? t("payments_up_to_date") : `$${row.pending.toFixed(0)}`}
                   </span>
-
-                  {/* Notes */}
                   {isEditing ? (
                     <input
-                      type="text"
-                      placeholder={t("payments_note_ph")}
+                      type="text" placeholder={t("payments_note_ph")}
                       value={editing[row.user_id].notes}
-                      onChange={e => setEditing(prev => ({
-                        ...prev,
-                        [row.user_id]: { ...prev[row.user_id], notes: e.target.value },
-                      }))}
+                      onChange={e => setEditing(prev => ({ ...prev, [row.user_id]: { ...prev[row.user_id], notes: e.target.value } }))}
                       className="pl-2 px-2 py-1 rounded text-xs"
                       style={{ border: "1px solid #d1d5db", color: "#111827" }}
                     />
                   ) : (
-                    <span className="pl-2 text-xs truncate" style={{ color: "#9ca3af" }}>
-                      {row.notes ?? "—"}
-                    </span>
+                    <span className="pl-2 text-xs truncate" style={{ color: "#9ca3af" }}>{row.notes ?? "—"}</span>
                   )}
-
-                  {/* Actions */}
                   <div className="flex items-center gap-1 justify-end">
                     {isEditing ? (
                       <>
-                        <button
-                          onClick={() => saveEdit(row.user_id)}
-                          disabled={isSaving}
+                        <button onClick={() => saveEdit(row.user_id)} disabled={isSaving}
                           className="px-2 py-1 rounded text-xs font-bold text-black disabled:opacity-50"
-                          style={{ background: "#F5C518" }}
-                        >
+                          style={{ background: "#F5C518" }}>
                           {isSaving ? "…" : "OK"}
                         </button>
-                        <button
-                          onClick={() => cancelEdit(row.user_id)}
-                          disabled={isSaving}
+                        <button onClick={() => cancelEdit(row.user_id)} disabled={isSaving}
                           className="px-2 py-1 rounded text-xs font-medium disabled:opacity-50"
-                          style={{ border: "1px solid #d1d5db", color: "#6b7280" }}
-                        >
+                          style={{ border: "1px solid #d1d5db", color: "#6b7280" }}>
                           ✕
                         </button>
                       </>
                     ) : (
-                      <button
-                        onClick={() => startEdit(row)}
+                      <button onClick={() => startEdit(row)}
                         className="px-2 py-1 rounded text-xs font-medium hover:bg-gray-100"
-                        style={{ border: "1px solid #e5e7eb", color: "#6b7280" }}
-                      >
+                        style={{ border: "1px solid #e5e7eb", color: "#6b7280" }}>
                         {t("edit")}
                       </button>
                     )}
                   </div>
                 </div>
+                {msg && (
+                  <p className={`px-4 pb-2 text-xs ${msg.startsWith("Error") ? "text-red-400" : "text-green-500"}`}>{msg}</p>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* ── MOBILE CARDS (< md) ────────────────────────────────────────── */}
+      {rows.length > 0 && (
+        <div className="flex flex-col gap-3 md:hidden">
+          {rows.map((row) => {
+            const isEditing = !!editing[row.user_id]
+            const isSaving  = !!saving[row.user_id]
+            const msg       = saveMsg[row.user_id]
+            const isPaid    = row.pending === 0 && row.total_due > 0
+            const name      = row.display_name ?? row.email
+
+            return (
+              <div
+                key={row.user_id}
+                className="rounded-2xl px-4 py-3 flex flex-col gap-3"
+                style={{ background: "white", border: "1px solid #d1d5db", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}
+              >
+                {/* Name + email */}
+                <div className="min-w-0">
+                  <p className="font-bold text-sm" style={{ color: "#111827" }}>{name}</p>
+                  {row.display_name && (
+                    <p className="text-xs mt-0.5" style={{ color: "#9ca3af" }}>{row.email}</p>
+                  )}
+                </div>
+
+                {/* Stats grid: 2×2 */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-lg px-3 py-2" style={{ background: "#f9fafb", border: "1px solid #e5e7eb" }}>
+                    <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: "#9ca3af" }}>
+                      {t("payments_col_owes")}
+                    </p>
+                    <p className="text-sm font-bold mt-0.5" style={{ color: "#374151" }}>
+                      ${row.total_due.toFixed(0)}&nbsp;
+                      <span className="text-xs font-normal text-[#9ca3af]">({row.quiniela_count} Q)</span>
+                    </p>
+                  </div>
+                  <div className="rounded-lg px-3 py-2" style={{ background: "#f9fafb", border: "1px solid #e5e7eb" }}>
+                    <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: "#9ca3af" }}>
+                      {t("payments_col_paid")}
+                    </p>
+                    <p className="text-sm font-bold mt-0.5 text-green-600">${row.amount_paid.toFixed(0)}</p>
+                  </div>
+                  <div className="col-span-2 rounded-lg px-3 py-2" style={{ background: "#f9fafb", border: "1px solid #e5e7eb" }}>
+                    <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: "#9ca3af" }}>
+                      {t("payments_col_pending")}
+                    </p>
+                    <p className="text-sm font-bold mt-0.5"
+                      style={{ color: isPaid ? "#16a34a" : row.pending > 0 ? "#d97706" : "#9ca3af" }}>
+                      {isPaid ? t("payments_up_to_date") : `$${row.pending.toFixed(0)} ${t("payments_pending_lbl")}`}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Notes (view mode) */}
+                {!isEditing && row.notes && (
+                  <p className="text-xs px-1" style={{ color: "#6b7280" }}>
+                    📝 {row.notes}
+                  </p>
+                )}
+
+                {/* Edit form (mobile inline) */}
+                {isEditing && (
+                  <div className="flex flex-col gap-2">
+                    <div>
+                      <label className="text-[10px] font-bold uppercase tracking-wide block mb-1" style={{ color: "#6b7280" }}>
+                        {t("payments_col_paid")}
+                      </label>
+                      <input
+                        type="number" min="0" step="0.01"
+                        value={editing[row.user_id].amount}
+                        onChange={e => setEditing(prev => ({ ...prev, [row.user_id]: { ...prev[row.user_id], amount: e.target.value } }))}
+                        className="w-full px-3 py-2 rounded-lg text-sm"
+                        style={{ border: "1px solid #d1d5db", color: "#111827" }}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold uppercase tracking-wide block mb-1" style={{ color: "#6b7280" }}>
+                        {t("payments_col_notes")}
+                      </label>
+                      <input
+                        type="text" placeholder={t("payments_note_ph")}
+                        value={editing[row.user_id].notes}
+                        onChange={e => setEditing(prev => ({ ...prev, [row.user_id]: { ...prev[row.user_id], notes: e.target.value } }))}
+                        className="w-full px-3 py-2 rounded-lg text-sm"
+                        style={{ border: "1px solid #d1d5db", color: "#111827" }}
+                      />
+                    </div>
+                  </div>
+                )}
 
                 {/* Save message */}
                 {msg && (
-                  <p className={`px-4 pb-2 text-xs ${msg.startsWith("Error") ? "text-red-400" : "text-green-500"}`}>
-                    {msg}
-                  </p>
+                  <p className={`text-xs ${msg.startsWith("Error") ? "text-red-400" : "text-green-500"}`}>{msg}</p>
                 )}
+
+                {/* Action buttons — always visible, no hover dependency */}
+                <div className="flex gap-2">
+                  {isEditing ? (
+                    <>
+                      <button
+                        onClick={() => saveEdit(row.user_id)} disabled={isSaving}
+                        className="flex-1 py-2.5 rounded-xl text-sm font-bold text-black disabled:opacity-50"
+                        style={{ background: "#F5C518" }}
+                      >
+                        {isSaving ? "…" : t("saved") === "saved" ? "Guardar" : "Guardar"}
+                      </button>
+                      <button
+                        onClick={() => cancelEdit(row.user_id)} disabled={isSaving}
+                        className="py-2.5 px-4 rounded-xl text-sm font-medium disabled:opacity-50"
+                        style={{ border: "1px solid #d1d5db", color: "#6b7280" }}
+                      >
+                        ✕
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => startEdit(row)}
+                      className="flex-1 py-2.5 rounded-xl text-sm font-semibold"
+                      style={{ border: "1px solid #d1d5db", color: "#374151", background: "#f9fafb" }}
+                    >
+                      ✏️ {t("edit")}
+                    </button>
+                  )}
+                </div>
               </div>
             )
           })}
