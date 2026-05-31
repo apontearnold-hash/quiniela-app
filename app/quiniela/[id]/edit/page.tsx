@@ -182,6 +182,7 @@ export default async function EditQuinielaPage({ params }: { params: Promise<{ i
         ) : (
           <PredictionsEditor
             quinielaId={id}
+            quinielaName={quiniela.name ?? ""}
             allFixtures={allFixtures}
             existingPredictions={predMap}
             existingBracketPicks={bracketPickMap}

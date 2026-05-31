@@ -45,6 +45,8 @@ interface Props {
   realKnockoutFixtures?: Record<string, Fixture>
   /** True when R32 has real teams and this quiniela's picks need to be synced */
   r32NeedsSync?: boolean
+  /** Current saved name of the quiniela — editable in edit mode */
+  quinielaName?: string
 }
 
 interface PredState {
@@ -428,6 +430,7 @@ export default function PredictionsEditor({
   knockoutEditable = false, knockoutStatusMap = {},
   realKnockoutFixtures = {},
   r32NeedsSync = false,
+  quinielaName = "",
 }: Props) {
   const supabase = createClient()
   const t = useT()
@@ -492,6 +495,12 @@ export default function PredictionsEditor({
   const [r32SyncError, setR32SyncError] = useState<string | null>(null)
   const [draftResult, setDraftResult]  = useState<"ok" | "error" | null>(null)
   const [draftError, setDraftError]    = useState<string | null>(null)
+
+  // Name editing
+  const [nameValue, setNameValue]       = useState(quinielaName)
+  const nameValueRef = useRef(quinielaName)
+  nameValueRef.current = nameValue
+  const savedNameRef = useRef(quinielaName) // tracks last value successfully persisted
 
   // ── Merge real team IDs from confirmed knockout fixtures onto static slots ────
   const allFixturesMerged = useMemo(() => {
@@ -603,6 +612,14 @@ export default function PredictionsEditor({
     return () => clearTimeout(timeout)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [champion, isDirty])
+
+  // ── Name: auto-save on blur when changed ────────────────────────────────────
+  async function saveNameOnBlur() {
+    const trimmed = nameValueRef.current.trim()
+    if (!trimmed || trimmed === savedNameRef.current) return
+    await supabase.from("quinielas").update({ name: trimmed }).eq("id", quinielaId)
+    savedNameRef.current = trimmed
+  }
 
   // ── Save (upsert — idempotent) ───────────────────────────────────────────────
   const updatePred = useCallback((fixtureId: number, field: keyof PredState, value: string | boolean) => {
@@ -735,13 +752,18 @@ export default function PredictionsEditor({
       return
     }
 
-    // Run both upserts; collect first error
+    // Run upserts + name update in parallel; name errors are non-fatal
+    const trimmedName = nameValueRef.current.trim()
     const [predRes, bpRes] = await Promise.all([
       predRows.length > 0
         ? supabase.from("predictions").upsert(predRows, { onConflict: "quiniela_id,fixture_id" })
         : Promise.resolve({ error: null }),
       bpRows.length > 0
         ? supabase.from("bracket_picks").upsert(bpRows, { onConflict: "quiniela_id,slot_key" })
+        : Promise.resolve({ error: null }),
+      trimmedName && trimmedName !== savedNameRef.current
+        ? supabase.from("quinielas").update({ name: trimmedName }).eq("id", quinielaId)
+            .then(r => { if (!r.error) savedNameRef.current = trimmedName; return r })
         : Promise.resolve({ error: null }),
     ])
 
@@ -932,6 +954,29 @@ export default function PredictionsEditor({
             <p className="font-bold text-sm" style={{ color: "#F5C518" }}>{t("teams_updated_title")}</p>
             <p className="text-xs mt-0.5" style={{ color: "#9ab8a0" }}>{t("teams_updated_text")}</p>
           </div>
+        </div>
+      )}
+
+      {/* ══ Quiniela name editor ═════════════════════════════════════════════ */}
+      {!readOnly && (
+        <div className="rounded-xl px-4 py-3" style={{ background: "#0d1f11", border: "1px solid #2a5438" }}>
+          <label className="text-[10px] font-bold uppercase tracking-widest block mb-1.5" style={{ color: "#7ab88a" }}>
+            {t("quiniela_name_label")}
+          </label>
+          <input
+            type="text"
+            value={nameValue}
+            onChange={e => { setNameValue(e.target.value); setIsDirty(true) }}
+            onBlur={saveNameOnBlur}
+            disabled={!canEdit}
+            maxLength={80}
+            placeholder={t("quiniela_name_placeholder")}
+            className="w-full bg-transparent outline-none text-lg font-black disabled:opacity-40 disabled:cursor-not-allowed"
+            style={{ color: "#f1f5f9", borderBottom: canEdit ? "1px solid #2a7a4a" : "none" }}
+          />
+          {!nameValue.trim() && canEdit && (
+            <p className="text-xs mt-1" style={{ color: "#ef4444" }}>{t("quiniela_name_required")}</p>
+          )}
         </div>
       )}
 
