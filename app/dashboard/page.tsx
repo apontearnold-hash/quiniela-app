@@ -112,7 +112,7 @@ export default async function DashboardPage() {
     return {
       id: m.pool_id,
       name: p?.name ?? "General",
-      price: p?.price_per_quiniela ?? 5,
+      price: p?.price_per_quiniela ?? 0,
       currency: p?.currency ?? "USD",
       prizeType: (p?.prize_type ?? "money") as "money" | "physical",
       prize1st: p?.prize_1st ?? null,
@@ -127,7 +127,7 @@ export default async function DashboardPage() {
     userPools.find(p => p.id === cookiePoolId) ??
     userPools.find(p => p.id !== LEGACY_POOL_ID) ??
     userPools[0] ??
-    { id: LEGACY_POOL_ID, name: "General", price: 5, currency: "USD", prizeType: "money" as "money" | "physical", prize1st: null, prize2nd: null, prize3rd: null }
+    { id: LEGACY_POOL_ID, name: "General", price: 0, currency: "USD", prizeType: "money" as "money" | "physical", prize1st: null, prize2nd: null, prize3rd: null }
 
   const poolId = selectedPool.id
 
@@ -307,8 +307,8 @@ export default async function DashboardPage() {
           </Link>
         </div>
 
-        {/* ── Pozo strip ───────────────────────────────────────────── */}
-        {(totalQ > 0 || isPhysicalPrize) && (
+        {/* ── Pozo strip — hidden for free leagues (price = 0 and no physical prize) */}
+        {(isPhysicalPrize || (price > 0 && totalQ > 0)) && (
           <div
             className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-4 py-2.5 rounded-xl text-xs"
             style={{ background: "#0d1f11", border: "1px solid #2a5438" }}
