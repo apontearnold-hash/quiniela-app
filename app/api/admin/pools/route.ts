@@ -61,7 +61,7 @@ export async function POST(request: Request) {
   const { data, error } = await admin.from("pools").insert({
     name: name.trim(),
     description: description?.trim() || null,
-    price_per_quiniela: price_per_quiniela ?? 5.00,
+    price_per_quiniela: price_per_quiniela ?? 0,
     currency: currency ?? "USD",
     prize_type: prize_type === "physical" ? "physical" : "money",
     prize_description: prize_description?.trim() || null,

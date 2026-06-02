@@ -120,7 +120,7 @@ export default function PoolsPanel({ pools: initialPools }: { pools: PoolRow[] }
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState({
-    name: "", description: "", price: "5", currency: "USD", is_active: true,
+    name: "", description: "", price: "0", currency: "USD", is_active: true,
     prize_type: "money" as "money" | "physical",
     prize_1st: "", prize_2nd: "", prize_3rd: "",
   })
@@ -128,7 +128,7 @@ export default function PoolsPanel({ pools: initialPools }: { pools: PoolRow[] }
 
   const [showCreate, setShowCreate] = useState(false)
   const [form, setForm] = useState({
-    name: "", description: "", price: "5", currency: "USD",
+    name: "", description: "", price: "0", currency: "USD",
     prize_type: "money" as "money" | "physical",
     prize_1st: "", prize_2nd: "", prize_3rd: "",
   })
@@ -150,7 +150,7 @@ export default function PoolsPanel({ pools: initialPools }: { pools: PoolRow[] }
       body: JSON.stringify({
         name: form.name.trim(),
         description: form.description.trim() || null,
-        price_per_quiniela: parseFloat(form.price) || 5,
+        price_per_quiniela: isNaN(parseFloat(form.price)) ? 0 : parseFloat(form.price),
         currency: form.currency,
         prize_type: form.prize_type,
         prize_1st: form.prize_type === "physical" ? form.prize_1st.trim() || null : null,
@@ -161,7 +161,7 @@ export default function PoolsPanel({ pools: initialPools }: { pools: PoolRow[] }
     const data = await res.json()
     if (res.ok) {
       setPools(prev => [...prev, { ...data.pool, member_count: 0, quiniela_count: 0 }])
-      setForm({ name: "", description: "", price: "5", currency: "USD", prize_type: "money", ...emptyPhysical })
+      setForm({ name: "", description: "", price: "0", currency: "USD", prize_type: "money", ...emptyPhysical })
       setShowCreate(false)
       setMsg({ text: "Liga creada", ok: true })
     } else {
