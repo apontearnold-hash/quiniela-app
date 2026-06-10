@@ -31,6 +31,7 @@ const COPY = {
     submitLogin:  "Entrar",
     submitReg:    "Crear cuenta",
     loading:      "...",
+    forgotPass:   "¿Olvidaste tu contraseña?",
     errInviteReq: "Ingresa tu código de invitación antes de continuar con Google",
     errVerify:    "Error al verificar el código. Intenta de nuevo.",
     errConn:      "Error de conexión. Intenta de nuevo.",
@@ -66,6 +67,7 @@ const COPY = {
     submitLogin:  "Sign in",
     submitReg:    "Create account",
     loading:      "...",
+    forgotPass:   "Forgot your password?",
     errInviteReq: "Enter your invite code before continuing with Google",
     errVerify:    "Error verifying the code. Please try again.",
     errConn:      "Connection error. Please try again.",
@@ -438,7 +440,14 @@ export default function LoginForm() {
             </div>
 
             <div>
-              <label style={labelStyle}>{c.passLabel}</label>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "5px" }}>
+                <label style={{ ...labelStyle, marginBottom: 0 }}>{c.passLabel}</label>
+                {mode === "login" && (
+                  <Link href="/forgot-password" style={{ fontSize: "11px", color: "#2563eb", textDecoration: "none", fontWeight: 600 }}>
+                    {c.forgotPass}
+                  </Link>
+                )}
+              </div>
               <input
                 type="password"
                 value={password}
