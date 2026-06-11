@@ -15,32 +15,54 @@ function resolveWinnerId(
   return null
 }
 
+// Supabase (PostgREST) caps SELECT at 1000 rows by default.
+// This helper paginates until all rows are fetched.
+async function fetchAllRows<T>(
+  fetcher: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>
+): Promise<T[]> {
+  const PAGE = 1000
+  const rows: T[] = []
+  let offset = 0
+  for (;;) {
+    const { data, error } = await fetcher(offset, offset + PAGE - 1)
+    if (error) throw error
+    if (!data || data.length === 0) break
+    rows.push(...data)
+    if (data.length < PAGE) break
+    offset += PAGE
+  }
+  return rows
+}
+
 export async function recalculateAllPoints(
   supabase: SupabaseClient
 ): Promise<{ predictions: number; quinielas: number }> {
   // ── 1. Load finished fixtures + all predictions + all bracket_picks ───
-  const [
-    { data: fixtures,    error: fErr },
-    { data: preds,       error: pErr },
-    { data: picks,       error: pickErr },
-  ] = await Promise.all([
-    supabase
-      .from("fixtures")
-      .select("*")
-      .not("home_score", "is", null)
-      .not("away_score", "is", null),
-    supabase.from("predictions").select("*"),
-    supabase.from("bracket_picks").select("*"),
+  // fixtures: 104 max for a World Cup — no pagination needed.
+  // predictions & bracket_picks: use fetchAllRows to bypass the 1000-row default limit.
+  const { data: fixturesRaw, error: fErr } = await supabase
+    .from("fixtures")
+    .select("*")
+    .not("home_score", "is", null)
+    .not("away_score", "is", null)
+  if (fErr) throw fErr
+
+  const [preds, picks] = await Promise.all([
+    fetchAllRows<Prediction>((from, to) =>
+      supabase.from("predictions").select("*").range(from, to)
+    ),
+    fetchAllRows((from, to) =>
+      supabase.from("bracket_picks").select("*").range(from, to)
+    ),
   ])
-  if (fErr)    throw fErr
-  if (pErr)    throw pErr
-  if (pickErr) throw pickErr
+
+  const fixtures = fixturesRaw ?? []
 
   // ── 2. Build lookup maps ──────────────────────────────────────────────
   const fixtureById  = new Map<number, Fixture>()   // fixture_id   → fixture (for groups)
   const fixtureByPos = new Map<string, Fixture>()   // bracket_pos  → fixture (for knockout)
 
-  for (const f of fixtures ?? []) {
+  for (const f of fixtures) {
     const fx = f as Fixture
     fixtureById.set(fx.id, fx)
     if (fx.bracket_position) fixtureByPos.set(fx.bracket_position, fx)
@@ -56,7 +78,7 @@ export async function recalculateAllPoints(
   }
 
   const scoredPreds: PredScore[] = []
-  for (const pred of preds ?? []) {
+  for (const pred of preds) {
     const fixture = fixtureById.get(pred.fixture_id)
     if (!fixture) {
       scoredPreds.push({ id: pred.id, quiniela_id: pred.quiniela_id, points_earned: 0, exact: false, winner: false })
@@ -91,7 +113,7 @@ export async function recalculateAllPoints(
   type PickScore = { id: string; quiniela_id: string; points_earned: number; exact: boolean; winner: boolean }
 
   const scoredPicks: PickScore[] = []
-  for (const pick of picks ?? []) {
+  for (const pick of picks) {
     const fixture = fixtureByPos.get(pick.slot_key)
     if (!fixture) {
       scoredPicks.push({ id: pick.id, quiniela_id: pick.quiniela_id, points_earned: 0, exact: false, winner: false })
@@ -210,12 +232,17 @@ export async function recalculateAllPoints(
     agg.set(s.quiniela_id, a)
   }
 
-  // ── 8. Load quinielas → add bonus → write totals ──────────────────────
-  const { data: quinielas } = await supabase
-    .from("quinielas")
-    .select("id, top_scorer_points, most_goals_team_points")
+  // ── 8. Load ALL quinielas → add bonus → write totals ─────────────────
+  // Uses fetchAllRows to bypass the 1000-row default limit.
+  const quinielas = await fetchAllRows<{ id: string; top_scorer_points: number | null; most_goals_team_points: number | null }>(
+    (from, to) =>
+      supabase
+        .from("quinielas")
+        .select("id, top_scorer_points, most_goals_team_points")
+        .range(from, to)
+  )
 
-  for (const q of quinielas ?? []) {
+  for (const q of quinielas) {
     const qa = agg.get(q.id) ?? { total: 0, exact: 0, winners: 0 }
     const bonus =
       (q.top_scorer_points    ?? 0) +
@@ -232,5 +259,5 @@ export async function recalculateAllPoints(
       .eq("id", q.id)
   }
 
-  return { predictions: scoredPreds.length, quinielas: quinielas?.length ?? 0 }
+  return { predictions: scoredPreds.length, quinielas: quinielas.length }
 }
