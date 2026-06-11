@@ -752,8 +752,27 @@ export default function PredictionsEditor({
       return
     }
 
-    // Run upserts + name update in parallel; name errors are non-fatal
+    // If the FIN (final) pick is in this batch, derive and sync champion_team_name immediately.
+    // This prevents desync when the user saves before the 800ms debounce auto-save fires.
+    const finRow = bpRows.find(r => r.slot_key === "FIN")
+    const champFields = finRow ? (() => {
+      const h = finRow.home_score_pred, a = finRow.away_score_pred, pw = finRow.penalties_winner
+      if (h > a)         return { champion_team_name: finRow.home_team_name_pred, champion_team_flag: finRow.home_team_flag_pred }
+      if (a > h)         return { champion_team_name: finRow.away_team_name_pred, champion_team_flag: finRow.away_team_flag_pred }
+      if (pw === "home") return { champion_team_name: finRow.home_team_name_pred, champion_team_flag: finRow.home_team_flag_pred }
+      if (pw === "away") return { champion_team_name: finRow.away_team_name_pred, champion_team_flag: finRow.away_team_flag_pred }
+      return null
+    })() : null
+
+    // Build the quinielas update: name + champion (if FIN in batch)
     const trimmedName = nameValueRef.current.trim()
+    const nameChanged = trimmedName && trimmedName !== savedNameRef.current
+    const quinielasUpdate: Record<string, unknown> = {
+      ...(nameChanged ? { name: trimmedName } : {}),
+      ...(champFields ?? {}),
+    }
+
+    // Run upserts + quinielas update in parallel; quinielas errors are non-fatal
     const [predRes, bpRes] = await Promise.all([
       predRows.length > 0
         ? supabase.from("predictions").upsert(predRows, { onConflict: "quiniela_id,fixture_id" })
@@ -761,9 +780,9 @@ export default function PredictionsEditor({
       bpRows.length > 0
         ? supabase.from("bracket_picks").upsert(bpRows, { onConflict: "quiniela_id,slot_key" })
         : Promise.resolve({ error: null }),
-      trimmedName && trimmedName !== savedNameRef.current
-        ? supabase.from("quinielas").update({ name: trimmedName }).eq("id", quinielaId)
-            .then(r => { if (!r.error) savedNameRef.current = trimmedName; return r })
+      Object.keys(quinielasUpdate).length > 0
+        ? supabase.from("quinielas").update(quinielasUpdate).eq("id", quinielaId)
+            .then(r => { if (!r.error && nameChanged) savedNameRef.current = trimmedName; return r })
         : Promise.resolve({ error: null }),
     ])
 

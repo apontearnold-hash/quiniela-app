@@ -94,12 +94,37 @@ export async function POST(
     }, { status: 400 })
   }
 
+  // ── Derive champion from FIN bracket pick (server-side, single source of truth) ──
+  // This guarantees champion_team_name is always consistent with bracket_picks,
+  // even if the client-side 800ms debounce was interrupted before saving.
+  const { data: finPick } = await admin
+    .from("bracket_picks")
+    .select("home_score_pred, away_score_pred, penalties_winner, home_team_name_pred, away_team_name_pred, home_team_flag_pred, away_team_flag_pred")
+    .eq("quiniela_id", id)
+    .eq("slot_key", "FIN")
+    .maybeSingle()
+
+  let champion_team_name: string | null = null
+  let champion_team_flag: string | null = null
+  if (finPick && finPick.home_score_pred != null && finPick.away_score_pred != null) {
+    const h = finPick.home_score_pred, a = finPick.away_score_pred, pw = finPick.penalties_winner
+    if (h > a)         { champion_team_name = finPick.home_team_name_pred; champion_team_flag = finPick.home_team_flag_pred }
+    else if (a > h)    { champion_team_name = finPick.away_team_name_pred; champion_team_flag = finPick.away_team_flag_pred }
+    else if (pw === "home") { champion_team_name = finPick.home_team_name_pred; champion_team_flag = finPick.home_team_flag_pred }
+    else if (pw === "away") { champion_team_name = finPick.away_team_name_pred; champion_team_flag = finPick.away_team_flag_pred }
+  }
+
   // ── Mark as submitted ─────────────────────────────────────────────────────────
   // Admin client required: RLS blocks UPDATE even for the owner in SSR context.
   // Ownership was already verified above (quiniela.user_id === user.id).
   const { error } = await admin
     .from("quinielas")
-    .update({ status: "submitted", submitted_at: new Date().toISOString() })
+    .update({
+      status: "submitted",
+      submitted_at: new Date().toISOString(),
+      champion_team_name,
+      champion_team_flag,
+    })
     .eq("id", id)
     .eq("user_id", user.id)
 
