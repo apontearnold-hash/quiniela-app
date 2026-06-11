@@ -24,9 +24,14 @@ export async function POST() {
     await fillGroupAdvancers(admin, standings)
     await assignBest3rd(admin, standings)
     await advanceKnockout(admin)
-    const { predictions, quinielas } = await recalculateAllPoints(admin)
+    const { predictions, quinielas, warnings } = await recalculateAllPoints(admin)
+
+    const message = `Recalculado: ${predictions} predicciones en ${quinielas} quinielas`
     return NextResponse.json({
-      message: `Recalculado: ${predictions} predicciones en ${quinielas} quinielas`,
+      message,
+      predictions,
+      quinielas,
+      ...(warnings.length > 0 && { warnings }),
     })
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 })

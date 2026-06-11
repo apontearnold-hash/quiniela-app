@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createClient, createAdminClient } from "@/lib/supabase-server"
 import { recalculateAllPoints } from "@/lib/recalculate"
+import { fetchAllRows } from "@/lib/db-utils"
 import { BONUS_POINTS } from "@/lib/types"
 
 /**
@@ -30,17 +31,20 @@ export async function POST(req: Request) {
 
   const admin = createAdminClient()
 
-  // Load all quinielas
-  const { data: quinielas, error: qErr } = await admin
-    .from("quinielas")
-    .select("id, top_scorer_pick, most_goals_team_pick")
-
-  if (qErr) return NextResponse.json({ error: qErr.message }, { status: 500 })
+  // Load all quinielas — fetchAllRows bypasses the 1000-row Supabase default limit
+  let quinielas: Array<{ id: string; top_scorer_pick: string | null; most_goals_team_pick: string | null }>
+  try {
+    quinielas = await fetchAllRows((from, to) =>
+      admin.from("quinielas").select("id, top_scorer_pick, most_goals_team_pick").range(from, to)
+    )
+  } catch (err) {
+    return NextResponse.json({ error: String(err) }, { status: 500 })
+  }
 
   let scorerCount = 0
   let goalsCount  = 0
 
-  for (const q of quinielas ?? []) {
+  for (const q of quinielas) {
     const updates: Record<string, number> = {}
 
     if (topScorerWinners.length > 0) {

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createClient, createAdminClient } from "@/lib/supabase-server"
+import { fetchAllRows } from "@/lib/db-utils"
 
 async function verifyAdmin() {
   const supabase = await createClient()
@@ -22,17 +23,24 @@ export async function GET() {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Member counts per pool
-  const { data: members } = await admin.from("pool_members").select("pool_id")
+  // Member counts per pool — fetchAllRows bypasses the 1000-row Supabase default limit
+  const [members, quinielas] = await Promise.all([
+    fetchAllRows<{ pool_id: string }>((from, to) =>
+      admin.from("pool_members").select("pool_id").range(from, to)
+    ),
+    fetchAllRows<{ pool_id: string | null }>((from, to) =>
+      admin.from("quinielas").select("pool_id").range(from, to)
+    ),
+  ])
+
   const memberCounts: Record<string, number> = {}
-  for (const m of members ?? []) {
+  for (const m of members) {
     memberCounts[m.pool_id] = (memberCounts[m.pool_id] ?? 0) + 1
   }
 
   // Quiniela counts per pool
-  const { data: quinielas } = await admin.from("quinielas").select("pool_id")
   const quinielaCounts: Record<string, number> = {}
-  for (const q of quinielas ?? []) {
+  for (const q of quinielas) {
     if (q.pool_id) quinielaCounts[q.pool_id] = (quinielaCounts[q.pool_id] ?? 0) + 1
   }
 

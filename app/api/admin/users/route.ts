@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createClient, createAdminClient } from "@/lib/supabase-server"
+import { fetchAllRows } from "@/lib/db-utils"
 
 async function verifyAdmin() {
   const supabase = await createClient()
@@ -22,13 +23,13 @@ export async function GET() {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Get quiniela counts per user
-  const { data: counts } = await admin
-    .from("quinielas")
-    .select("user_id")
+  // Get quiniela counts per user — fetchAllRows bypasses the 1000-row Supabase default limit
+  const counts = await fetchAllRows<{ user_id: string }>((from, to) =>
+    admin.from("quinielas").select("user_id").range(from, to)
+  )
 
   const quinielaCounts: Record<string, number> = {}
-  for (const q of counts ?? []) {
+  for (const q of counts) {
     quinielaCounts[q.user_id] = (quinielaCounts[q.user_id] ?? 0) + 1
   }
 

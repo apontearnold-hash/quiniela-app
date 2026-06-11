@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { calculatePredictionScore } from "./scoring"
+import { fetchAllRows } from "./db-utils"
 import type { Fixture, Prediction, Phase } from "./types"
 import { PHASE_MULTIPLIER } from "./types"
 
@@ -15,31 +16,24 @@ function resolveWinnerId(
   return null
 }
 
-// Supabase (PostgREST) caps SELECT at 1000 rows by default.
-// This helper paginates until all rows are fetched.
-async function fetchAllRows<T>(
-  fetcher: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>
-): Promise<T[]> {
-  const PAGE = 1000
-  const rows: T[] = []
-  let offset = 0
-  for (;;) {
-    const { data, error } = await fetcher(offset, offset + PAGE - 1)
-    if (error) throw error
-    if (!data || data.length === 0) break
-    rows.push(...data)
-    if (data.length < PAGE) break
-    offset += PAGE
-  }
-  return rows
-}
-
 export async function recalculateAllPoints(
   supabase: SupabaseClient
-): Promise<{ predictions: number; quinielas: number }> {
+): Promise<{ predictions: number; quinielas: number; warnings: string[] }> {
+  const warnings: string[] = []
+
+  // ── 0. Sanity-count before fetching (detects truncation if fetchAllRows ever breaks) ──
+  const { count: dbPredCount } = await supabase
+    .from("predictions")
+    .select("*", { count: "exact", head: true })
+  const { count: dbQCount } = await supabase
+    .from("quinielas")
+    .select("*", { count: "exact", head: true })
+
+  console.log(`[recalculate] DB totals — predictions: ${dbPredCount}, quinielas: ${dbQCount}`)
+
   // ── 1. Load finished fixtures + all predictions + all bracket_picks ───
   // fixtures: 104 max for a World Cup — no pagination needed.
-  // predictions & bracket_picks: use fetchAllRows to bypass the 1000-row default limit.
+  // predictions, bracket_picks, quinielas: paginated via fetchAllRows.
   const { data: fixturesRaw, error: fErr } = await supabase
     .from("fixtures")
     .select("*")
@@ -57,6 +51,15 @@ export async function recalculateAllPoints(
   ])
 
   const fixtures = fixturesRaw ?? []
+
+  console.log(`[recalculate] Fetched — fixtures: ${fixtures.length}, predictions: ${preds.length}, bracket_picks: ${picks.length}`)
+
+  // Warn if we fetched fewer predictions than the DB reports
+  if (dbPredCount !== null && preds.length < dbPredCount) {
+    const msg = `WARNING: fetched ${preds.length} predictions but DB count is ${dbPredCount}`
+    console.warn(`[recalculate] ${msg}`)
+    warnings.push(msg)
+  }
 
   // ── 2. Build lookup maps ──────────────────────────────────────────────
   const fixtureById  = new Map<number, Fixture>()   // fixture_id   → fixture (for groups)
@@ -78,12 +81,14 @@ export async function recalculateAllPoints(
   }
 
   const scoredPreds: PredScore[] = []
+  let predsWithFixture = 0
   for (const pred of preds) {
     const fixture = fixtureById.get(pred.fixture_id)
     if (!fixture) {
       scoredPreds.push({ id: pred.id, quiniela_id: pred.quiniela_id, points_earned: 0, exact: false, winner: false })
       continue
     }
+    predsWithFixture++
     const r = calculatePredictionScore(fixture, pred as Prediction)
     scoredPreds.push({
       id:             pred.id,
@@ -94,8 +99,11 @@ export async function recalculateAllPoints(
     })
   }
 
+  console.log(`[recalculate] Scored ${predsWithFixture} predictions with results (${preds.length - predsWithFixture} pending/no fixture)`)
+
   // ── 4. Batch-update predictions ───────────────────────────────────────
   const BATCH = 30
+  let predBatches = 0
   for (let i = 0; i < scoredPreds.length; i += BATCH) {
     const batch = scoredPreds.slice(i, i + BATCH)
     await Promise.all(
@@ -103,7 +111,10 @@ export async function recalculateAllPoints(
         supabase.from("predictions").update({ points_earned }).eq("id", id)
       )
     )
+    predBatches++
   }
+
+  console.log(`[recalculate] Updated predictions in ${predBatches} batches of ${BATCH}`)
 
   // ── 5. Score bracket_picks (knockout) ─────────────────────────────────
   // Team validation:
@@ -204,6 +215,7 @@ export async function recalculateAllPoints(
   }
 
   // ── 6. Batch-update bracket_picks ─────────────────────────────────────
+  let pickBatches = 0
   for (let i = 0; i < scoredPicks.length; i += BATCH) {
     const batch = scoredPicks.slice(i, i + BATCH)
     await Promise.all(
@@ -211,7 +223,10 @@ export async function recalculateAllPoints(
         supabase.from("bracket_picks").update({ points_earned }).eq("id", id)
       )
     )
+    pickBatches++
   }
+
+  console.log(`[recalculate] Updated ${picks.length} bracket_picks in ${pickBatches} batches`)
 
   // ── 7. Aggregate per quiniela (groups + knockout) ─────────────────────
   const agg = new Map<string, { total: number; exact: number; winners: number }>()
@@ -233,15 +248,24 @@ export async function recalculateAllPoints(
   }
 
   // ── 8. Load ALL quinielas → add bonus → write totals ─────────────────
-  // Uses fetchAllRows to bypass the 1000-row default limit.
-  const quinielas = await fetchAllRows<{ id: string; top_scorer_points: number | null; most_goals_team_points: number | null }>(
-    (from, to) =>
-      supabase
-        .from("quinielas")
-        .select("id, top_scorer_points, most_goals_team_points")
-        .range(from, to)
+  const quinielas = await fetchAllRows<{
+    id: string
+    top_scorer_points: number | null
+    most_goals_team_points: number | null
+  }>((from, to) =>
+    supabase
+      .from("quinielas")
+      .select("id, top_scorer_points, most_goals_team_points")
+      .range(from, to)
   )
 
+  if (dbQCount !== null && quinielas.length < dbQCount) {
+    const msg = `WARNING: fetched ${quinielas.length} quinielas but DB count is ${dbQCount}`
+    console.warn(`[recalculate] ${msg}`)
+    warnings.push(msg)
+  }
+
+  let quinielajBatches = 0
   for (const q of quinielas) {
     const qa = agg.get(q.id) ?? { total: 0, exact: 0, winners: 0 }
     const bonus =
@@ -257,7 +281,15 @@ export async function recalculateAllPoints(
         updated_at:      new Date().toISOString(),
       })
       .eq("id", q.id)
+    quinielajBatches++
   }
 
-  return { predictions: scoredPreds.length, quinielas: quinielas.length }
+  console.log(`[recalculate] Wrote totals to ${quinielas.length} quinielas (${quinielajBatches} updates)`)
+  if (warnings.length > 0) {
+    console.warn(`[recalculate] Completed with ${warnings.length} warning(s):`, warnings)
+  } else {
+    console.log(`[recalculate] Completed successfully — no warnings`)
+  }
+
+  return { predictions: preds.length, quinielas: quinielas.length, warnings }
 }
