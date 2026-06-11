@@ -14,37 +14,102 @@ export default function ResetPasswordPage() {
   const [loading, setLoading]   = useState(false)
   const [error, setError]       = useState<string | null>(null)
   const [showPass, setShowPass] = useState(false)
+  const [debugInfo, setDebugInfo] = useState<string | null>(null)
   const supabase = createClient()
   const router   = useRouter()
 
-  // Exchange the recovery token on mount.
-  // Supabase PKCE flow: URL has ?token_hash=...&type=recovery
-  // Legacy / hash flow: URL fragment #access_token=... handled automatically by the browser client
   useEffect(() => {
-    async function exchangeToken() {
-      const params     = new URLSearchParams(window.location.search)
-      const token_hash = params.get("token_hash")
-      const type       = params.get("type")
+    // Capture URL state immediately — React Router may strip params before async work
+    const search   = window.location.search
+    const hash     = window.location.hash
+    const params   = new URLSearchParams(search)
+    const code       = params.get("code")
+    const token_hash = params.get("token_hash")
+    const type       = params.get("type")
+    const errorParam = params.get("error")
+    const errorDesc  = params.get("error_description")
 
-      if (token_hash && type === "recovery") {
-        const { error } = await supabase.auth.verifyOtp({ token_hash, type: "recovery" })
+    const info = `search=${search || "(vacío)"} hash=${hash ? "(presente)" : "(vacío)"}`
+    setDebugInfo(info)
+    console.log("[reset-password] URL params:", info)
+
+    // Supabase error in redirect (e.g. expired OTP from server side)
+    if (errorParam) {
+      console.error("[reset-password] Supabase error in URL:", errorParam, errorDesc)
+      setStage("invalid")
+      return
+    }
+
+    async function exchangeToken() {
+      // ── Flow 1: PKCE — @supabase/ssr default ──────────────────────────────
+      // Supabase redirects with ?code=... after verifying the OTP server-side.
+      // Must call exchangeCodeForSession to obtain the session.
+      if (code) {
+        console.log("[reset-password] Flow 1: PKCE code exchange")
+        const { error } = await supabase.auth.exchangeCodeForSession(code)
         if (error) {
+          console.error("[reset-password] exchangeCodeForSession failed:", error.message)
           setStage("invalid")
         } else {
+          console.log("[reset-password] PKCE exchange OK → ready")
           setStage("ready")
         }
         return
       }
 
-      // No token_hash — check if the browser client established a session from the URL hash
-      // (legacy magic-link flow where Supabase redirects with #access_token=...)
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session) {
-        setStage("ready")
-      } else {
-        setStage("invalid")
+      // ── Flow 2: Email OTP — token_hash in query string ────────────────────
+      // Used when Supabase email templates use the newer OTP format.
+      if (token_hash && type === "recovery") {
+        console.log("[reset-password] Flow 2: verifyOtp with token_hash")
+        const { error } = await supabase.auth.verifyOtp({ token_hash, type: "recovery" })
+        if (error) {
+          console.error("[reset-password] verifyOtp failed:", error.message)
+          setStage("invalid")
+        } else {
+          console.log("[reset-password] verifyOtp OK → ready")
+          setStage("ready")
+        }
+        return
       }
+
+      // ── Flow 3: Implicit hash — #access_token=...&type=recovery ──────────
+      // Older Supabase projects redirect with the session in the URL hash.
+      // createBrowserClient processes this automatically via detectSessionInUrl.
+      // Listen for PASSWORD_RECOVERY event, then fall back to getSession().
+      console.log("[reset-password] Flow 3: waiting for PASSWORD_RECOVERY event / hash session")
+
+      let resolved = false
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+        console.log("[reset-password] onAuthStateChange:", event, session ? "session present" : "no session")
+        if ((event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") && session && !resolved) {
+          resolved = true
+          subscription.unsubscribe()
+          console.log("[reset-password] Auth event fired → ready")
+          setStage("ready")
+        }
+      })
+
+      // Also check immediately in case the event already fired before we subscribed
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session && !resolved) {
+        resolved = true
+        subscription.unsubscribe()
+        console.log("[reset-password] getSession found existing session → ready")
+        setStage("ready")
+        return
+      }
+
+      // Give the auth state change event 3 seconds to fire
+      setTimeout(() => {
+        if (!resolved) {
+          resolved = true
+          subscription.unsubscribe()
+          console.warn("[reset-password] No session found after 3s → invalid")
+          setStage("invalid")
+        }
+      }, 3000)
     }
+
     exchangeToken()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -67,8 +132,10 @@ export default function ResetPasswordPage() {
     setLoading(false)
 
     if (error) {
+      console.error("[reset-password] updateUser failed:", error.message)
       setError(error.message)
     } else {
+      console.log("[reset-password] password updated OK")
       setStage("success")
       setTimeout(() => router.push("/login"), 3000)
     }
@@ -112,7 +179,10 @@ export default function ResetPasswordPage() {
 
           {/* Loading */}
           {stage === "loading" && (
-            <p style={{ textAlign: "center", color: "#64748b", fontSize: "14px" }}>Verificando enlace…</p>
+            <div style={{ textAlign: "center" }}>
+              <p style={{ color: "#64748b", fontSize: "14px", marginBottom: "8px" }}>Verificando enlace…</p>
+              <p style={{ color: "#94a3b8", fontSize: "11px" }}>Esto puede tardar unos segundos.</p>
+            </div>
           )}
 
           {/* Invalid / expired link */}
@@ -123,8 +193,13 @@ export default function ResetPasswordPage() {
                 Enlace inválido o expirado
               </p>
               <p style={{ fontSize: "14px", color: "#64748b", lineHeight: 1.6, marginBottom: "20px" }}>
-                Este enlace de recuperación ya no es válido. Los enlaces expiran después de una hora y solo pueden usarse una vez.
+                Este enlace ya no es válido. Los enlaces expiran en 1 hora y solo pueden usarse una vez.
               </p>
+              {debugInfo && (
+                <p style={{ fontSize: "10px", color: "#94a3b8", marginBottom: "16px", fontFamily: "monospace", wordBreak: "break-all" }}>
+                  debug: {debugInfo}
+                </p>
+              )}
               <Link
                 href="/forgot-password"
                 style={{
@@ -224,7 +299,6 @@ export default function ResetPasswordPage() {
 
         </div>
 
-        {/* Back link — only when not loading and not success */}
         {stage !== "success" && (
           <div style={{ textAlign: "center", marginTop: "20px" }}>
             <Link href="/login" style={{ fontSize: "13px", color: "#64748b", textDecoration: "none" }}>
