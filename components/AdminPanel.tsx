@@ -846,8 +846,8 @@ export default function AdminPanel({ fixtures, defaultTab }: Props) {
           <div className="rounded-2xl p-5" style={cardStyle}>
             <h2 className="text-[#111827] font-bold mb-1">🔒 Predicciones</h2>
             <p className="text-[#6b7280] text-xs mb-4">
-              Controla si los usuarios pueden editar y enviar sus quinielas. El cierre automático
-              ocurre al inicio del primer partido, pero puedes adelantarlo o reabrirlo manualmente.
+              Controla si los usuarios pueden editar y enviar sus quinielas. Las quinielas permanecen
+              abiertas hasta que presiones &quot;Cerrar&quot; manualmente.
             </p>
             {configLoading ? (
               <p className="text-[#6b7280] text-xs">Cargando...</p>
@@ -859,7 +859,7 @@ export default function AdminPanel({ fixtures, defaultTab }: Props) {
                 ? alreadyPassed
                   ? `Cerradas manualmente desde ${lockedDate!.toLocaleString("es-MX", { dateStyle: "short", timeStyle: "short" })}`
                   : `Cierre programado para ${lockedDate!.toLocaleString("es-MX", { dateStyle: "short", timeStyle: "short" })}`
-                : "Abiertas (cierre automático al iniciar el primer partido)"
+                : "Abiertas — sin fecha de cierre configurada"
               return (
                 <div className="flex flex-col gap-3">
                   <div className="flex items-center gap-2 px-3 py-2 rounded-lg"

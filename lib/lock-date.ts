@@ -12,7 +12,7 @@ import type { SupabaseClient } from "@supabase/supabase-js"
  */
 export async function getLockDate(
   supabase: SupabaseClient,
-  groupFixtures: Array<{ kickoff?: string | null }>,
+  _groupFixtures?: Array<{ kickoff?: string | null }>,
 ): Promise<string | null> {
   const { data } = await supabase
     .from("tournament_config")
@@ -20,15 +20,6 @@ export async function getLockDate(
     .eq("id", 1)
     .single()
 
-  if (data?.lock_date) return data.lock_date as string
-
-  // Fallback: midnight of the day of the earliest kickoff
-  const firstKickoff = groupFixtures
-    .filter(f => f.kickoff)
-    .map(f => f.kickoff as string)
-    .sort()[0] ?? null
-
-  return firstKickoff
-    ? new Date(new Date(firstKickoff).toDateString()).toISOString()
-    : null
+  // Only lock when explicitly set by admin. null = open.
+  return (data?.lock_date as string | null) ?? null
 }

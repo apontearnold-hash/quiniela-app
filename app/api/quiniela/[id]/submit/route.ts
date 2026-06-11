@@ -28,16 +28,9 @@ export async function POST(
     return NextResponse.json({ error: "Ya fue enviada" }, { status: 400 })
   }
 
-  // Lock date check — drafts cannot be submitted after the deadline
-  const [lockCfgRes, firstKickoffRes] = await Promise.all([
-    admin.from("tournament_config").select("lock_date").eq("id", 1).maybeSingle(),
-    admin.from("fixtures").select("kickoff").eq("phase", "groups").not("kickoff", "is", null).order("kickoff", { ascending: true }).limit(1).maybeSingle(),
-  ])
-  let lockDate: string | null = (lockCfgRes.data?.lock_date as string | null) ?? null
-  if (!lockDate) {
-    const k = firstKickoffRes.data?.kickoff as string | null | undefined
-    if (k) lockDate = new Date(new Date(k).toDateString()).toISOString()
-  }
+  // Lock date check — only block if admin has explicitly set a lock_date. null = open.
+  const lockCfgRes = await admin.from("tournament_config").select("lock_date").eq("id", 1).maybeSingle()
+  const lockDate: string | null = (lockCfgRes.data?.lock_date as string | null) ?? null
   if (lockDate && Date.now() >= new Date(lockDate).getTime()) {
     return NextResponse.json({ error: "El cierre de quinielas ya pasó" }, { status: 403 })
   }

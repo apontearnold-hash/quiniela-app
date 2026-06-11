@@ -26,18 +26,9 @@ export async function POST(
   if (!original)                    return NextResponse.json({ error: "Not found" },  { status: 404 })
   if (original.user_id !== user.id) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
-  // Check lock date — copy not allowed after lock
-  const [lockCfgRes, firstKickoffRes] = await Promise.all([
-    admin.from("tournament_config").select("lock_date").eq("id", 1).maybeSingle(),
-    admin.from("fixtures").select("kickoff")
-      .eq("phase", "groups").not("kickoff", "is", null)
-      .order("kickoff", { ascending: true }).limit(1).maybeSingle(),
-  ])
-  let lockDate: string | null = (lockCfgRes.data?.lock_date as string | null) ?? null
-  if (!lockDate) {
-    const k = firstKickoffRes.data?.kickoff as string | null | undefined
-    if (k) lockDate = new Date(new Date(k).toDateString()).toISOString()
-  }
+  // Check lock date — only block if admin has explicitly set a lock_date. null = open.
+  const lockCfgRes = await admin.from("tournament_config").select("lock_date").eq("id", 1).maybeSingle()
+  const lockDate: string | null = (lockCfgRes.data?.lock_date as string | null) ?? null
   if (lockDate && Date.now() >= new Date(lockDate).getTime()) {
     return NextResponse.json({ error: "copy_locked" }, { status: 403 })
   }
