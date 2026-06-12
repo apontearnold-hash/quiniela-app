@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { createClient, createAdminClient } from "@/lib/supabase-server"
 import { apiFetch, mapStatus, writeLog, LEAGUE_ID, SEASON, type FixtureAPIResponse } from "@/lib/api-football"
 import { recalculateAllPoints } from "@/lib/recalculate"
+import { recalculateGroupStandings } from "@/lib/bracket"
 
 // ── POST: actualiza scores y status de partidos ya importados ─────────────
 //
@@ -167,6 +168,16 @@ export async function POST() {
 
     const baseMsg = `✅ ${updated} resultados actualizados`
 
+    // ── Recalculate group standings after updating fixtures ──────────────
+    // Must run before recalculateAllPoints so the groups table is fresh.
+    let standingsError: string | null = null
+    try {
+      await recalculateGroupStandings(admin)
+    } catch (err) {
+      standingsError = err instanceof Error ? err.message : String(err)
+      console.error("[sync/results] Standings recalculation failed:", standingsError)
+    }
+
     // ── Recalculate all prediction scores after updating fixtures ────────
     let scoreResult: { predictions: number; quinielas: number } | null = null
     let scoreError: string | null = null
@@ -178,8 +189,10 @@ export async function POST() {
     }
 
     const msg = scoreResult
-      ? `${baseMsg} · ${scoreResult.predictions} predicciones y ${scoreResult.quinielas} quinielas recalculadas`
-      : baseMsg
+      ? `${baseMsg} · standings actualizados · ${scoreResult.predictions} predicciones y ${scoreResult.quinielas} quinielas recalculadas`
+      : standingsError
+        ? `${baseMsg} · standings error: ${standingsError}`
+        : baseMsg
 
     await writeLog("results", "success", msg, updated)
     return NextResponse.json({
@@ -187,6 +200,7 @@ export async function POST() {
       count: updated,
       ...(scoreResult && { scored: scoreResult }),
       ...(scoreError && { scoreError }),
+      ...(standingsError && { standingsError }),
       timestamp: new Date().toISOString(),
     })
   } catch (err) {
