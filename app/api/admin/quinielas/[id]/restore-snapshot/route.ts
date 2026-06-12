@@ -144,7 +144,7 @@ export async function POST(
     await admin.from("bracket_picks")
       .delete()
       .eq("quiniela_id", id)
-      .not("slot_key", "in", `(${snapSlotKeys.map((k: string) => `'${k}'`).join(",")})`)
+      .not("slot_key", "in", `(${snapSlotKeys.join(",")})`)
   } else {
     await admin.from("bracket_picks").delete().eq("quiniela_id", id)
   }
