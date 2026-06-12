@@ -583,8 +583,44 @@ export default function PredictionsEditor({
   const projectedBracketRef = useRef(projectedBracket)
   projectedBracketRef.current = projectedBracket
 
-  // Derive the projected World Cup champion from the final bracket pick
+  // In readOnly mode, display team names from stored bracket_picks (not dynamically projected).
+  // This prevents group-stage projections from overwriting the team names the user actually picked.
+  const displayBracket = useMemo<ResolvedBracket>(() => {
+    if (!readOnly) return projectedBracket
+    const result: ResolvedBracket = { ...projectedBracket }
+    for (const f of allFixturesMerged) {
+      if (!isBracketSlotId(f.id)) continue
+      const slotKey = slotKeyById(f.id)
+      if (!slotKey) continue
+      const bp = existingBracketPicks[slotKey]
+      if (!bp) continue
+      result[f.id] = {
+        homeName: bp.home_team_name_pred ?? projectedBracket[f.id]?.homeName ?? "TBD",
+        awayName: bp.away_team_name_pred ?? projectedBracket[f.id]?.awayName ?? "TBD",
+        homeFlag: bp.home_team_flag_pred ?? projectedBracket[f.id]?.homeFlag ?? null,
+        awayFlag: bp.away_team_flag_pred ?? projectedBracket[f.id]?.awayFlag ?? null,
+        homeId:   bp.home_team_id_pred   ?? projectedBracket[f.id]?.homeId   ?? null,
+        awayId:   bp.away_team_id_pred   ?? projectedBracket[f.id]?.awayId   ?? null,
+        homeIsProjected: !bp.home_team_name_pred,
+        awayIsProjected: !bp.away_team_name_pred,
+      }
+    }
+    return result
+  }, [readOnly, projectedBracket, allFixturesMerged, existingBracketPicks])
+
+  // Derive the projected World Cup champion from the final bracket pick.
+  // In readOnly mode, read directly from the stored FIN bracket_pick (not dynamic projection).
   const champion = useMemo<{ name: string; flag: string | null } | null>(() => {
+    if (readOnly) {
+      const finPick = existingBracketPicks["FIN"]
+      if (!finPick || finPick.home_score_pred == null || finPick.away_score_pred == null) return null
+      const h = finPick.home_score_pred, a = finPick.away_score_pred, pw = finPick.penalties_winner
+      if (h > a)         return { name: finPick.home_team_name_pred ?? "", flag: finPick.home_team_flag_pred ?? null }
+      if (a > h)         return { name: finPick.away_team_name_pred ?? "", flag: finPick.away_team_flag_pred ?? null }
+      if (pw === "home") return { name: finPick.home_team_name_pred ?? "", flag: finPick.home_team_flag_pred ?? null }
+      if (pw === "away") return { name: finPick.away_team_name_pred ?? "", flag: finPick.away_team_flag_pred ?? null }
+      return null
+    }
     const finalFix = (byPhase.final ?? [])[0]
     if (!finalFix) return null
     const proj = projectedBracket[finalFix.id]
@@ -596,7 +632,7 @@ export default function PredictionsEditor({
     if (winner === "home") return { name: proj.homeName, flag: proj.homeFlag }
     if (winner === "away") return { name: proj.awayName, flag: proj.awayFlag }
     return null
-  }, [byPhase.final, projectedBracket, preds])
+  }, [readOnly, existingBracketPicks, byPhase.final, projectedBracket, preds])
 
   // Sync projected champion to quinielas table whenever it changes (debounced, only after user edits)
   useEffect(() => {
@@ -1119,7 +1155,7 @@ export default function PredictionsEditor({
                           fixture={f}
                           pred={preds[f.id]}
                           isLocked={isFixtureLocked(f)}
-                          proj={projectedBracket[f.id]}
+                          proj={displayBracket[f.id]}
                           onUpdate={updatePred}
                           onSave={savePred}
                         />
@@ -1155,7 +1191,7 @@ export default function PredictionsEditor({
                               fixture={f}
                               pred={preds[f.id]}
                               isLocked={isFixtureLocked(f)}
-                              proj={projectedBracket[f.id]}
+                              proj={displayBracket[f.id]}
                               onUpdate={updatePred}
                               onSave={savePred}
                             />
