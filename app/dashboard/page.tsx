@@ -13,6 +13,8 @@ import OnboardingModal from "@/components/OnboardingModal"
 import { getServerT } from "@/lib/server-lang"
 import { deriveChampions } from "@/lib/derive-champion"
 import type { Fixture } from "@/lib/types"
+import MatchPredictionsPanel from "@/components/MatchPredictionsPanel"
+import type { FixtureSelectItem } from "@/components/MatchPredictionsPanel"
 
 export const dynamic = "force-dynamic"
 
@@ -249,7 +251,7 @@ export default async function DashboardPage() {
   }
 
   // ── Fixtures ────────────────────────────────────────────────────────
-  const [{ data: recentFixturesRaw }, { data: upcomingFixturesRaw }] = await Promise.all([
+  const [{ data: recentFixturesRaw }, { data: upcomingFixturesRaw }, { data: allFixturesRaw }] = await Promise.all([
     supabase
       .from("fixtures")
       .select("id, home_team_name, away_team_name, home_team_flag, away_team_flag, home_score, away_score, kickoff, went_to_penalties, penalties_winner")
@@ -263,10 +265,30 @@ export default async function DashboardPage() {
       .not("home_team_id", "is", null)
       .order("kickoff", { ascending: true })
       .limit(8),
+    admin
+      .from("fixtures")
+      .select("id, home_team_name, away_team_name, home_team_flag, away_team_flag, home_placeholder, away_placeholder, kickoff, status, phase, group_name, home_score, away_score")
+      .order("kickoff", { ascending: true }),
   ])
 
   const recentFixtures   = (recentFixturesRaw  ?? []) as RecentFixtureItem[]
   const upcomingFixtures = (upcomingFixturesRaw ?? []) as UpcomingFixtureItem[]
+
+  const allFixtures: FixtureSelectItem[] = (allFixturesRaw ?? []).map(f => ({
+    id:              f.id,
+    homeName:        f.home_team_name,
+    homeFlag:        f.home_team_flag,
+    awayName:        f.away_team_name,
+    awayFlag:        f.away_team_flag,
+    homePlaceholder: f.home_placeholder,
+    awayPlaceholder: f.away_placeholder,
+    kickoff:         f.kickoff,
+    status:          f.status,
+    phase:           f.phase,
+    groupName:       f.group_name,
+    homeScore:       f.home_score,
+    awayScore:       f.away_score,
+  }))
 
   const poolSelectorList = userPools.map(p => ({ id: p.id, name: p.name }))
 
@@ -446,6 +468,9 @@ export default async function DashboardPage() {
             teamFlagsRecord={teamFlagsRecord}
           />
         </div>
+
+        {/* ── Predicciones por partido ─────────────────────────────── */}
+        <MatchPredictionsPanel fixtures={allFixtures} poolId={poolId} />
 
         {/* ── Bonus summary tables (side-by-side on desktop) ───────── */}
         {(topScorer.length > 0 || topGoals.length > 0) && (
