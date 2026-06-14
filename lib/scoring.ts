@@ -45,7 +45,7 @@ export function calculatePredictionScore(
 
     if (actualWinner === predWinner) {
       base = 3
-      correctWinner = actualWinner !== 'draw'
+      correctWinner = true  // draws and wins both count as aciertos
     }
   }
 

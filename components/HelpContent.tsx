@@ -33,10 +33,10 @@ const SECTIONS: Section[] = [
     title: { es: "Sistema de puntuación", en: "Scoring system" },
     bullets: [
       { es: "Acierto (resultado correcto: quién gana o empate): 3 puntos base.", en: "Correct outcome (who wins or draw): 3 base points." },
-      { es: "Exacto (marcador exacto, ej. 2-1): 5 puntos base.", en: "Exact score (e.g. 2-1): 5 base points." },
+      { es: "Exacto (marcador exacto, ej. 2-1): 5 puntos base (= 3 acierto + 2 extra). Un exacto también cuenta como acierto.", en: "Exact score (e.g. 2-1): 5 base points (= 3 correct + 2 bonus). An exact score also counts as a correct outcome." },
       { es: "Los puntos base se multiplican por la fase: ×1 grupos hasta ×6 final.", en: "Base points are multiplied by the phase: ×1 groups up to ×6 final." },
       { es: "Eliminatoria — penales: +3 si predices que va a penales · +5 si aciertas el ganador.", en: "Knockout — penalties: +3 for predicting penalties · +5 for correct penalty winner." },
-      { es: "Ejemplo: marcador exacto en la Final = 5 × 6 = 30 puntos.", en: "Example: exact score in the Final = 5 × 6 = 30 points." },
+      { es: "Ejemplo: 4 aciertos (1 exacto) = 4×3 + 1×2 = 14 pts en fase de grupos.", en: "Example: 4 correct (1 exact) = 4×3 + 1×2 = 14 pts in the group stage." },
     ],
   },
   {
@@ -158,11 +158,11 @@ const FAQS: FAQ[] = [
   },
   {
     q: { es: '¿Qué significa "Aciertos"?', en: 'What does "Aciertos" mean?' },
-    a: { es: "Partidos donde predijiste correctamente el resultado (quién gana o empate): valen 3 puntos base × multiplicador de fase.", en: "Matches where you correctly predicted the outcome (who wins or draw): worth 3 base points × phase multiplier." },
+    a: { es: "Partidos donde predijiste correctamente el resultado (quién gana o empate): valen 3 puntos base × multiplicador de fase. Los marcadores exactos también cuentan como aciertos.", en: "Matches where you correctly predicted the outcome (who wins or draw): worth 3 base points × phase multiplier. Exact scores also count as aciertos." },
   },
   {
     q: { es: '¿Qué son los "Exactos"?', en: 'What are "Exactos" (Exact)?' },
-    a: { es: "Partidos donde tu marcador fue exactamente igual al resultado final (ej. predijiste 2-1 y terminó 2-1): valen 5 puntos base × multiplicador de fase.", en: "Matches where your score exactly matched the final result (e.g. you predicted 2-1 and it ended 2-1): worth 5 base points × phase multiplier." },
+    a: { es: "Partidos donde tu marcador fue exactamente igual al resultado final (ej. predijiste 2-1 y terminó 2-1): valen 5 puntos base × multiplicador de fase (= 3 de acierto + 2 de bonus). Un exacto también cuenta como acierto, así que se suma en ambas columnas.", en: "Matches where your score exactly matched the final result (e.g. you predicted 2-1 and it ended 2-1): worth 5 base points × phase multiplier (= 3 correct + 2 bonus). An exact score also counts as a correct outcome, so it increments both columns." },
   },
   {
     q: { es: "¿Cómo se validan las preguntas bonus?", en: "How are bonus questions validated?" },

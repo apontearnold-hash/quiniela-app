@@ -23,9 +23,9 @@ const t = {
     // Stats labels
     pts:         "pts",
     exact:       "Exactos",
-    winners:     "Ganador",
+    winners:     "Aciertos",
     predictions: "Predicciones",
-    tiebreak:    "Desempate: más exactos · más ganadores · más antiguo",
+    tiebreak:    "Desempate: más exactos · más aciertos · más antiguo",
 
     // Bonus
     bonus_title:             "Preguntas Bonus",
@@ -73,7 +73,7 @@ const t = {
     prize_pool:    "Pozo",
     recent_results: "Últimos Resultados",
     upcoming:      "Próximos Partidos",
-    tiebreak_note: "Desempate: más exactos → más ganadores → más antiguo",
+    tiebreak_note: "Desempate: más exactos → más aciertos → más antiguo",
 
     // Fixture detail
     fixture_final:    "Final",
