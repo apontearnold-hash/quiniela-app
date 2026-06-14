@@ -234,16 +234,16 @@ export async function recalculateAllPoints(
   for (const s of scoredPreds) {
     const a = agg.get(s.quiniela_id) ?? { total: 0, exact: 0, winners: 0 }
     a.total += s.points_earned
-    if (s.exact)        a.exact++
-    else if (s.winner)  a.winners++
+    if (s.exact)   a.exact++
+    if (s.winner)  a.winners++   // exact also sets winner=true → counts in both columns
     agg.set(s.quiniela_id, a)
   }
 
   for (const s of scoredPicks) {
     const a = agg.get(s.quiniela_id) ?? { total: 0, exact: 0, winners: 0 }
     a.total += s.points_earned
-    if (s.exact)        a.exact++
-    else if (s.winner)  a.winners++
+    if (s.exact)   a.exact++
+    if (s.winner)  a.winners++   // exact also sets winner=true → counts in both columns
     agg.set(s.quiniela_id, a)
   }
 

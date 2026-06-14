@@ -33,10 +33,11 @@ export function calculatePredictionScore(
   let exact = false
   let correctWinner = false
 
-  // Exact result
+  // Exact result — also counts as a correct winner
   if (home_score_pred === home_score && away_score_pred === away_score) {
     base = 5
     exact = true
+    correctWinner = true
   } else {
     // Check correct winner/draw
     const actualWinner = home_score > away_score ? 'home' : away_score > home_score ? 'away' : 'draw'
