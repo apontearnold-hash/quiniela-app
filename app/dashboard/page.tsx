@@ -15,6 +15,7 @@ import { deriveChampions } from "@/lib/derive-champion"
 import type { Fixture } from "@/lib/types"
 import MatchPredictionsPanel from "@/components/MatchPredictionsPanel"
 import type { FixtureSelectItem } from "@/components/MatchPredictionsPanel"
+import RefreshResultsButton from "@/components/RefreshResultsButton"
 
 export const dynamic = "force-dynamic"
 
@@ -251,7 +252,7 @@ export default async function DashboardPage() {
   }
 
   // ── Fixtures ────────────────────────────────────────────────────────
-  const [{ data: recentFixturesRaw }, { data: upcomingFixturesRaw }, { data: allFixturesRaw }] = await Promise.all([
+  const [{ data: recentFixturesRaw }, { data: upcomingFixturesRaw }, { data: allFixturesRaw }, { data: lastSyncRow }] = await Promise.all([
     supabase
       .from("fixtures")
       .select("id, home_team_name, away_team_name, home_team_flag, away_team_flag, home_score, away_score, kickoff, went_to_penalties, penalties_winner")
@@ -269,6 +270,14 @@ export default async function DashboardPage() {
       .from("fixtures")
       .select("id, home_team_name, away_team_name, home_team_flag, away_team_flag, home_placeholder, away_placeholder, kickoff, status, phase, group_name, home_score, away_score")
       .order("kickoff", { ascending: true }),
+    admin
+      .from("fixture_sync_log")
+      .select("ran_at")
+      .eq("sync_type", "results")
+      .eq("status", "success")
+      .order("ran_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ])
 
   const recentFixtures   = (recentFixturesRaw  ?? []) as RecentFixtureItem[]
@@ -289,6 +298,8 @@ export default async function DashboardPage() {
     homeScore:       f.home_score,
     awayScore:       f.away_score,
   }))
+
+  const initialLastSyncAt = (lastSyncRow as { ran_at: string } | null)?.ran_at ?? null
 
   const poolSelectorList = userPools.map(p => ({ id: p.id, name: p.name }))
 
@@ -434,6 +445,9 @@ export default async function DashboardPage() {
             )}
           </div>
         )}
+
+        {/* ── Refresh results button ───────────────────────────────── */}
+        <RefreshResultsButton isAdmin={isAdmin} initialLastSyncAt={initialLastSyncAt} />
 
         {/* ── Fixture tickers ──────────────────────────────────────── */}
         {(recentFixtures.length > 0 || upcomingFixtures.length > 0) && (

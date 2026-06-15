@@ -392,6 +392,20 @@ const t = {
     partial_saved:             "predicciones guardadas · resuelve empates pendientes.",
     groups_completed:          "Fase de grupos completada",
 
+    // Refresh results (user-facing sync button)
+    refresh_results_title:  "¿Resultados desactualizados?",
+    refresh_results_desc:   "Si ves que un partido ya terminó pero los puntos o tablas no se han actualizado, puedes pedir una actualización.",
+    refresh_btn:            "Actualizar resultados",
+    refresh_btn_loading:    "Actualizando…",
+    refresh_cooldown_note:  "Solo se puede actualizar cada 10 minutos para evitar abuso.",
+    refresh_success_msg:    "Resultados actualizados.",
+    refresh_cooldown_msg:   "Ya se actualizó hace {n} min. Intenta más tarde.",
+    refresh_error_msg:      "Error al actualizar. Intenta de nuevo.",
+    refresh_last_sync_lbl:  "Última sync:",
+    refresh_just_now:       "hace un momento",
+    refresh_n_min_ago:      "hace {n} min",
+    refresh_warnings_lbl:   "Advertencias:",
+
     // Mundial page
     mundial_tab_grupos:           "Grupos",
     mundial_tab_calendario:       "Calendario",
@@ -828,6 +842,20 @@ const t = {
     no_preds_to_save:          "No predictions to save.",
     partial_saved:             "predictions saved · resolve pending draws.",
     groups_completed:          "Group stage completed",
+
+    // Refresh results (user-facing sync button)
+    refresh_results_title:  "Results out of date?",
+    refresh_results_desc:   "If a match has ended but points or standings have not updated, you can request an update.",
+    refresh_btn:            "Update results",
+    refresh_btn_loading:    "Updating…",
+    refresh_cooldown_note:  "Updates are limited to once every 10 minutes to prevent abuse.",
+    refresh_success_msg:    "Results updated.",
+    refresh_cooldown_msg:   "Updated {n} min ago. Please try again later.",
+    refresh_error_msg:      "Update failed. Please try again.",
+    refresh_last_sync_lbl:  "Last sync:",
+    refresh_just_now:       "just now",
+    refresh_n_min_ago:      "{n} min ago",
+    refresh_warnings_lbl:   "Warnings:",
 
     // Mundial page
     mundial_tab_grupos:           "Groups",
