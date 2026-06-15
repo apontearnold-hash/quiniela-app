@@ -37,6 +37,7 @@ export async function recalculateAllPoints(
   const { data: fixturesRaw, error: fErr } = await supabase
     .from("fixtures")
     .select("*")
+    .eq("status", "finished")
     .not("home_score", "is", null)
     .not("away_score", "is", null)
   if (fErr) throw fErr

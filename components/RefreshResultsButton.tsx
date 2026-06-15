@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useCallback } from "react"
+import { useRouter } from "next/navigation"
 import { useT } from "@/components/LangProvider"
 
 interface RefreshResponse {
@@ -38,7 +39,8 @@ export default function RefreshResultsButton({
   isAdmin: boolean
   initialLastSyncAt: string | null
 }) {
-  const t = useT()
+  const t      = useT()
+  const router = useRouter()
 
   const [loading,     setLoading]     = useState(false)
   const [response,    setResponse]    = useState<RefreshResponse | null>(null)
@@ -54,12 +56,13 @@ export default function RefreshResultsButton({
       const data: RefreshResponse = await res.json()
       setResponse(data)
       if (data.last_sync_at) setLastSyncAt(data.last_sync_at)
+      if (data.ok) router.refresh()
     } catch {
       setResponse({ ok: false, error: "network" })
     } finally {
       setLoading(false)
     }
-  }, [loading])
+  }, [loading, router])
 
   const lastSyncLabel = timeAgoLabel(lastSyncAt, t("refresh_just_now"), t("refresh_n_min_ago"))
 
