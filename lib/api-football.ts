@@ -93,18 +93,21 @@ export async function apiFetch(
 
 /**
  * Convierte el código corto de estado de la API al valor interno de Supabase.
- *   NS          → not_started
- *   1H/HT/2H/ET/P → live
- *   FT/AET/PEN  → finished
- *   CANC        → cancelled
- *   PST         → postponed
+ *   NS                       → not_started
+ *   1H/HT/2H/ET/BT/P/LIVE   → live  (including break time, extra time, penalties)
+ *   SUSP/INT                 → live  (suspended/interrupted — match still open)
+ *   FT/AET/PEN               → finished
+ *   CANC                     → cancelled
+ *   PST                      → postponed
  */
 export function mapStatus(short: string): string {
   const map: Record<string, string> = {
-    NS:   "not_started",
-    "1H": "live", HT: "live", "2H": "live", ET: "live", P: "live",
-    FT:   "finished", AET: "finished", PEN: "finished",
-    CANC: "cancelled", PST: "postponed",
+    NS:     "not_started",
+    "1H":   "live", HT: "live", "2H": "live", ET: "live",
+    BT:     "live", P:  "live", LIVE: "live",
+    SUSP:   "live", INT: "live",
+    FT:     "finished", AET: "finished", PEN: "finished",
+    CANC:   "cancelled", PST: "postponed",
   }
   return map[short] ?? "not_started"
 }
