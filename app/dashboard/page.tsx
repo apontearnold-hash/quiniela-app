@@ -255,14 +255,14 @@ export default async function DashboardPage() {
   const [{ data: recentFixturesRaw }, { data: upcomingFixturesRaw }, { data: allFixturesRaw }, { data: lastSyncRow }] = await Promise.all([
     supabase
       .from("fixtures")
-      .select("id, home_team_name, away_team_name, home_team_flag, away_team_flag, home_score, away_score, kickoff, went_to_penalties, penalties_winner")
-      .eq("status", "finished")
+      .select("id, home_team_name, away_team_name, home_team_flag, away_team_flag, home_score, away_score, kickoff, went_to_penalties, penalties_winner, status, elapsed")
+      .in("status", ["finished", "live"])
       .order("kickoff", { ascending: false })
-      .limit(8),
+      .limit(12),
     supabase
       .from("fixtures")
       .select("id, home_team_name, away_team_name, home_team_flag, away_team_flag, kickoff, home_placeholder, away_placeholder")
-      .neq("status", "finished")
+      .eq("status", "not_started")
       .not("home_team_id", "is", null)
       .order("kickoff", { ascending: true })
       .limit(8),
@@ -280,7 +280,13 @@ export default async function DashboardPage() {
       .maybeSingle(),
   ])
 
-  const recentFixtures   = (recentFixturesRaw  ?? []) as RecentFixtureItem[]
+  const recentFixtures = ((recentFixturesRaw ?? []) as RecentFixtureItem[])
+    .sort((a, b) => {
+      if (a.status === "live" && b.status !== "live") return -1
+      if (a.status !== "live" && b.status === "live") return  1
+      return new Date(b.kickoff ?? 0).getTime() - new Date(a.kickoff ?? 0).getTime()
+    })
+    .slice(0, 8)
   const upcomingFixtures = (upcomingFixturesRaw ?? []) as UpcomingFixtureItem[]
 
   const allFixtures: FixtureSelectItem[] = (allFixturesRaw ?? []).map(f => ({

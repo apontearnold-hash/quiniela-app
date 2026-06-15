@@ -14,6 +14,9 @@ export interface RecentFixtureItem {
   away_score: number | null
   went_to_penalties: boolean | null
   penalties_winner: string | null
+  status?: string | null
+  elapsed?: number | null
+  kickoff?: string | null
 }
 
 export interface UpcomingFixtureItem {
@@ -33,14 +36,17 @@ function Flag({ src, alt }: { src: string | null; alt: string }) {
 }
 
 function ResultCard({ f }: { f: RecentFixtureItem }) {
+  const { lang } = useLanguage()
+  const isLive = f.status === "live"
+
   return (
     <Link href={`/fixtures/${f.id}`}>
       <div
-        className="flex items-center gap-2 px-3 py-2.5 rounded-xl cursor-pointer hover:border-[#d97706] transition-colors"
+        className="flex items-center gap-2 px-3 py-2.5 rounded-xl cursor-pointer transition-colors"
         style={{
           background: "white",
-          border: "1px solid #d1d5db",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+          border: isLive ? "1px solid #fca5a5" : "1px solid #d1d5db",
+          boxShadow: isLive ? "0 1px 4px rgba(239,68,68,0.15)" : "0 1px 3px rgba(0,0,0,0.06)",
           minWidth: "260px",
         }}
       >
@@ -51,10 +57,19 @@ function ResultCard({ f }: { f: RecentFixtureItem }) {
           </span>
         </div>
         <div
-          className="flex-shrink-0 px-2 py-0.5 rounded-lg font-black text-sm text-center"
-          style={{ background: "#fef3c7", color: "#92400e", minWidth: "40px" }}
+          className="flex-shrink-0 flex flex-col items-center px-2 py-0.5 rounded-lg font-black text-sm text-center"
+          style={{
+            background: isLive ? "#fee2e2" : "#fef3c7",
+            color:      isLive ? "#dc2626" : "#92400e",
+            minWidth: "44px",
+          }}
         >
-          {f.home_score}–{f.away_score}
+          {isLive && (
+            <span className="text-[8px] font-bold uppercase leading-tight" style={{ color: "#dc2626" }}>
+              {f.elapsed ? `${f.elapsed}'` : (lang === "es" ? "En vivo" : "Live")}
+            </span>
+          )}
+          <span>{f.home_score ?? "–"}–{f.away_score ?? "–"}</span>
         </div>
         <div className="flex items-center gap-1.5 flex-1 min-w-0">
           <span className="text-xs font-semibold truncate" style={{ color: "#1f2937" }}>

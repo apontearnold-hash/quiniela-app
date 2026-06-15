@@ -112,7 +112,7 @@ export default function RefreshResultsButton({
 
       {/* Cooldown note + last sync row */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-2">
-        <span className="text-gray-400 text-xs">{t("refresh_cooldown_note")}</span>
+        {!isAdmin && <span className="text-gray-400 text-xs">{t("refresh_cooldown_note")}</span>}
         {lastSyncLabel && (
           <span className="text-gray-400 text-xs">
             {t("refresh_last_sync_lbl")} <span className="text-gray-500 font-medium">{lastSyncLabel}</span>
