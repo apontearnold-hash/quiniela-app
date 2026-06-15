@@ -3,7 +3,7 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from "react"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase-browser"
-import { useT } from "@/components/LangProvider"
+import { useT, useLanguage } from "@/components/LangProvider"
 import type { Fixture, Prediction, BracketPick, Phase } from "@/lib/types"
 import { PHASE_LABELS, PHASE_MULTIPLIER } from "@/lib/types"
 import {
@@ -159,18 +159,26 @@ function CompactGroupRow({ fixture, pred, isLocked, onUpdate, onSave }: {
     <div className="rounded-lg px-2.5 py-2 flex flex-col gap-1.5"
       style={{ background: "rgba(10,18,8,0.75)", border: `1px solid ${filled ? "#2a7a4a" : "#2a5438"}` }}>
 
-      {/* Top row: date + actual result + status */}
+      {/* Top row: time + group tag + actual result + status */}
       <div className="flex items-center justify-between">
-        <Link
-          href={`/fixtures/${fixture.id}`}
-          className="text-[#9ab8a0] hover:text-[#F5C518] text-xs font-medium transition-colors"
-          title="Ver detalles"
-          tabIndex={-1}
-        >
-          {fixture.kickoff
-            ? new Date(fixture.kickoff).toLocaleDateString("es-MX", { day: "numeric", month: "short" })
-            : "—"}
-        </Link>
+        <div className="flex items-center gap-1.5">
+          <Link
+            href={`/fixtures/${fixture.id}`}
+            className="text-[#9ab8a0] hover:text-[#F5C518] text-xs font-medium transition-colors"
+            title="Ver detalles"
+            tabIndex={-1}
+          >
+            {fixture.kickoff
+              ? new Date(fixture.kickoff).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })
+              : "—"}
+          </Link>
+          {fixture.group_name && (
+            <span className="text-[9px] font-bold uppercase px-1 py-0.5 rounded leading-none flex-shrink-0"
+              style={{ background: "#1a3322", color: "#7ab88a" }}>
+              {fixture.group_name}
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-1">
           {finished && (
             <span className="text-[#7ab88a] text-xs font-bold">
@@ -433,7 +441,8 @@ export default function PredictionsEditor({
   quinielaName = "",
 }: Props) {
   const supabase = createClient()
-  const t = useT()
+  const t          = useT()
+  const { lang }   = useLanguage()
 
   const isLocked = lockDate ? Date.now() >= new Date(lockDate).getTime() : false
   const effectiveLock = isLocked || readOnly
@@ -1083,27 +1092,53 @@ export default function PredictionsEditor({
           </div>
 
           {(() => {
-            const gMap = new Map<string, Fixture[]>()
+            // Group by calendar date (kickoff ascending, already sorted by server)
+            const byDate = new Map<string, Fixture[]>()
             groupFixtures.forEach(f => {
-              const gn = f.group_name ?? "Sin Grupo"
-              if (!gMap.has(gn)) gMap.set(gn, [])
-              gMap.get(gn)!.push(f)
+              const key = f.kickoff ? new Date(f.kickoff).toLocaleDateString("en-CA") : "sin-fecha"
+              if (!byDate.has(key)) byDate.set(key, [])
+              byDate.get(key)!.push(f)
             })
-            return [...gMap.keys()].sort().map(gn => (
-              <div key={gn} className="mb-6">
-                <p className="text-[#F5C518] text-xs font-bold uppercase tracking-wider mb-2 px-1">{gn}</p>
-                <div className="flex flex-col lg:flex-row gap-3 items-start">
-                  <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                    {gMap.get(gn)!.map(fixture => (
-                      <CompactGroupRow key={fixture.id} fixture={fixture} pred={preds[fixture.id]} isLocked={effectiveLock} onUpdate={updatePred} onSave={savePred} />
-                    ))}
+            const sortedDates = [...byDate.keys()].sort()
+            const locale = lang === "en" ? "en-US" : "es-MX"
+
+            return (
+              <>
+                {/* ── Fixtures grouped by day ── */}
+                {sortedDates.map(dateKey => {
+                  const dayFixtures = byDate.get(dateKey)!
+                  const label = dayFixtures[0]?.kickoff
+                    ? new Date(dayFixtures[0].kickoff).toLocaleDateString(locale, {
+                        weekday: "long", day: "numeric", month: "long",
+                      })
+                    : dateKey
+                  return (
+                    <div key={dateKey} className="mb-5">
+                      <p className="text-[#F5C518] text-xs font-bold uppercase tracking-wider mb-2 px-1 capitalize">{label}</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                        {dayFixtures.map(fixture => (
+                          <CompactGroupRow key={fixture.id} fixture={fixture} pred={preds[fixture.id]} isLocked={effectiveLock} onUpdate={updatePred} onSave={savePred} />
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })}
+
+                {/* ── Projected standings — all groups below fixtures ── */}
+                {groupProjections.size > 0 && (
+                  <div className="mt-6">
+                    <p className="text-[#F5C518] text-xs font-bold uppercase tracking-wider mb-3 px-1">
+                      {lang === "en" ? "Projected standings" : "Clasificaciones proyectadas"}
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                      {[...groupProjections.keys()].sort().map(gn => (
+                        <ProjectedStandingsTable key={gn} standings={groupProjections.get(gn) ?? []} best3rdIds={best3rdIds} />
+                      ))}
+                    </div>
                   </div>
-                  <div className="w-full lg:w-52 flex-shrink-0">
-                    <ProjectedStandingsTable standings={groupProjections.get(gn) ?? []} best3rdIds={best3rdIds} />
-                  </div>
-                </div>
-              </div>
-            ))
+                )}
+              </>
+            )
           })()}
 
         </div>
