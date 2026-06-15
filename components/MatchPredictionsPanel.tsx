@@ -52,19 +52,14 @@ interface MatchData {
   predictions: PredRow[]
 }
 
-const PHASE_ORDER = ["groups", "round_of_32", "round_of_16", "quarterfinals", "semifinals", "final"]
-const PHASE_LABEL: Record<string, string> = {
-  groups:        "Fase de Grupos",
-  round_of_32:   "Ronda de 32",
-  round_of_16:   "Octavos de Final",
-  quarterfinals: "Cuartos de Final",
-  semifinals:    "Semifinales",
-  final:         "Final",
+function fmtDayLabel(kickoff: string | null): string {
+  if (!kickoff) return "Sin fecha"
+  return new Date(kickoff).toLocaleDateString("es-MX", { weekday: "short", day: "numeric", month: "short" })
 }
 
-function fmtDate(kickoff: string | null): string {
+function fmtTime(kickoff: string | null): string {
   if (!kickoff) return ""
-  return new Date(kickoff).toLocaleDateString("es-MX", { month: "short", day: "numeric" })
+  return new Date(kickoff).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })
 }
 
 function direction(h: number | null, a: number | null): "home" | "draw" | "away" | null {
@@ -124,7 +119,7 @@ function MatchHeader({ fixture }: { fixture: MatchFixture }) {
             {isLive ? (
               <span className="text-xs font-bold text-green-600 animate-pulse">EN VIVO</span>
             ) : fixture.kickoff ? (
-              <span className="text-xs text-gray-400">{fmtDate(fixture.kickoff)}</span>
+              <span className="text-xs text-gray-400">{fmtDayLabel(fixture.kickoff)}</span>
             ) : null}
           </div>
         )}
@@ -333,45 +328,28 @@ export default function MatchPredictionsPanel({
     }
   }
 
-  // Build optgroup structure for the select
+  // Build date-based optgroup structure (calendar order, all phases)
   const grouped = useMemo(() => {
-    return PHASE_ORDER
-      .map(phase => {
-        const fxs = fixtures
-          .filter(f => (f.phase ?? "groups") === phase)
-          .sort((a, b) => {
-            if (phase === "groups") {
-              const gc = (a.groupName ?? "").localeCompare(b.groupName ?? "")
-              if (gc !== 0) return gc
-            }
-            return (a.kickoff ?? "").localeCompare(b.kickoff ?? "")
-          })
-
-        if (phase === "groups") {
-          const byGroup = new Map<string, FixtureSelectItem[]>()
-          for (const f of fxs) {
-            const g = f.groupName ?? "Sin grupo"
-            if (!byGroup.has(g)) byGroup.set(g, [])
-            byGroup.get(g)!.push(f)
-          }
-          return {
-            phase,
-            label: PHASE_LABEL[phase],
-            subGroups: Array.from(byGroup.entries()).sort(([a], [b]) => a.localeCompare(b)),
-            fixtures: null as FixtureSelectItem[] | null,
-          }
-        }
-        return { phase, label: PHASE_LABEL[phase] ?? phase, subGroups: null as [string, FixtureSelectItem[]][] | null, fixtures: fxs }
-      })
-      .filter(g => (g.fixtures?.length ?? 0) > 0 || (g.subGroups?.some(([, f]) => f.length > 0) ?? false))
+    const allSorted = [...fixtures].sort((a, b) => (a.kickoff ?? "").localeCompare(b.kickoff ?? ""))
+    const byDate = new Map<string, FixtureSelectItem[]>()
+    for (const f of allSorted) {
+      const key = f.kickoff ? new Date(f.kickoff).toLocaleDateString("en-CA") : "sin-fecha"
+      if (!byDate.has(key)) byDate.set(key, [])
+      byDate.get(key)!.push(f)
+    }
+    return Array.from(byDate.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, fxs]) => ({ key, label: fmtDayLabel(fxs[0]?.kickoff ?? null), fixtures: fxs }))
+      .filter(d => d.fixtures.length > 0)
   }, [fixtures])
 
   function optLabel(f: FixtureSelectItem): string {
-    const home = f.homeName ?? f.homePlaceholder ?? "TBD"
-    const away = f.awayName ?? f.awayPlaceholder ?? "TBD"
-    const date = f.kickoff ? ` · ${fmtDate(f.kickoff)}` : ""
-    const st   = f.status === "finished" ? " · FT" : f.status === "live" ? " · EN VIVO" : ""
-    return `${home} vs ${away}${date}${st}`
+    const home  = f.homeName ?? f.homePlaceholder ?? "TBD"
+    const away  = f.awayName ?? f.awayPlaceholder ?? "TBD"
+    const time  = f.kickoff ? ` · ${fmtTime(f.kickoff)}` : ""
+    const group = f.groupName ? ` · ${f.groupName}` : ""
+    const st    = f.status === "finished" ? " · FT" : f.status === "live" ? " · EN VIVO" : ""
+    return `${home} vs ${away}${time}${group}${st}`
   }
 
   // Summary stats derived from matchData
@@ -430,24 +408,13 @@ export default function MatchPredictionsPanel({
           className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400"
         >
           <option value="">— Selecciona un partido —</option>
-          {grouped.map(g => {
-            if (g.subGroups) {
-              return g.subGroups.map(([groupName, fxs]) => (
-                <optgroup key={groupName} label={`${g.label} — ${groupName}`}>
-                  {fxs.map(f => (
-                    <option key={f.id} value={String(f.id)}>{optLabel(f)}</option>
-                  ))}
-                </optgroup>
-              ))
-            }
-            return (
-              <optgroup key={g.phase} label={g.label}>
-                {(g.fixtures ?? []).map(f => (
-                  <option key={f.id} value={String(f.id)}>{optLabel(f)}</option>
-                ))}
-              </optgroup>
-            )
-          })}
+          {grouped.map(day => (
+            <optgroup key={day.key} label={day.label}>
+              {day.fixtures.map(f => (
+                <option key={f.id} value={String(f.id)}>{optLabel(f)}</option>
+              ))}
+            </optgroup>
+          ))}
         </select>
 
         {/* Loading */}

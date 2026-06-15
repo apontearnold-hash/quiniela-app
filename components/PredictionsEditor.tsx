@@ -1083,8 +1083,6 @@ export default function PredictionsEditor({
       {groupFixtures.length > 0 && (
         <div>
           <PhaseHeader phase="groups" />
-          {/* DEBUG — remove after confirming layout */}
-          <p className="text-yellow-400 text-xs font-bold mb-2">🗓 Vista por calendario (PredictionsEditor)</p>
           <div className="flex items-center gap-3 mb-5">
             <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: "#1a3322" }}>
               <div className="h-full rounded-full transition-all duration-300"
