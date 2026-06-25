@@ -445,9 +445,11 @@ export default function LoginForm() {
                 {mode === "login" && (
                   <button
                     type="button"
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
                       console.log("forgot password clicked")
-                      router.push("/forgot-password")
+                      window.location.assign("/forgot-password")
                     }}
                     style={{
                       fontSize: "11px",
