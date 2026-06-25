@@ -57,6 +57,21 @@ function fmtDayLabel(kickoff: string | null): string {
   return new Date(kickoff).toLocaleDateString("es-MX", { weekday: "short", day: "numeric", month: "short" })
 }
 
+function dateLabelFor(dateKey: string): string {
+  const today    = new Date().toLocaleDateString("en-CA")
+  const tmrwDate = new Date()
+  tmrwDate.setDate(tmrwDate.getDate() + 1)
+  const tomorrow = tmrwDate.toLocaleDateString("en-CA")
+
+  const [y, m, d] = dateKey.split("-").map(Number)
+  const localDate = new Date(y, m - 1, d)
+  const monthDay  = localDate.toLocaleDateString("es-MX", { day: "numeric", month: "short" })
+
+  if (dateKey === today)    return `Hoy · ${monthDay}`
+  if (dateKey === tomorrow) return `Mañana · ${monthDay}`
+  return monthDay
+}
+
 function fmtTime(kickoff: string | null): string {
   if (!kickoff) return ""
   return new Date(kickoff).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })
@@ -309,6 +324,37 @@ export default function MatchPredictionsPanel({
   const [loading, setLoading]     = useState(false)
   const [error, setError]         = useState<string | null>(null)
 
+  // Smart default: today if it has matches → next future date → last date with matches
+  const [selectedDate, setSelectedDate] = useState<string>(() => {
+    const today = new Date().toLocaleDateString("en-CA")
+    const allDates = [...new Set(
+      fixtures
+        .filter(f => f.kickoff)
+        .map(f => new Date(f.kickoff!).toLocaleDateString("en-CA"))
+    )].sort()
+    if (allDates.includes(today)) return today
+    const future = allDates.filter(d => d > today)
+    if (future.length > 0) return future[0]
+    return allDates[allDates.length - 1] ?? "all"
+  })
+
+  function handleDateSelect(date: string) {
+    setSelectedDate(date)
+    // Clear match selection if it no longer belongs to the chosen date
+    if (selectedId && date !== "all") {
+      const stillValid = fixtures.some(
+        f => String(f.id) === selectedId &&
+             f.kickoff &&
+             new Date(f.kickoff).toLocaleDateString("en-CA") === date
+      )
+      if (!stillValid) {
+        setSelectedId("")
+        setMatchData(null)
+        setError(null)
+      }
+    }
+  }
+
   async function handleSelect(fixtureId: string) {
     setSelectedId(fixtureId)
     setMatchData(null)
@@ -342,6 +388,11 @@ export default function MatchPredictionsPanel({
       .map(([key, fxs]) => ({ key, label: fmtDayLabel(fxs[0]?.kickoff ?? null), fixtures: fxs }))
       .filter(d => d.fixtures.length > 0)
   }, [fixtures])
+
+  const filteredGroups = useMemo(() => {
+    if (selectedDate === "all") return grouped
+    return grouped.filter(g => g.key === selectedDate)
+  }, [grouped, selectedDate])
 
   function optLabel(f: FixtureSelectItem): string {
     const home  = f.homeName ?? f.homePlaceholder ?? "TBD"
@@ -401,6 +452,35 @@ export default function MatchPredictionsPanel({
       </div>
 
       <div className="p-4 space-y-4">
+        {/* Date filter chips */}
+        <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
+          <button
+            type="button"
+            onClick={() => handleDateSelect("all")}
+            className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+              selectedDate === "all"
+                ? "bg-amber-500 text-white"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            }`}
+          >
+            Todos
+          </button>
+          {grouped.map(day => (
+            <button
+              key={day.key}
+              type="button"
+              onClick={() => handleDateSelect(day.key)}
+              className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors whitespace-nowrap ${
+                selectedDate === day.key
+                  ? "bg-amber-500 text-white"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+            >
+              {dateLabelFor(day.key)}
+            </button>
+          ))}
+        </div>
+
         {/* Fixture selector */}
         <select
           value={selectedId}
@@ -408,7 +488,7 @@ export default function MatchPredictionsPanel({
           className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400"
         >
           <option value="">— Selecciona un partido —</option>
-          {grouped.map(day => (
+          {filteredGroups.map(day => (
             <optgroup key={day.key} label={day.label}>
               {day.fixtures.map(f => (
                 <option key={f.id} value={String(f.id)}>{optLabel(f)}</option>
