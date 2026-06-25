@@ -443,9 +443,26 @@ export default function LoginForm() {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "5px" }}>
                 <label style={{ ...labelStyle, marginBottom: 0 }}>{c.passLabel}</label>
                 {mode === "login" && (
-                  <Link href="/forgot-password" style={{ fontSize: "11px", color: "#2563eb", textDecoration: "none", fontWeight: 600 }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      console.log("forgot password clicked")
+                      router.push("/forgot-password")
+                    }}
+                    style={{
+                      fontSize: "11px",
+                      color: "#2563eb",
+                      fontWeight: 600,
+                      background: "transparent",
+                      border: "none",
+                      padding: 0,
+                      cursor: "pointer",
+                      position: "relative",
+                      zIndex: 20,
+                    }}
+                  >
                     {c.forgotPass}
-                  </Link>
+                  </button>
                 )}
               </div>
               <input
