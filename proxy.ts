@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 
 // Paths that never require auth or status checks
-const PUBLIC_PATHS = ["/", "/login", "/auth", "/pending", "/blocked"]
+const PUBLIC_PATHS = ["/", "/login", "/auth", "/pending", "/blocked", "/forgot-password", "/reset-password"]
 // API routes handle their own auth — don't redirect them (would break JSON responses)
 const SKIP_STATUS_CHECK = ["/api/"]
 
