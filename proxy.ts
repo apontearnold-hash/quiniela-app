@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 
+// Public auth recovery routes must bypass auth redirects
 // Paths that never require auth or status checks
 const PUBLIC_PATHS = ["/", "/login", "/auth", "/pending", "/blocked", "/forgot-password", "/reset-password"]
 // API routes handle their own auth — don't redirect them (would break JSON responses)
