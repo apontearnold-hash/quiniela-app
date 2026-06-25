@@ -13,16 +13,20 @@ export default function ForgotPasswordPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    console.log("[forgot-password] handleSubmit fired, email:", email)
     if (!email.trim()) return
     setLoading(true)
     setError(null)
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: `${window.location.origin}/reset-password`,
+      redirectTo: `${siteUrl}/reset-password`,
     })
     setLoading(false)
     if (error) {
+      console.error("[forgot-password] resetPasswordForEmail error:", error)
       setError(error.message)
     } else {
+      console.log("[forgot-password] email sent OK, redirectTo:", `${siteUrl}/reset-password`)
       setSent(true)
     }
   }
@@ -67,7 +71,7 @@ export default function ForgotPasswordPage() {
                 ¡Revisa tu correo!
               </p>
               <p style={{ fontSize: "14px", color: "#64748b", lineHeight: 1.6, marginBottom: "20px" }}>
-                Si existe una cuenta con <strong>{email}</strong>, recibirás un enlace para restablecer tu contraseña en los próximos minutos.
+                Si el email está registrado, te enviamos un link para cambiar tu contraseña.
               </p>
               <p style={{ fontSize: "12px", color: "#94a3b8" }}>
                 Nota: Los usuarios que se registraron con Google deben usar &quot;Continuar con Google&quot; en el login.
