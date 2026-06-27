@@ -103,6 +103,9 @@ export default function AdminPanel({ fixtures, defaultTab }: Props) {
   const [advanceMsg, setAdvanceMsg] = useState<string | null>(null)
   const [backfilling, setBackfilling] = useState(false)
   const [backfillMsg, setBackfillMsg] = useState<string | null>(null)
+  const [populatingR32, setPopulatingR32] = useState(false)
+  const [populateR32Confirm, setPopulateR32Confirm] = useState(false)
+  const [populateR32Msg, setPopulateR32Msg] = useState<string | null>(null)
   // Bonus evaluation
   const [bonusScorer, setBonusScorer] = useState("")
   const [bonusGoalsTeam, setBonusGoalsTeam] = useState("")
@@ -325,6 +328,18 @@ export default function AdminPanel({ fixtures, defaultTab }: Props) {
     const data = await res.json()
     setBackfilling(false)
     setBackfillMsg(data.message || (data.error ? `Error: ${data.error}` : "Listo"))
+  }
+
+  async function populateR32Picks() {
+    setPopulatingR32(true); setPopulateR32Confirm(false); setPopulateR32Msg(null)
+    const res = await fetch("/api/admin/populate-r32-picks", { method: "POST" })
+    const data = await res.json()
+    setPopulatingR32(false)
+    if (!res.ok) {
+      setPopulateR32Msg(`Error: ${data.error ?? "Error desconocido"}`)
+    } else {
+      setPopulateR32Msg(data.message ?? `✅ ${data.updated ?? 0} picks de R32 actualizados`)
+    }
   }
 
   async function evaluateBonus() {
@@ -1022,6 +1037,41 @@ export default function AdminPanel({ fixtures, defaultTab }: Props) {
                 </button>
               </div>
               {advanceMsg && <p className="text-[#F5C518] text-xs">{advanceMsg}</p>}
+
+              <div className="h-px bg-[#e5e7eb]" />
+
+              {/* Actualizar picks R32 */}
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div>
+                  <p className="text-[#111827] text-sm font-medium">Actualizar picks R32</p>
+                  <p className="text-[#9ca3af] text-xs">Reemplaza los equipos de R32 en las quinielas submitted usando los clasificados reales. Conserva los scores existentes.</p>
+                </div>
+                {populateR32Confirm ? (
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button onClick={populateR32Picks} disabled={populatingR32}
+                      className="py-2 px-4 rounded-lg font-bold text-black text-xs disabled:opacity-50"
+                      style={{ background: "linear-gradient(135deg, #F5C518, #FFD700)" }}>
+                      {populatingR32 ? "Actualizando…" : "Confirmar"}
+                    </button>
+                    <button onClick={() => setPopulateR32Confirm(false)} disabled={populatingR32}
+                      className="py-2 px-3 rounded-lg text-xs font-medium"
+                      style={{ background: "white", border: "1px solid #d1d5db", color: "#6b7280" }}>
+                      Cancelar
+                    </button>
+                  </div>
+                ) : (
+                  <button onClick={() => setPopulateR32Confirm(true)} disabled={populatingR32}
+                    className="flex-shrink-0 py-2 px-4 rounded-lg font-bold text-black text-xs uppercase disabled:opacity-50"
+                    style={{ background: "linear-gradient(135deg, #F5C518, #FFD700)" }}>
+                    {populatingR32 ? "Actualizando…" : "Actualizar picks R32"}
+                  </button>
+                )}
+              </div>
+              {populateR32Msg && (
+                <p className={`text-xs ${populateR32Msg.startsWith("Error") ? "text-red-400" : "text-[#F5C518]"}`}>
+                  {populateR32Msg}
+                </p>
+              )}
 
               <div className="h-px bg-[#e5e7eb]" />
 
