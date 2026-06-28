@@ -673,6 +673,8 @@ export default function PredictionsEditor({
   }, [])
 
   const savePred = useCallback(async (fixture: Fixture) => {
+    // Guard: group fixtures are permanently locked once the deadline passes
+    if (effectiveLock && !isBracketSlotId(fixture.id)) return
     const pred = predsRef.current[fixture.id]
     if (!pred) return
     const hv = pred.home.trim(), av = pred.away.trim()
@@ -755,6 +757,9 @@ export default function PredictionsEditor({
     const projBracket = projectedBracketRef.current
 
     for (const fixture of allFixturesMerged) {
+      // Group fixtures are permanently locked once the deadline passes
+      if (effectiveLock && !isBracketSlotId(fixture.id)) continue
+
       const pred = current[fixture.id]
       if (!pred) continue
       const hv = pred.home.trim(), av = pred.away.trim()

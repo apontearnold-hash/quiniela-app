@@ -7,7 +7,7 @@ import Link from "next/link"
 import type { Fixture, Prediction, BracketPick } from "@/lib/types"
 import { BRACKET_FIXTURES } from "@/lib/bracket-slots"
 import { getServerT } from "@/lib/server-lang"
-import { getLockDate } from "@/lib/lock-date"
+
 
 export const dynamic = "force-dynamic"
 
@@ -127,7 +127,8 @@ export default async function EditQuinielaPage({ params }: { params: Promise<{ i
     }
   }
 
-  const lockDate = await getLockDate(supabase, groupFixtures ?? [])
+  const { data: lockCfg } = await admin.from("tournament_config").select("lock_date").eq("id", 1).maybeSingle()
+  const lockDate: string | null = (lockCfg?.lock_date as string | null) ?? null
 
   const isLocked = lockDate ? new Date().getTime() >= new Date(lockDate).getTime() : false
   const quinielaStatus = (quiniela.status ?? "draft") as "draft" | "submitted"
