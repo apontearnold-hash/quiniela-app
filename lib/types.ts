@@ -71,6 +71,8 @@ export interface Pool {
   created_by: string | null
   is_active: boolean
   knockout_editing_open?: boolean
+  start_phase?: Phase
+  allow_carryover_points?: boolean
   prize_type?: 'money' | 'physical'
   prize_description?: string | null
   prize_1st?: string | null
@@ -100,6 +102,7 @@ export interface Quiniela {
   most_goals_team_id: number | null
   top_scorer_points: number
   most_goals_team_points: number
+  carryover_points: number
   champion_team_name: string | null
   champion_team_flag: string | null
   r32_synced_at: string | null

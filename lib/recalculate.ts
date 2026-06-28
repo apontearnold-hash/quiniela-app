@@ -253,10 +253,11 @@ export async function recalculateAllPoints(
     id: string
     top_scorer_points: number | null
     most_goals_team_points: number | null
+    carryover_points: number | null
   }>((from, to) =>
     supabase
       .from("quinielas")
-      .select("id, top_scorer_points, most_goals_team_points")
+      .select("id, top_scorer_points, most_goals_team_points, carryover_points")
       .range(from, to)
   )
 
@@ -271,7 +272,8 @@ export async function recalculateAllPoints(
     const qa = agg.get(q.id) ?? { total: 0, exact: 0, winners: 0 }
     const bonus =
       (q.top_scorer_points    ?? 0) +
-      (q.most_goals_team_points ?? 0)
+      (q.most_goals_team_points ?? 0) +
+      (q.carryover_points       ?? 0)
 
     await supabase
       .from("quinielas")

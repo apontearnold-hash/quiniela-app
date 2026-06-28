@@ -36,7 +36,7 @@ export default async function EditQuinielaPage({ params }: { params: Promise<{ i
   const poolId = quiniela.pool_id as string | null
   const [{ data: poolData }, { count: alreadySubmitted }, { data: kfStatuses }] = await Promise.all([
     poolId
-      ? supabase.from("pools").select("price_per_quiniela, currency, knockout_editing_open, prize_type, prize_1st, prize_2nd, prize_3rd").eq("id", poolId).single()
+      ? supabase.from("pools").select("price_per_quiniela, currency, knockout_editing_open, start_phase, prize_type, prize_1st, prize_2nd, prize_3rd").eq("id", poolId).single()
       : Promise.resolve({ data: null, error: null }),
     poolId
       ? admin.from("quinielas").select("id", { count: "exact", head: true })
@@ -47,17 +47,23 @@ export default async function EditQuinielaPage({ params }: { params: Promise<{ i
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const knockoutEditable = (poolData as any)?.knockout_editing_open === true
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const startPhase = (poolData as any)?.start_phase ?? "groups"
+  const skipGroupStage = startPhase !== "groups"
   const knockoutStatusMap: Record<string, string> = {}
   for (const f of kfStatuses ?? []) {
     if (f.bracket_position) knockoutStatusMap[f.bracket_position] = f.status ?? "not_started"
   }
 
   // Only real group-stage fixtures from API — knockout slots come from BRACKET_FIXTURES constant
-  const { data: groupFixtures } = await supabase
-    .from("fixtures")
-    .select("*")
-    .eq("phase", "groups")
-    .order("kickoff", { ascending: true })
+  // Skip group fixtures entirely if pool starts at a later phase
+  const { data: groupFixtures } = skipGroupStage
+    ? { data: [] }
+    : await supabase
+        .from("fixtures")
+        .select("*")
+        .eq("phase", "groups")
+        .order("kickoff", { ascending: true })
 
   // Real knockout fixtures (only those with team IDs confirmed) — used to override static slots
   const { data: knockoutFixturesRaw } = await admin

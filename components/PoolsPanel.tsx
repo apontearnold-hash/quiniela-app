@@ -10,6 +10,8 @@ interface PoolRow {
   currency: string
   is_active: boolean
   knockout_editing_open: boolean
+  start_phase: string
+  allow_carryover_points: boolean
   prize_type: "money" | "physical"
   prize_description: string | null
   prize_1st: string | null
@@ -19,6 +21,19 @@ interface PoolRow {
   member_count: number
   quiniela_count: number
 }
+
+interface CarryoverQuiniela {
+  id: string
+  name: string
+  carryover_points: number
+  profiles: { display_name: string | null; email: string | null } | null
+}
+
+const START_PHASE_OPTIONS = [
+  { value: "groups", label: "Fase de grupos (normal)" },
+  { value: "round_of_32", label: "Ronda de 32 (omite grupos)" },
+  { value: "round_of_16", label: "Octavos de Final" },
+]
 
 interface EmailMember {
   name: string
@@ -138,6 +153,14 @@ export default function PoolsPanel({ pools: initialPools }: { pools: PoolRow[] }
   const [emailPanelId, setEmailPanelId] = useState<string | null>(null)
   const [emailMembers, setEmailMembers] = useState<EmailMember[]>([])
   const [emailLoading, setEmailLoading] = useState(false)
+
+  // ── Carryover panel state ─────────────────────────────────────────────────
+  const [carryoverPanelId, setCarryoverPanelId] = useState<string | null>(null)
+  const [carryoverQuinielas, setCarryoverQuinielas] = useState<CarryoverQuiniela[]>([])
+  const [carryoverLoading, setCarryoverLoading] = useState(false)
+  const [carryoverDraft, setCarryoverDraft] = useState<Record<string, string>>({})
+  const [carryoverSaving, setCarryoverSaving] = useState<string | null>(null)
+  const [carryoverMsg, setCarryoverMsg] = useState<{ id: string; ok: boolean; text: string } | null>(null)
 
   // ── CRUD ──────────────────────────────────────────────────────────────────
 
@@ -276,6 +299,75 @@ export default function PoolsPanel({ pools: initialPools }: { pools: PoolRow[] }
       setMsg({ text: data.error ?? "Error", ok: false })
     }
     setLoading(null); setConfirmDelete(null)
+  }
+
+  // ── Carryover ─────────────────────────────────────────────────────────────
+
+  async function toggleCarryover(id: string, currentAllow: boolean) {
+    setLoading(id + "carryover")
+    const res = await fetch("/api/admin/pools", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, allow_carryover_points: !currentAllow }),
+    })
+    if (res.ok) {
+      setPools(prev => prev.map(p => p.id === id ? { ...p, allow_carryover_points: !currentAllow } : p))
+      if (!currentAllow) setMsg({ text: "Carryover habilitado. Configura la fase de inicio y luego ingresa los puntos.", ok: true })
+    } else {
+      const data = await res.json()
+      setMsg({ text: data.error ?? "Error", ok: false })
+    }
+    setLoading(null)
+  }
+
+  async function saveStartPhase(id: string, phase: string) {
+    const res = await fetch("/api/admin/pools", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, start_phase: phase }),
+    })
+    if (res.ok) {
+      setPools(prev => prev.map(p => p.id === id ? { ...p, start_phase: phase } : p))
+    } else {
+      const data = await res.json()
+      setMsg({ text: data.error ?? "Error al guardar fase", ok: false })
+    }
+  }
+
+  async function loadCarryover(poolId: string) {
+    if (carryoverPanelId === poolId) { setCarryoverPanelId(null); return }
+    setCarryoverLoading(true); setCarryoverMsg(null)
+    const res = await fetch(`/api/admin/carryover?pool_id=${poolId}`)
+    const data = await res.json()
+    if (res.ok) {
+      setCarryoverQuinielas(data.quinielas)
+      const draft: Record<string, string> = {}
+      for (const q of data.quinielas) draft[q.id] = String(q.carryover_points ?? 0)
+      setCarryoverDraft(draft)
+      setCarryoverPanelId(poolId)
+    } else {
+      setMsg({ text: data.error ?? "Error al cargar quinielas", ok: false })
+    }
+    setCarryoverLoading(false)
+  }
+
+  async function saveCarryover(quinielaId: string) {
+    const val = parseInt(carryoverDraft[quinielaId] ?? "0", 10)
+    if (isNaN(val) || val < 0) return
+    setCarryoverSaving(quinielaId); setCarryoverMsg(null)
+    const res = await fetch("/api/admin/carryover", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ quiniela_id: quinielaId, carryover_points: val }),
+    })
+    const data = await res.json()
+    if (res.ok) {
+      setCarryoverQuinielas(prev => prev.map(q => q.id === quinielaId ? { ...q, carryover_points: val } : q))
+      setCarryoverMsg({ id: quinielaId, ok: true, text: "Guardado" })
+    } else {
+      setCarryoverMsg({ id: quinielaId, ok: false, text: data.error ?? "Error" })
+    }
+    setCarryoverSaving(null)
   }
 
   // ── Email export ──────────────────────────────────────────────────────────
@@ -444,6 +536,11 @@ export default function PoolsPanel({ pools: initialPools }: { pools: PoolRow[] }
                           🔓 Elim. abierta
                         </span>
                       )}
+                      {p.allow_carryover_points && (
+                        <span style={{ fontSize: "11px", fontWeight: 700, padding: "2px 8px", borderRadius: "999px", background: "#f0fdf4", color: "#15803d" }}>
+                          ➕ Carryover
+                        </span>
+                      )}
                       {isPhysical && (
                         <span style={{ fontSize: "11px", fontWeight: 700, padding: "2px 8px", borderRadius: "999px", background: "#fef3c7", color: "#92400e" }}>
                           🎁 Premio físico
@@ -512,6 +609,22 @@ export default function PoolsPanel({ pools: initialPools }: { pools: PoolRow[] }
                       style={{ ...btnSecondary, borderColor: p.knockout_editing_open ? "#93c5fd" : "#e2e8f0", color: p.knockout_editing_open ? "#2563eb" : "#64748b", opacity: loading !== null ? 0.5 : 1 }}>
                       {loading === p.id + "knockout" ? "..." : p.knockout_editing_open ? "🔓 Elim." : "🔒 Elim."}
                     </button>
+                    <button
+                      onClick={() => toggleCarryover(p.id, p.allow_carryover_points)}
+                      disabled={loading !== null}
+                      title={p.allow_carryover_points ? "Deshabilitar carryover de R1" : "Habilitar carryover de R1 (liga que empieza en R2+)"}
+                      style={{ ...btnSecondary, borderColor: p.allow_carryover_points ? "#86efac" : "#e2e8f0", color: p.allow_carryover_points ? "#15803d" : "#64748b", opacity: loading !== null ? 0.5 : 1 }}>
+                      {loading === p.id + "carryover" ? "..." : p.allow_carryover_points ? "➕ Carryover" : "➕ Carryover"}
+                    </button>
+                    {p.allow_carryover_points && (
+                      <button
+                        onClick={() => loadCarryover(p.id)}
+                        disabled={carryoverLoading}
+                        title="Ingresar puntos de rondas anteriores por participante"
+                        style={{ ...btnSecondary, borderColor: carryoverPanelId === p.id ? "#86efac" : "#e2e8f0", color: carryoverPanelId === p.id ? "#15803d" : "#334155", opacity: carryoverLoading ? 0.5 : 1 }}>
+                        {carryoverLoading && carryoverPanelId !== p.id ? "..." : carryoverPanelId === p.id ? "✕ Puntos R1" : "🏅 Puntos R1"}
+                      </button>
+                    )}
                     {!isLegacy && (
                       confirmDelete === p.id ? (
                         <div style={{ display: "flex", gap: "6px" }}>
@@ -575,6 +688,83 @@ export default function PoolsPanel({ pools: initialPools }: { pools: PoolRow[] }
                         <p style={{ fontSize: "13px", color: "#94a3b8", margin: 0 }}>No hay miembros con email registrado.</p>
                       )}
                     </>
+                  )}
+                </div>
+              )}
+
+              {/* ── Carryover config + points panel ── */}
+              {p.allow_carryover_points && (
+                <div style={{ padding: "14px 20px", borderTop: "1px solid #e2e8f0", background: "#f0fdf4" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+                    <span style={{ fontSize: "12px", fontWeight: 700, color: "#15803d" }}>Fase de inicio:</span>
+                    {START_PHASE_OPTIONS.map(opt => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => saveStartPhase(p.id, opt.value)}
+                        style={{
+                          ...btnSecondary,
+                          fontSize: "11px",
+                          padding: "4px 10px",
+                          background: (p.start_phase || "groups") === opt.value ? "#dcfce7" : "white",
+                          borderColor: (p.start_phase || "groups") === opt.value ? "#86efac" : "#e2e8f0",
+                          color: (p.start_phase || "groups") === opt.value ? "#15803d" : "#64748b",
+                          fontWeight: (p.start_phase || "groups") === opt.value ? 700 : 500,
+                        }}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ── Carryover points entry panel ── */}
+              {carryoverPanelId === p.id && (
+                <div style={{ padding: "16px 20px", borderTop: "1px solid #bbf7d0", background: "#f8fafc" }}>
+                  <p style={{ fontSize: "12px", color: "#15803d", fontWeight: 700, marginBottom: "10px" }}>
+                    Puntos de ronda anterior — ingresa los puntos que cada participante obtuvo antes de unirse a esta liga
+                  </p>
+                  {carryoverLoading ? (
+                    <p style={{ fontSize: "13px", color: "#94a3b8" }}>Cargando...</p>
+                  ) : carryoverQuinielas.length === 0 ? (
+                    <p style={{ fontSize: "13px", color: "#94a3b8" }}>Aún no hay quinielas en esta liga.</p>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                      {carryoverQuinielas.map(q => {
+                        const name = q.profiles?.display_name || q.profiles?.email?.split("@")[0] || "Sin nombre"
+                        const fb = carryoverMsg?.id === q.id
+                        return (
+                          <div key={q.id} style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+                            <span style={{ fontSize: "12px", color: "#334155", width: "160px", flexShrink: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {name}
+                            </span>
+                            <span style={{ fontSize: "11px", color: "#94a3b8", width: "120px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {q.name}
+                            </span>
+                            <input
+                              type="number"
+                              min="0"
+                              value={carryoverDraft[q.id] ?? "0"}
+                              onChange={e => setCarryoverDraft(d => ({ ...d, [q.id]: e.target.value }))}
+                              style={{ ...inp, width: "80px" }}
+                            />
+                            <span style={{ fontSize: "11px", color: "#94a3b8" }}>pts</span>
+                            <button
+                              onClick={() => saveCarryover(q.id)}
+                              disabled={carryoverSaving === q.id}
+                              style={{ ...btnSecondary, fontSize: "11px", padding: "4px 10px", borderColor: "#86efac", color: "#15803d", opacity: carryoverSaving === q.id ? 0.5 : 1 }}>
+                              {carryoverSaving === q.id ? "..." : "Guardar"}
+                            </button>
+                            {fb && (
+                              <span style={{ fontSize: "11px", color: fb && carryoverMsg?.ok ? "#15803d" : "#dc2626" }}>
+                                {carryoverMsg?.text}
+                              </span>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
                   )}
                 </div>
               )}

@@ -238,36 +238,57 @@ export async function POST() {
     // then delete the duplicate real-ID row.
     const knockoutAPIFixtures = fixtures.filter(f => {
       const ph = getPhaseFromRound(f.league?.round ?? "")
-      return ph !== null && ph !== "groups" && f.teams.home.id > 0 && f.teams.away.id > 0
+      // Include when away team is confirmed (home may be TBD while advance-bracket fills it)
+      return ph !== null && ph !== "groups" && f.teams.away.id > 0
     })
 
     let mergedKnockout = 0
     if (knockoutAPIFixtures.length > 0) {
       const { data: syntheticSlots } = await admin
         .from("fixtures")
-        .select("id, kickoff")
+        .select("id, kickoff, home_team_id, away_team_id, api_fixture_id")
         .gte("id", 9000000)
         .not("bracket_position", "is", null)
 
+      // Primary: exact kickoff match (backward compat for already-merged slots)
       const slotByKickoff = new Map<string, number>()
+      // Secondary: team ID pair match (stable once both teams confirmed, immune to schedule changes)
+      const slotByTeams   = new Map<string, number>()
+      // Tertiary: api_fixture_id match (handles TBD-home fixtures after advance-bracket runs)
+      const slotByApiId   = new Map<number, number>()
+
       for (const s of syntheticSlots ?? []) {
         if (s.kickoff) slotByKickoff.set(new Date(s.kickoff).toISOString(), s.id)
+        if (s.home_team_id && s.away_team_id)
+          slotByTeams.set(`${s.home_team_id}:${s.away_team_id}`, s.id)
+        if (s.api_fixture_id) slotByApiId.set(s.api_fixture_id, s.id)
       }
 
       for (const f of knockoutAPIFixtures) {
         const apiKickoff = new Date(f.fixture.date).toISOString()
-        const syntheticId = slotByKickoff.get(apiKickoff)
+        let syntheticId = slotByKickoff.get(apiKickoff)
+        // If kickoff doesn't match (FIFA rescheduled), try matching by confirmed team IDs
+        if (!syntheticId && f.teams.home.id > 0 && f.teams.away.id > 0)
+          syntheticId = slotByTeams.get(`${f.teams.home.id}:${f.teams.away.id}`)
+        // If still no match, try by api_fixture_id (handles TBD-home R32 fixtures)
+        if (!syntheticId) syntheticId = slotByApiId.get(f.fixture.id)
         if (!syntheticId) continue // no matching synthetic slot — not yet scheduled
 
         const penHome = f.score?.penalty?.home ?? null
         const penAway = f.score?.penalty?.away ?? null
 
+        // Only overwrite home team when the API has a confirmed home team (id > 0).
+        // When home is TBD (advance-bracket already filled it), preserve the existing value.
+        const homeConfirmed = (f.teams.home.id ?? 0) > 0
         const { error: mergeErr } = await admin.from("fixtures").update({
           api_fixture_id:   f.fixture.id,
-          home_team_id:     f.teams.home.id,
-          home_team_name:   f.teams.home.name,
-          home_team_code:   f.teams.home.code ?? null,
-          home_team_flag:   f.teams.home.logo ?? null,
+          kickoff:          f.fixture.date,   // use official FIFA time, not hardcoded estimate
+          ...(homeConfirmed ? {
+            home_team_id:   f.teams.home.id,
+            home_team_name: f.teams.home.name,
+            home_team_code: f.teams.home.code ?? null,
+            home_team_flag: f.teams.home.logo ?? null,
+          } : {}),
           away_team_id:     f.teams.away.id,
           away_team_name:   f.teams.away.name,
           away_team_code:   f.teams.away.code ?? null,
