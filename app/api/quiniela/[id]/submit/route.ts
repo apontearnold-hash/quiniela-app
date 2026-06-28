@@ -35,6 +35,21 @@ export async function POST(
     return NextResponse.json({ error: "El cierre de quinielas ya pasó" }, { status: 403 })
   }
 
+  // Guard: block submissions once all group-stage matches have finished.
+  // This is independent of lock_date — the group standings are final and
+  // accepting new quinielas after that would be unfair to participants who
+  // submitted on time.
+  const [{ count: totalGroups }, { count: finishedGroups }] = await Promise.all([
+    admin.from("fixtures").select("id", { count: "exact", head: true }).eq("phase", "groups"),
+    admin.from("fixtures").select("id", { count: "exact", head: true }).eq("phase", "groups").eq("status", "finished"),
+  ])
+  if ((totalGroups ?? 0) > 0 && finishedGroups === totalGroups) {
+    return NextResponse.json(
+      { error: "La primera ronda ya terminó. Solo se aceptaron quinielas antes del cierre." },
+      { status: 403 }
+    )
+  }
+
   const [
     { count: groupTotal },
     { count: predsFilled },
