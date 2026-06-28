@@ -43,14 +43,14 @@ const RAW_SLOTS: RawSlot[] = [
   { slot_key: "R32-16", phase: "round_of_32", home_placeholder: "2do Grupo D",   away_placeholder: "2do Grupo G",            kickoff: "2026-07-03T23:00:00Z" },
 
   // ── Round of 16 (8 games, Jul 4–7) ─────────────────────────────────────
-  { slot_key: "R16-01", phase: "round_of_16", home_placeholder: "Ganador R32-02", away_placeholder: "Ganador R32-05", kickoff: "2026-07-04T21:00:00Z" },
+  { slot_key: "R16-01", phase: "round_of_16", home_placeholder: "Ganador R32-05", away_placeholder: "Ganador R32-13", kickoff: "2026-07-04T21:00:00Z" },
   { slot_key: "R16-02", phase: "round_of_16", home_placeholder: "Ganador R32-01", away_placeholder: "Ganador R32-03", kickoff: "2026-07-04T17:00:00Z" },
   { slot_key: "R16-03", phase: "round_of_16", home_placeholder: "Ganador R32-04", away_placeholder: "Ganador R32-06", kickoff: "2026-07-05T21:00:00Z" },
   { slot_key: "R16-04", phase: "round_of_16", home_placeholder: "Ganador R32-07", away_placeholder: "Ganador R32-08", kickoff: "2026-07-05T23:00:00Z" },
   { slot_key: "R16-05", phase: "round_of_16", home_placeholder: "Ganador R32-11", away_placeholder: "Ganador R32-12", kickoff: "2026-07-06T20:00:00Z" },
-  { slot_key: "R16-06", phase: "round_of_16", home_placeholder: "Ganador R32-09", away_placeholder: "Ganador R32-10", kickoff: "2026-07-06T22:00:00Z" },
+  { slot_key: "R16-06", phase: "round_of_16", home_placeholder: "Ganador R32-02", away_placeholder: "Ganador R32-09", kickoff: "2026-07-06T22:00:00Z" },
   { slot_key: "R16-07", phase: "round_of_16", home_placeholder: "Ganador R32-14", away_placeholder: "Ganador R32-16", kickoff: "2026-07-07T16:00:00Z" },
-  { slot_key: "R16-08", phase: "round_of_16", home_placeholder: "Ganador R32-13", away_placeholder: "Ganador R32-15", kickoff: "2026-07-07T20:00:00Z" },
+  { slot_key: "R16-08", phase: "round_of_16", home_placeholder: "Ganador R32-10", away_placeholder: "Ganador R32-15", kickoff: "2026-07-07T20:00:00Z" },
 
   // ── Quarterfinals (4 games, Jul 9–12) ──────────────────────────────────
   { slot_key: "QF-01", phase: "quarterfinals", home_placeholder: "Ganador R16-01", away_placeholder: "Ganador R16-02", kickoff: "2026-07-09T21:00:00Z" },
