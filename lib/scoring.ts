@@ -7,7 +7,6 @@ export interface ScoreResult {
     multiplier: number
     exact: boolean
     correctWinner: boolean
-    penaltyBonus: number
   }
 }
 
@@ -21,50 +20,65 @@ export function calculatePredictionScore(
   const { home_score, away_score } = fixture
   const { home_score_pred, away_score_pred } = prediction
 
-  // No result yet or incomplete prediction
   if (
     home_score === null || away_score === null ||
     home_score_pred === null || away_score_pred === null
   ) {
-    return { points: 0, breakdown: { multiplier, exact: false, correctWinner: false, penaltyBonus: 0 } }
+    return { points: 0, breakdown: { multiplier, exact: false, correctWinner: false } }
   }
 
+  // ── Actual winner: who advanced ─────────────────────────────────────
+  // Draws in knockout phases are resolved by penalties_winner.
+  // Draws in groups are a valid final result (no penalties).
+  let actualWinner: 'home' | 'away' | 'draw'
+  if (home_score > away_score) {
+    actualWinner = 'home'
+  } else if (away_score > home_score) {
+    actualWinner = 'away'
+  } else if (fixture.went_to_penalties && fixture.penalties_winner === 'home') {
+    actualWinner = 'home'
+  } else if (fixture.went_to_penalties && fixture.penalties_winner === 'away') {
+    actualWinner = 'away'
+  } else {
+    actualWinner = 'draw'
+  }
+
+  // ── Predicted winner ─────────────────────────────────────────────────
+  // For a draw-score prediction in a fixture that went to penalties:
+  //   the penalty winner field determines who the user thinks advances.
+  // For a draw-score prediction in a fixture without penalties (groups):
+  //   the predicted result is a draw (penalties fields are irrelevant).
+  let predWinner: 'home' | 'away' | 'draw'
+  if (home_score_pred > away_score_pred) {
+    predWinner = 'home'
+  } else if (away_score_pred > home_score_pred) {
+    predWinner = 'away'
+  } else if (fixture.went_to_penalties && prediction.predicts_penalties && prediction.penalties_winner === 'home') {
+    predWinner = 'home'
+  } else if (fixture.went_to_penalties && prediction.predicts_penalties && prediction.penalties_winner === 'away') {
+    predWinner = 'away'
+  } else {
+    predWinner = 'draw'
+  }
+
+  // ── Score ─────────────────────────────────────────────────────────────
   let base = 0
   let exact = false
   let correctWinner = false
 
-  // Exact result — also counts as a correct winner
-  if (home_score_pred === home_score && away_score_pred === away_score) {
-    base = 5
-    exact = true
+  if (actualWinner === predWinner) {
+    base = 3
     correctWinner = true
-  } else {
-    // Check correct winner/draw
-    const actualWinner = home_score > away_score ? 'home' : away_score > home_score ? 'away' : 'draw'
-    const predWinner = home_score_pred > away_score_pred ? 'home' : away_score_pred > home_score_pred ? 'away' : 'draw'
 
-    if (actualWinner === predWinner) {
-      base = 3
-      correctWinner = true  // draws and wins both count as aciertos
+    if (home_score_pred === home_score && away_score_pred === away_score) {
+      base = 5
+      exact = true
     }
   }
-
-  // Penalty bonus (only for knockout phases)
-  let penaltyBonus = 0
-  if (phase !== 'groups' && fixture.went_to_penalties) {
-    if (prediction.predicts_penalties) {
-      penaltyBonus += 3
-      if (prediction.penalties_winner === fixture.penalties_winner) {
-        penaltyBonus += 5
-      }
-    }
-  }
-
-  const totalPoints = base * multiplier + penaltyBonus
 
   return {
-    points: totalPoints,
-    breakdown: { multiplier, exact, correctWinner, penaltyBonus }
+    points: base * multiplier,
+    breakdown: { multiplier, exact, correctWinner },
   }
 }
 
