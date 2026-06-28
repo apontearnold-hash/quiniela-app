@@ -11,7 +11,6 @@ import type { RecentFixtureItem, UpcomingFixtureItem } from "@/components/Fixtur
 import LeaderboardClient from "@/components/LeaderboardClient"
 import OnboardingModal from "@/components/OnboardingModal"
 import { getServerT } from "@/lib/server-lang"
-import { deriveChampions } from "@/lib/derive-champion"
 import type { Fixture } from "@/lib/types"
 import MatchPredictionsPanel from "@/components/MatchPredictionsPanel"
 import type { FixtureSelectItem } from "@/components/MatchPredictionsPanel"
@@ -218,36 +217,32 @@ export default async function DashboardPage() {
 
   const teamFlagsRecord: Record<string, string> = Object.fromEntries(teamFlagMap)
 
-  // ── Champion fallback (derive from bracket picks for quinielas without stored champion) ──
+  // ── Champion fallback: for quinielas without a stored champion, derive directly from FIN bracket_pick ──
   const needsDerivation = quinielas.filter(q => !q.champion_team_name)
   let enrichedQuinielas: typeof quinielas = quinielas
 
   if (needsDerivation.length > 0) {
     const needsIds = needsDerivation.map(q => q.id)
-    // Use admin client: regular client is subject to RLS and cannot read
-    // other users' predictions/bracket_picks even for display purposes.
-    const [{ data: gFixtures }, { data: dPreds }, { data: dBpicks }] = await Promise.all([
-      admin.from("fixtures").select("*").eq("phase", "groups"),
-      admin.from("predictions")
-        .select("quiniela_id, fixture_id, home_score_pred, away_score_pred, predicts_penalties, penalties_winner")
-        .in("quiniela_id", needsIds),
-      admin.from("bracket_picks")
-        .select("quiniela_id, slot_key, home_score_pred, away_score_pred, predicts_penalties, penalties_winner")
-        .in("quiniela_id", needsIds),
-    ])
+    const { data: finPicks } = await admin
+      .from("bracket_picks")
+      .select("quiniela_id, home_score_pred, away_score_pred, penalties_winner, home_team_name_pred, away_team_name_pred, home_team_flag_pred, away_team_flag_pred")
+      .eq("slot_key", "FIN")
+      .in("quiniela_id", needsIds)
 
-    const derivedMap = deriveChampions(
-      needsIds,
-      (gFixtures ?? []) as Fixture[],
-      (dPreds ?? []) as Parameters<typeof deriveChampions>[2],
-      (dBpicks ?? []) as Parameters<typeof deriveChampions>[3],
-    )
+    const finMap = new Map((finPicks ?? []).map(fp => [fp.quiniela_id, fp]))
 
     enrichedQuinielas = quinielas.map(q => {
       if (q.champion_team_name) return q
-      const d = derivedMap.get(q.id)
-      if (!d) return q
-      return { ...q, champion_team_name: d.name, champion_team_flag: d.flag }
+      const fp = finMap.get(q.id)
+      if (!fp || fp.home_score_pred == null || fp.away_score_pred == null) return q
+      const h = fp.home_score_pred, a = fp.away_score_pred, pw = fp.penalties_winner
+      let name: string | null = null, flag: string | null = null
+      if (h > a)              { name = fp.home_team_name_pred; flag = fp.home_team_flag_pred }
+      else if (a > h)         { name = fp.away_team_name_pred; flag = fp.away_team_flag_pred }
+      else if (pw === "home") { name = fp.home_team_name_pred; flag = fp.home_team_flag_pred }
+      else if (pw === "away") { name = fp.away_team_name_pred; flag = fp.away_team_flag_pred }
+      if (!name) return q
+      return { ...q, champion_team_name: name, champion_team_flag: flag }
     })
   }
 

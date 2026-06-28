@@ -721,6 +721,18 @@ export default function PredictionsEditor({
         { onConflict: "quiniela_id,slot_key" }
       )
       error = res.error
+      // When FIN pick changes, keep quinielas.champion_team_name in sync
+      if (!error && slot_key === "FIN") {
+        const pw = pred.penalties_winner || null
+        let champName: string | null = null, champFlag: string | null = null
+        if (h > a)              { champName = homeTeamName; champFlag = homeTeamFlag }
+        else if (a > h)         { champName = awayTeamName; champFlag = awayTeamFlag }
+        else if (pw === "home") { champName = homeTeamName; champFlag = homeTeamFlag }
+        else if (pw === "away") { champName = awayTeamName; champFlag = awayTeamFlag }
+        if (champName) {
+          await supabase.from("quinielas").update({ champion_team_name: champName, champion_team_flag: champFlag }).eq("id", quinielaId)
+        }
+      }
     } else {
       // Group fixture pick → predictions table
       const res = await supabase.from("predictions").upsert(
