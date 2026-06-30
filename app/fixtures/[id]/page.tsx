@@ -111,6 +111,9 @@ export default async function FixtureDetailPage({ params }: { params: Promise<{ 
 
   if (!fixtureRaw && !isBracketSlot) notFound()
 
+  // Show TBD header only when bracket slot has no real teams yet
+  const isBracketTBD = isBracketSlot && !fixtureRaw?.home_team_name
+
   const fixture = fixtureRaw as Fixture | null
 
   // Derive status before API calls so cache TTL can be set per match state.
@@ -214,7 +217,7 @@ export default async function FixtureDetailPage({ params }: { params: Promise<{ 
           className="rounded-2xl p-5 mb-6"
           style={{ background: "linear-gradient(135deg, #0d1f11, #152a1a)", border: "1px solid #2a5438" }}
         >
-          {isBracketSlot ? (
+          {isBracketTBD ? (
             <div className="text-center py-4">
               <p className="text-white font-bold text-lg">{t("fixture_tbd")}</p>
               <p className="text-[#7ab88a] text-sm mt-1">

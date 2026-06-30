@@ -86,13 +86,31 @@ function direction(h: number | null, a: number | null): "home" | "draw" | "away"
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-function OutcomeChip({ dir, homeName, awayName }: { dir: "home" | "draw" | "away" | null; homeName: string; awayName: string }) {
+function OutcomeChip({ dir, homeName, awayName, isKnockout, predictsPenalties, penaltiesWinner }: {
+  dir: "home" | "draw" | "away" | null
+  homeName: string
+  awayName: string
+  isKnockout?: boolean
+  predictsPenalties?: boolean
+  penaltiesWinner?: string | null
+}) {
   if (!dir) return <span className="text-gray-400 text-xs">—</span>
-  if (dir === "draw") return (
-    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold bg-gray-100 text-gray-600">
-      Empate
-    </span>
-  )
+  if (dir === "draw") {
+    if (isKnockout && predictsPenalties && penaltiesWinner) {
+      const penTeam = penaltiesWinner === "home" ? homeName : awayName
+      const penDir  = penaltiesWinner === "home" ? "home" : "away"
+      return (
+        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold truncate max-w-[140px] ${penDir === "home" ? "bg-blue-50 text-blue-700" : "bg-green-50 text-green-700"}`}>
+          {penTeam} <span className="ml-1 text-[10px] opacity-70">(pens)</span>
+        </span>
+      )
+    }
+    return (
+      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold bg-gray-100 text-gray-600">
+        {isKnockout ? "Empate — sin penales" : "Empate"}
+      </span>
+    )
+  }
   const team = dir === "home" ? homeName : awayName
   return (
     <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold truncate max-w-[120px] ${dir === "home" ? "bg-blue-50 text-blue-700" : "bg-green-50 text-green-700"}`}>
@@ -214,6 +232,7 @@ function PredictionsTable({ predictions, fixture, isFinished }: {
 }) {
   const homeName = fixture.home_team_name ?? "Local"
   const awayName = fixture.away_team_name ?? "Visitante"
+  const isKnockout = fixture.phase !== "groups"
 
   return (
     <>
@@ -254,7 +273,7 @@ function PredictionsTable({ predictions, fixture, isFinished }: {
                     )}
                   </td>
                   <td className="px-3 py-2">
-                    <OutcomeChip dir={dir} homeName={homeName} awayName={awayName} />
+                    <OutcomeChip dir={dir} homeName={homeName} awayName={awayName} isKnockout={isKnockout} predictsPenalties={p.predictsPenalties} penaltiesWinner={p.penaltiesWinner} />
                   </td>
                   {isFinished && (
                     <td className="px-3 py-2 text-center">
@@ -408,6 +427,7 @@ export default function MatchPredictionsPanel({
     if (!matchData) return null
     const { predictions, fixture } = matchData
     const withScore = predictions.filter(p => p.homeScorePred !== null && p.awayScorePred !== null)
+    const isKnockout = fixture.phase !== "groups"
     let home = 0, draw = 0, away = 0
     const counts: Record<string, number> = {}
     for (const p of withScore) {
@@ -416,6 +436,8 @@ export default function MatchPredictionsPanel({
       const d = direction(p.homeScorePred, p.awayScorePred)
       if (d === "home") home++
       else if (d === "away") away++
+      else if (isKnockout && p.predictsPenalties && p.penaltiesWinner === "home") home++
+      else if (isKnockout && p.predictsPenalties && p.penaltiesWinner === "away") away++
       else draw++
     }
     const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]

@@ -14,6 +14,8 @@ export interface RecentFixtureItem {
   away_score: number | null
   went_to_penalties: boolean | null
   penalties_winner: string | null
+  penalty_home: number | null
+  penalty_away: number | null
   status?: string | null
   elapsed?: number | null
   kickoff?: string | null
@@ -70,6 +72,12 @@ function ResultCard({ f }: { f: RecentFixtureItem }) {
             </span>
           )}
           <span>{f.home_score ?? "–"}–{f.away_score ?? "–"}</span>
+          {f.went_to_penalties && f.penalties_winner && (
+            <span className="text-[8px] font-bold leading-tight" style={{ color: "#92400e" }}>
+              {f.penalties_winner === "home" ? f.home_team_name : f.away_team_name}
+              {f.penalty_home != null ? ` ${f.penalty_home}–${f.penalty_away}` : ""} pens
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-1.5 flex-1 min-w-0">
           <span className="text-xs font-semibold truncate" style={{ color: "#1f2937" }}>

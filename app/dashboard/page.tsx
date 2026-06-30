@@ -250,7 +250,7 @@ export default async function DashboardPage() {
   const [{ data: recentFixturesRaw }, { data: upcomingFixturesRaw }, { data: allFixturesRaw }, { data: lastSyncRow }] = await Promise.all([
     supabase
       .from("fixtures")
-      .select("id, home_team_name, away_team_name, home_team_flag, away_team_flag, home_score, away_score, kickoff, went_to_penalties, penalties_winner, status, elapsed")
+      .select("id, home_team_name, away_team_name, home_team_flag, away_team_flag, home_score, away_score, kickoff, went_to_penalties, penalties_winner, penalty_home, penalty_away, status, elapsed")
       .in("status", ["finished", "live"])
       .order("kickoff", { ascending: false })
       .limit(12),
