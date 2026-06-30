@@ -319,7 +319,7 @@ function PredictionsTable({ predictions, fixture, isFinished }: {
                 ) : (
                   <span className="text-gray-400 text-sm">—</span>
                 )}
-                <OutcomeChip dir={dir} homeName={homeName} awayName={awayName} />
+                <OutcomeChip dir={dir} homeName={homeName} awayName={awayName} isKnockout={isKnockout} predictsPenalties={p.predictsPenalties} penaltiesWinner={p.penaltiesWinner} />
               </div>
             </div>
           )
