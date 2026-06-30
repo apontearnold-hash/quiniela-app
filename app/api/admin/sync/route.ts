@@ -313,6 +313,11 @@ export async function POST() {
         await admin.from("fixtures").delete().eq("id", f.fixture.id)
         mergedKnockout++
       }
+
+      // Clean up any real-ID knockout rows that were inserted by the main upsert
+      // but have null team names (API ghost fixtures with TBD/missing team data).
+      // These can't be matched to synthetic slots and would appear as blank cards in the UI.
+      await admin.from("fixtures").delete().lt("id", 9000000).is("home_team_name", null)
     }
 
     // Desglose por fase para diagnóstico (visible en la UI y en Network tab)

@@ -225,7 +225,8 @@ function Ticker<T extends { id: string }>({
 // ── Public exports ────────────────────────────────────────────────────────
 
 export function RecentFixtureTicker({ items }: { items: RecentFixtureItem[] }) {
-  return <Ticker items={items} renderCard={f => <ResultCard f={f} />} />
+  const filtered = items.filter(f => f.home_team_name && f.away_team_name)
+  return <Ticker items={filtered} renderCard={f => <ResultCard f={f} />} />
 }
 
 export function UpcomingFixtureTicker({ items }: { items: UpcomingFixtureItem[] }) {
