@@ -53,9 +53,9 @@ export function calculatePredictionScore(
     predWinner = 'home'
   } else if (away_score_pred > home_score_pred) {
     predWinner = 'away'
-  } else if (fixture.went_to_penalties && prediction.predicts_penalties && prediction.penalties_winner === 'home') {
+  } else if (prediction.predicts_penalties && prediction.penalties_winner === 'home') {
     predWinner = 'home'
-  } else if (fixture.went_to_penalties && prediction.predicts_penalties && prediction.penalties_winner === 'away') {
+  } else if (prediction.predicts_penalties && prediction.penalties_winner === 'away') {
     predWinner = 'away'
   } else {
     predWinner = 'draw'

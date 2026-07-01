@@ -152,16 +152,22 @@ export async function recalculateAllPoints(
       }
       const hPred = pick.home_score_pred, aPred = pick.away_score_pred
       const actualH = fixture.home_score!, actualA = fixture.away_score!
-      const predDir = hPred > aPred ? "home" : aPred > hPred ? "away" : "draw"
-      const actualDir = actualH > actualA ? "home" : actualA > actualH ? "away" : "draw"
-      let correctWinner = false
-      if (predDir === actualDir) {
-        if (predDir !== "draw") {
-          correctWinner = true
-        } else if (fixture.went_to_penalties && pick.penalties_winner) {
-          correctWinner = pick.penalties_winner === fixture.penalties_winner
-        }
-      }
+
+      let predDir: "home" | "away" | "draw"
+      if (hPred > aPred) predDir = "home"
+      else if (aPred > hPred) predDir = "away"
+      else if (pick.predicts_penalties && pick.penalties_winner === "home") predDir = "home"
+      else if (pick.predicts_penalties && pick.penalties_winner === "away") predDir = "away"
+      else predDir = "draw"
+
+      let actualDir: "home" | "away" | "draw"
+      if (actualH > actualA) actualDir = "home"
+      else if (actualA > actualH) actualDir = "away"
+      else if (fixture.went_to_penalties && fixture.penalties_winner === "home") actualDir = "home"
+      else if (fixture.went_to_penalties && fixture.penalties_winner === "away") actualDir = "away"
+      else actualDir = "draw"
+
+      const correctWinner = predDir === actualDir && predDir !== "draw"
       scoredPicks.push({
         id: pick.id, quiniela_id: pick.quiniela_id,
         points_earned: correctWinner ? 3 * multiplier : 0,
