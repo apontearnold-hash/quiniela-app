@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server"
 import { createClient, createAdminClient } from "@/lib/supabase-server"
 import { apiFetch, mapStatus, writeLog, LEAGUE_ID, SEASON, type FixtureAPIResponse } from "@/lib/api-football"
+import { getPhaseFromRound } from "@/lib/scoring"
 import { recalculateAllPoints } from "@/lib/recalculate"
-import { recalculateGroupStandings } from "@/lib/bracket"
+import { recalculateGroupStandings, fillGroupAdvancers, assignBest3rd, advanceKnockout } from "@/lib/bracket"
 
 // ── POST: actualiza scores y status de partidos ya importados ─────────────
 //
@@ -69,16 +70,25 @@ export async function POST() {
     return NextResponse.json({ message: "Sin partidos en curso o terminados aún", count: 0 })
   }
 
-  // 3. Upsert solo los campos de resultado
-  //    onConflict: "id" + solo los campos del objeto → solo esos campos se actualizan.
-  //    Los campos omitidos (home_team_name, kickoff, venue_name, etc.) NO se tocan.
+  // Group-stage fixtures use id === api_fixture_id → safe to upsert directly.
+  // Knockout-stage fixtures live at a synthetic id (>= 9000000) — upserting
+  // them by raw API id creates a duplicate "ghost" row (null team/kickoff/phase,
+  // real score/status) that the dashboard ticker sorts ahead of real results
+  // (NULL kickoff sorts first in `order by kickoff desc`). Never do that here;
+  // knockout results are only ever written into the matching synthetic slot.
+  const playedGroups   = played.filter(f => getPhaseFromRound(f.league?.round ?? "") === "groups")
+  const playedKnockout = played.filter(f => getPhaseFromRound(f.league?.round ?? "") !== "groups")
+
   const admin = createAdminClient()
   const BATCH = 50
   let updated = 0
 
   try {
-    for (let i = 0; i < played.length; i += BATCH) {
-      const batch = played.slice(i, i + BATCH)
+    // 3. Upsert solo los campos de resultado de partidos de GRUPOS
+    //    onConflict: "id" + solo los campos del objeto → solo esos campos se actualizan.
+    //    Los campos omitidos (home_team_name, kickoff, venue_name, etc.) NO se tocan.
+    for (let i = 0; i < playedGroups.length; i += BATCH) {
+      const batch = playedGroups.slice(i, i + BATCH)
       const rows = batch.map((f) => {
         const penHome = f.score?.penalty?.home ?? null
         const penAway = f.score?.penalty?.away ?? null
@@ -123,59 +133,90 @@ export async function POST() {
     }
 
     // ── Propagate scores to synthetic knockout slots ─────────────────────
-    // Synthetic slots (id >= 9000000) store api_fixture_id once matched by
-    // sync/route.ts. Update them so advance-bracket and recalculate see real scores.
-    const playedIds = played.map(f => f.fixture.id)
-    if (playedIds.length > 0) {
-      const { data: syntheticMatches } = await admin
+    // Match by api_fixture_id when already linked (previous sync), otherwise by
+    // confirmed home+away team ID pair (handles a knockout fixture appearing for
+    // the first time, e.g. once advanceKnockout below has filled a R16 slot's
+    // teams). Never insert by raw API id — see comment above.
+    let knockoutUpdated = 0
+    if (playedKnockout.length > 0) {
+      const { data: syntheticSlots } = await admin
         .from("fixtures")
-        .select("id, api_fixture_id")
+        .select("id, home_team_id, away_team_id, api_fixture_id")
         .gte("id", 9000000)
-        .not("api_fixture_id", "is", null)
-        .in("api_fixture_id", playedIds)
+        .not("bracket_position", "is", null)
 
-      if (syntheticMatches && syntheticMatches.length > 0) {
-        const apiMap = new Map<number, typeof played[0]>()
-        for (const f of played) apiMap.set(f.fixture.id, f)
+      const slotByApiId = new Map<number, number>()
+      const slotByTeams  = new Map<string, number>()
+      for (const s of syntheticSlots ?? []) {
+        if (s.api_fixture_id) slotByApiId.set(s.api_fixture_id, s.id)
+        if (s.home_team_id && s.away_team_id) slotByTeams.set(`${s.home_team_id}:${s.away_team_id}`, s.id)
+      }
 
-        await Promise.all(syntheticMatches.map(slot => {
-          const apiF = apiMap.get(slot.api_fixture_id!)
-          if (!apiF) return Promise.resolve()
-          const penHome = apiF.score?.penalty?.home ?? null
-          const penAway = apiF.score?.penalty?.away ?? null
-          return admin.from("fixtures").update({
-            status:       mapStatus(apiF.fixture.status.short),
-            status_short: apiF.fixture.status.short,
-            status_long:  apiF.fixture.status.long ?? null,
-            elapsed:      apiF.fixture.status.elapsed ?? null,
-            home_score:   apiF.goals?.home ?? null,
-            away_score:   apiF.goals?.away ?? null,
-            penalty_home: penHome,
-            penalty_away: penAway,
-            went_to_penalties: penHome !== null && penAway !== null,
-            penalties_winner:  penHome !== null && penAway !== null
-              ? penHome > penAway ? "home" : "away"
-              : null,
-            result_source: "api",
-            api_updated_at: apiF.fixture.timestamp
-              ? new Date(apiF.fixture.timestamp * 1000).toISOString()
-              : null,
-            updated_at: new Date().toISOString(),
-          }).eq("id", slot.id)
-        }))
+      for (const f of playedKnockout) {
+        let syntheticId = slotByApiId.get(f.fixture.id)
+        if (!syntheticId && f.teams.home.id > 0 && f.teams.away.id > 0) {
+          syntheticId = slotByTeams.get(`${f.teams.home.id}:${f.teams.away.id}`)
+        }
+        if (!syntheticId) continue // no matching synthetic slot yet — nothing to write
+
+        const penHome = f.score?.penalty?.home ?? null
+        const penAway = f.score?.penalty?.away ?? null
+        const { error } = await admin.from("fixtures").update({
+          api_fixture_id: f.fixture.id,
+          status:       mapStatus(f.fixture.status.short),
+          status_short: f.fixture.status.short,
+          status_long:  f.fixture.status.long ?? null,
+          elapsed:      f.fixture.status.elapsed ?? null,
+          home_score:   f.goals?.home ?? null,
+          away_score:   f.goals?.away ?? null,
+          penalty_home: penHome,
+          penalty_away: penAway,
+          went_to_penalties: penHome !== null && penAway !== null,
+          penalties_winner:  penHome !== null && penAway !== null
+            ? penHome > penAway ? "home" : "away"
+            : null,
+          result_source: "api",
+          api_updated_at: f.fixture.timestamp
+            ? new Date(f.fixture.timestamp * 1000).toISOString()
+            : null,
+          updated_at: new Date().toISOString(),
+        }).eq("id", syntheticId)
+        if (error) throw new Error(`Error de Supabase al actualizar slot de eliminatoria: ${error.message}`)
+        knockoutUpdated++
       }
     }
+    updated += knockoutUpdated
 
     const baseMsg = `✅ ${updated} resultados actualizados`
 
-    // ── Recalculate group standings after updating fixtures ──────────────
-    // Must run before recalculateAllPoints so the groups table is fresh.
+    // ── Recalculate group standings + advance bracket ────────────────────
+    // Must run before recalculateAllPoints so groups/fixtures are fresh.
+    // advanceKnockout writes the real winner into the next round's synthetic
+    // slot (R32 → R16 → QF → SF → FIN) — without this, finished knockout
+    // fixtures never propagate and the next round stays on placeholders.
     let standingsError: string | null = null
+    let bracketAdvanced = 0
     try {
-      await recalculateGroupStandings(admin)
+      const standings = await recalculateGroupStandings(admin)
+      const groupFilled   = await fillGroupAdvancers(admin, standings)
+      const best3rdFilled = await assignBest3rd(admin, standings)
+      const knockoutAdvanced = await advanceKnockout(admin)
+      bracketAdvanced = groupFilled + best3rdFilled + knockoutAdvanced
     } catch (err) {
       standingsError = err instanceof Error ? err.message : String(err)
-      console.error("[sync/results] Standings recalculation failed:", standingsError)
+      console.error("[sync/results] Standings/bracket recalculation failed:", standingsError)
+    }
+
+    // ── Safety net: remove any stray real-ID knockout rows with null team
+    // names among the fixtures we just processed (defense in depth — mirrors
+    // the cleanup in app/api/admin/sync/route.ts). Scoped to only the ids we
+    // touched this run, never a blanket delete.
+    if (playedKnockout.length > 0) {
+      await admin
+        .from("fixtures")
+        .delete()
+        .in("id", playedKnockout.map(f => f.fixture.id))
+        .is("home_team_name", null)
     }
 
     // ── Recalculate all prediction scores after updating fixtures ────────
@@ -189,7 +230,7 @@ export async function POST() {
     }
 
     const msg = scoreResult
-      ? `${baseMsg} · standings actualizados · ${scoreResult.predictions} predicciones y ${scoreResult.quinielas} quinielas recalculadas`
+      ? `${baseMsg} · standings actualizados · bracket: ${bracketAdvanced} avances · ${scoreResult.predictions} predicciones y ${scoreResult.quinielas} quinielas recalculadas`
       : standingsError
         ? `${baseMsg} · standings error: ${standingsError}`
         : baseMsg
@@ -198,6 +239,7 @@ export async function POST() {
     return NextResponse.json({
       message: msg,
       count: updated,
+      bracketAdvanced,
       ...(scoreResult && { scored: scoreResult }),
       ...(scoreError && { scoreError }),
       ...(standingsError && { standingsError }),

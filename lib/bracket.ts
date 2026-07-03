@@ -379,20 +379,26 @@ export async function assignBest3rd(
 export async function advanceKnockout(supabase: SupabaseClient) {
   // Bracket advancement map: bracket_position → [nextFixturePosition, side]
   // "side" is "home" or "away" in the next fixture
+  // Kept in sync with lib/bracket-slots.ts (home_placeholder/away_placeholder per
+  // slot). R16-01, R16-06 and R16-08 were fixed there on 2026-06-28 (commit
+  // bc3396f, validated against FIFA.com M89/M94/M96) but this map was never
+  // updated to match — re-verified against live API-Football R16 fixtures
+  // (2026-07-03): Paraguay/France, Canada/Morocco, Brazil/Norway, Mexico/England,
+  // Portugal/Spain, USA/Belgium all confirmed exact team + home/away side.
   const ADVANCE: Record<string, { next: string; side: "home" | "away" }> = {
     "R32-01": { next: "R16-02", side: "home" },
-    "R32-02": { next: "R16-01", side: "home" },
+    "R32-02": { next: "R16-06", side: "home" },
     "R32-03": { next: "R16-02", side: "away" },
     "R32-04": { next: "R16-03", side: "home" },
-    "R32-05": { next: "R16-01", side: "away" },
+    "R32-05": { next: "R16-01", side: "home" },
     "R32-06": { next: "R16-03", side: "away" },
     "R32-07": { next: "R16-04", side: "home" },
     "R32-08": { next: "R16-04", side: "away" },
-    "R32-09": { next: "R16-06", side: "home" },
-    "R32-10": { next: "R16-06", side: "away" },
+    "R32-09": { next: "R16-06", side: "away" },
+    "R32-10": { next: "R16-08", side: "home" },
     "R32-11": { next: "R16-05", side: "home" },
     "R32-12": { next: "R16-05", side: "away" },
-    "R32-13": { next: "R16-08", side: "home" },
+    "R32-13": { next: "R16-01", side: "away" },
     "R32-14": { next: "R16-07", side: "home" },
     "R32-15": { next: "R16-08", side: "away" },
     "R32-16": { next: "R16-07", side: "away" },
