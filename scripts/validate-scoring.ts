@@ -1,6 +1,7 @@
 // npx tsx scripts/validate-scoring.ts
 import { calculatePredictionScore } from '../lib/scoring'
-import type { Fixture, Prediction } from '../lib/types'
+import { scoreBracketPick } from '../lib/recalculate'
+import type { Fixture, Prediction, BracketPick } from '../lib/types'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -26,6 +27,23 @@ function pred(overrides: Partial<Prediction>): Prediction {
     ...overrides,
   } as Prediction
 }
+
+function pick(overrides: Partial<BracketPick>): BracketPick {
+  return {
+    id: 'test-pick', quiniela_id: 'q1', slot_key: 'R16-01',
+    home_score_pred: null, away_score_pred: null,
+    predicts_penalties: false, penalties_winner: null,
+    points_earned: 0,
+    home_team_id_pred: null, away_team_id_pred: null,
+    home_team_name_pred: null, away_team_name_pred: null,
+    home_team_flag_pred: null, away_team_flag_pred: null,
+    created_at: '', updated_at: '',
+    ...overrides,
+  } as BracketPick
+}
+
+// Team IDs used across the eliminated-team (mismatch) cases below.
+const GERMANY = 101, FRANCE = 102, PARAGUAY = 103, SWEDEN = 104
 
 interface Case {
   label: string
@@ -154,6 +172,94 @@ const cases: Case[] = [
   },
 ]
 
+interface PickCase {
+  label: string
+  fixture: Fixture
+  pick: BracketPick
+  expectedPoints: number
+  expectedExact: boolean
+  expectedWinner: boolean
+}
+
+// ── Eliminated-team (mismatch) cases A–E ────────────────────────────────────────
+// A predicted team can be eliminated before its fixture, but the *other*
+// predicted team can still score points if it plays the real match. A pick
+// never transfers to whoever eliminated the predicted team (Germany's slot
+// does NOT become Paraguay's slot just because Paraguay beat Germany).
+
+const pickCases: PickCase[] = [
+  {
+    label: 'A · R16 · Germany 0–1 France pred, real Paraguay 0–1 France → exact 5×3 = 15',
+    fixture: fixture({
+      phase: 'round_of_16', bracket_position: 'R16-01',
+      home_team_id: PARAGUAY, away_team_id: FRANCE,
+      home_score: 0, away_score: 1,
+    }),
+    pick: pick({
+      slot_key: 'R16-01',
+      home_team_id_pred: GERMANY, away_team_id_pred: FRANCE,
+      home_score_pred: 0, away_score_pred: 1,
+    }),
+    expectedPoints: 15, expectedExact: true, expectedWinner: true,
+  },
+  {
+    label: 'B · R16 · Germany 1–2 France pred, real Paraguay 0–1 France → winner-only 3×3 = 9',
+    fixture: fixture({
+      phase: 'round_of_16', bracket_position: 'R16-01',
+      home_team_id: PARAGUAY, away_team_id: FRANCE,
+      home_score: 0, away_score: 1,
+    }),
+    pick: pick({
+      slot_key: 'R16-01',
+      home_team_id_pred: GERMANY, away_team_id_pred: FRANCE,
+      home_score_pred: 1, away_score_pred: 2,
+    }),
+    expectedPoints: 9, expectedExact: false, expectedWinner: true,
+  },
+  {
+    label: 'C · R16 · Germany 2–1 Sweden pred, real Paraguay 0–1 France → 0 (no transfer to Paraguay)',
+    fixture: fixture({
+      phase: 'round_of_16', bracket_position: 'R16-01',
+      home_team_id: PARAGUAY, away_team_id: FRANCE,
+      home_score: 0, away_score: 1,
+    }),
+    pick: pick({
+      slot_key: 'R16-01',
+      home_team_id_pred: GERMANY, away_team_id_pred: SWEDEN,
+      home_score_pred: 2, away_score_pred: 1,
+    }),
+    expectedPoints: 0, expectedExact: false, expectedWinner: false,
+  },
+  {
+    label: 'D · R16 · Germany 0–1 France pred, real France 1–0 Paraguay (side swap) → exact 5×3 = 15',
+    fixture: fixture({
+      phase: 'round_of_16', bracket_position: 'R16-01',
+      home_team_id: FRANCE, away_team_id: PARAGUAY,
+      home_score: 1, away_score: 0,
+    }),
+    pick: pick({
+      slot_key: 'R16-01',
+      home_team_id_pred: GERMANY, away_team_id_pred: FRANCE,
+      home_score_pred: 0, away_score_pred: 1,
+    }),
+    expectedPoints: 15, expectedExact: true, expectedWinner: true,
+  },
+  {
+    label: 'E · R16 · Germany 0–1 France pred, real France 2–0 Paraguay (side swap) → winner-only 3×3 = 9',
+    fixture: fixture({
+      phase: 'round_of_16', bracket_position: 'R16-01',
+      home_team_id: FRANCE, away_team_id: PARAGUAY,
+      home_score: 2, away_score: 0,
+    }),
+    pick: pick({
+      slot_key: 'R16-01',
+      home_team_id_pred: GERMANY, away_team_id_pred: FRANCE,
+      home_score_pred: 0, away_score_pred: 1,
+    }),
+    expectedPoints: 9, expectedExact: false, expectedWinner: true,
+  },
+]
+
 // ── Runner ─────────────────────────────────────────────────────────────────────
 
 let passed = 0
@@ -174,6 +280,25 @@ for (const c of cases) {
     failed++
     console.log(`${status} ${c.label}`)
     console.log(`     Got: points=${r.points}, exact=${r.breakdown.exact}, winner=${r.breakdown.correctWinner}`)
+    console.log(`  Expect: points=${c.expectedPoints}, exact=${c.expectedExact}, winner=${c.expectedWinner}`)
+  }
+}
+
+for (const c of pickCases) {
+  const r = scoreBracketPick(c.fixture, c.pick)
+  const ok =
+    r.points === c.expectedPoints &&
+    r.exact === c.expectedExact &&
+    r.correctWinner === c.expectedWinner
+
+  const status = ok ? '✅' : '❌'
+  if (ok) {
+    passed++
+    console.log(`${status} ${c.label}`)
+  } else {
+    failed++
+    console.log(`${status} ${c.label}`)
+    console.log(`     Got: points=${r.points}, exact=${r.exact}, winner=${r.correctWinner}`)
     console.log(`  Expect: points=${c.expectedPoints}, exact=${c.expectedExact}, winner=${c.expectedWinner}`)
   }
 }

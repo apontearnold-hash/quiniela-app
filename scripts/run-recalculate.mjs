@@ -1,9 +1,35 @@
 // Runs recalculateAllPoints + recalculateGroupStandings directly via Supabase admin.
 // READ-WRITE: updates points/correct_winners/exact_results in DB.
 import { createClient } from "@supabase/supabase-js"
+import { readFileSync } from "fs"
+import { join, dirname } from "path"
+import { fileURLToPath } from "url"
 
-const SUPABASE_URL = "https://rcwznejeemdhfqnmedxc.supabase.co"
-const SERVICE_KEY  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJjd3puZWplZW1kaGZxbm1lZHhjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTE2MDQ4MiwiZXhwIjoyMDkwNzM2NDgyfQ.LESlAfGJLV9oPTZ0fmD3UM66MHTz5hkUJKBeftGYDoY"
+const __dir = dirname(fileURLToPath(import.meta.url))
+const envPath = join(__dir, "..", ".env.local")
+
+let SUPABASE_URL = null
+let SERVICE_KEY  = null
+
+try {
+  const lines = readFileSync(envPath, "utf8").split("\n")
+  for (const line of lines) {
+    const trimmed = line.trim()
+    if (!trimmed || trimmed.startsWith("#") || !trimmed.includes("=")) continue
+    const [k, ...rest] = trimmed.split("=")
+    const key = k.trim()
+    const val = rest.join("=").trim().replace(/^["']|["']$/g, "")
+    if (key === "NEXT_PUBLIC_SUPABASE_URL")  SUPABASE_URL = val
+    if (key === "SUPABASE_SERVICE_ROLE_KEY") SERVICE_KEY  = val
+  }
+} catch {
+  console.error("❌  No se pudo leer .env.local"); process.exit(1)
+}
+
+if (!SUPABASE_URL || !SERVICE_KEY) {
+  console.error("❌  Faltan NEXT_PUBLIC_SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY en .env.local")
+  process.exit(1)
+}
 
 const admin = createClient(SUPABASE_URL, SERVICE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false }
@@ -139,14 +165,40 @@ async function main() {
       const r = calculatePredictionScore(fixture, synth)
       scoredPicks.push({ id: pick.id, quiniela_id: pick.quiniela_id, points_earned: r.points, exact: r.breakdown.exact, winner: r.breakdown.correctWinner })
     } else {
+      // Teams differ: check predicted winner ID. Exact is still possible even
+      // though a team was eliminated: compare goals from the winner/loser
+      // perspective (not literal home/away), since the surviving team's side
+      // can flip between prediction and fixture.
       if (pick.home_score_pred == null || pick.away_score_pred == null) { scoredPicks.push({ id: pick.id, quiniela_id: pick.quiniela_id, points_earned: 0, exact: false, winner: false }); continue }
+      const hPred = pick.home_score_pred, aPred = pick.away_score_pred
       let predictedWinnerId = null
-      if (pick.home_score_pred > pick.away_score_pred)         predictedWinnerId = pick.home_team_id_pred
-      else if (pick.away_score_pred > pick.home_score_pred)    predictedWinnerId = pick.away_team_id_pred
-      else if (pick.penalties_winner === "home")               predictedWinnerId = pick.home_team_id_pred
-      else if (pick.penalties_winner === "away")               predictedWinnerId = pick.away_team_id_pred
+      let predWinnerGoals = 0
+      let predLoserGoals = 0
+      if (hPred > aPred) {
+        predictedWinnerId = pick.home_team_id_pred
+        predWinnerGoals = hPred; predLoserGoals = aPred
+      } else if (aPred > hPred) {
+        predictedWinnerId = pick.away_team_id_pred
+        predWinnerGoals = aPred; predLoserGoals = hPred
+      } else if (pick.penalties_winner === "home") {
+        predictedWinnerId = pick.home_team_id_pred
+        predWinnerGoals = hPred; predLoserGoals = aPred
+      } else if (pick.penalties_winner === "away") {
+        predictedWinnerId = pick.away_team_id_pred
+        predWinnerGoals = aPred; predLoserGoals = hPred
+      }
+
       const cw = predictedWinnerId != null && predictedWinnerId === actualWinnerId
-      scoredPicks.push({ id: pick.id, quiniela_id: pick.quiniela_id, points_earned: cw ? 3 * multiplier : 0, exact: false, winner: cw })
+      let exact = false
+      if (cw) {
+        const actualH = fixture.home_score, actualA = fixture.away_score
+        const winnerIsHome = actualWinnerId === fixture.home_team_id
+        const actualWinnerGoals = winnerIsHome ? actualH : actualA
+        const actualLoserGoals  = winnerIsHome ? actualA : actualH
+        exact = predWinnerGoals === actualWinnerGoals && predLoserGoals === actualLoserGoals
+      }
+
+      scoredPicks.push({ id: pick.id, quiniela_id: pick.quiniela_id, points_earned: cw ? (exact ? 5 : 3) * multiplier : 0, exact, winner: cw })
     }
   }
 

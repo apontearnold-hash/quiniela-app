@@ -121,16 +121,40 @@ function scorePick(fixture, pick) {
   if (teamsMatch) {
     return scorePrediction(fixture, pick)
   }
-  // Teams differ: check predicted winner ID
+  // Teams differ: check predicted winner ID. Exact is still possible even
+  // though a team was eliminated: compare goals from the winner/loser
+  // perspective (not literal home/away), since the surviving team's side
+  // can flip between prediction and fixture.
   if (pick.home_score_pred == null || pick.away_score_pred == null) return { points: 0, exact: false, winner: false }
   const hPred = pick.home_score_pred, aPred = pick.away_score_pred
   let predictedWinnerId = null
-  if (hPred > aPred) predictedWinnerId = pick.home_team_id_pred
-  else if (aPred > hPred) predictedWinnerId = pick.away_team_id_pred
-  else if (pick.penalties_winner === 'home') predictedWinnerId = pick.home_team_id_pred
-  else if (pick.penalties_winner === 'away') predictedWinnerId = pick.away_team_id_pred
+  let predWinnerGoals = 0
+  let predLoserGoals = 0
+  if (hPred > aPred) {
+    predictedWinnerId = pick.home_team_id_pred
+    predWinnerGoals = hPred; predLoserGoals = aPred
+  } else if (aPred > hPred) {
+    predictedWinnerId = pick.away_team_id_pred
+    predWinnerGoals = aPred; predLoserGoals = hPred
+  } else if (pick.penalties_winner === 'home') {
+    predictedWinnerId = pick.home_team_id_pred
+    predWinnerGoals = hPred; predLoserGoals = aPred
+  } else if (pick.penalties_winner === 'away') {
+    predictedWinnerId = pick.away_team_id_pred
+    predWinnerGoals = aPred; predLoserGoals = hPred
+  }
+
   const cw = predictedWinnerId != null && predictedWinnerId === actualWinnerId
-  return { points: cw ? 3 * multiplier : 0, exact: false, winner: cw }
+  let exact = false
+  if (cw) {
+    const actualH = fixture.home_score, actualA = fixture.away_score
+    const winnerIsHome = actualWinnerId === fixture.home_team_id
+    const actualWinnerGoals = winnerIsHome ? actualH : actualA
+    const actualLoserGoals  = winnerIsHome ? actualA : actualH
+    exact = predWinnerGoals === actualWinnerGoals && predLoserGoals === actualLoserGoals
+  }
+
+  return { points: cw ? (exact ? 5 : 3) * multiplier : 0, exact, winner: cw }
 }
 
 async function main() {
