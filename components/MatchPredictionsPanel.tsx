@@ -230,8 +230,12 @@ function PredictionsTable({ predictions, fixture, isFinished }: {
   fixture: MatchFixture
   isFinished: boolean
 }) {
-  const homeName = fixture.home_team_name ?? "Local"
-  const awayName = fixture.away_team_name ?? "Visitante"
+  // Fallback names for the fixture header / summary bar — never used for a row's
+  // own "Apostó por" chip once that quiniela has its own saved team names, since
+  // an eliminated team a user picked must keep showing as that team, not the
+  // real one that actually advanced.
+  const fallbackHomeName = fixture.home_team_name ?? "Local"
+  const fallbackAwayName = fixture.away_team_name ?? "Visitante"
   const isKnockout = fixture.phase !== "groups"
 
   return (
@@ -253,6 +257,8 @@ function PredictionsTable({ predictions, fixture, isFinished }: {
           <tbody>
             {predictions.map((p, i) => {
               const dir = direction(p.homeScorePred, p.awayScorePred)
+              const rowHomeName = p.homeTeamNamePred ?? fallbackHomeName
+              const rowAwayName = p.awayTeamNamePred ?? fallbackAwayName
               return (
                 <tr
                   key={p.quinielaId}
@@ -273,7 +279,7 @@ function PredictionsTable({ predictions, fixture, isFinished }: {
                     )}
                   </td>
                   <td className="px-3 py-2">
-                    <OutcomeChip dir={dir} homeName={homeName} awayName={awayName} isKnockout={isKnockout} predictsPenalties={p.predictsPenalties} penaltiesWinner={p.penaltiesWinner} />
+                    <OutcomeChip dir={dir} homeName={rowHomeName} awayName={rowAwayName} isKnockout={isKnockout} predictsPenalties={p.predictsPenalties} penaltiesWinner={p.penaltiesWinner} />
                   </td>
                   {isFinished && (
                     <td className="px-3 py-2 text-center">
@@ -293,6 +299,8 @@ function PredictionsTable({ predictions, fixture, isFinished }: {
       <div className="sm:hidden space-y-2">
         {predictions.map(p => {
           const dir = direction(p.homeScorePred, p.awayScorePred)
+          const rowHomeName = p.homeTeamNamePred ?? fallbackHomeName
+          const rowAwayName = p.awayTeamNamePred ?? fallbackAwayName
           return (
             <div
               key={p.quinielaId}
@@ -319,7 +327,7 @@ function PredictionsTable({ predictions, fixture, isFinished }: {
                 ) : (
                   <span className="text-gray-400 text-sm">—</span>
                 )}
-                <OutcomeChip dir={dir} homeName={homeName} awayName={awayName} isKnockout={isKnockout} predictsPenalties={p.predictsPenalties} penaltiesWinner={p.penaltiesWinner} />
+                <OutcomeChip dir={dir} homeName={rowHomeName} awayName={rowAwayName} isKnockout={isKnockout} predictsPenalties={p.predictsPenalties} penaltiesWinner={p.penaltiesWinner} />
               </div>
             </div>
           )
