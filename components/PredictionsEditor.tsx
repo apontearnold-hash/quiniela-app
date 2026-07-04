@@ -243,9 +243,10 @@ function CompactGroupRow({ fixture, pred, isLocked, onUpdate, onSave }: {
 }
 
 // ── Bracket match card (knockout phases) ───────────────────────────────────────
-function BracketMatchCard({ fixture, pred, isLocked, proj, onUpdate, onSave }: {
+function BracketMatchCard({ fixture, pred, pick, isLocked, proj, onUpdate, onSave }: {
   fixture: Fixture
   pred: PredState
+  pick?: BracketPick
   isLocked: boolean
   proj?: ResolvedBracket[number]
   onUpdate: (id: number, field: keyof PredState, value: string | boolean) => void
@@ -258,12 +259,15 @@ function BracketMatchCard({ fixture, pred, isLocked, proj, onUpdate, onSave }: {
   const drawErr    = knockoutDrawError(fixture.phase, pred)
   const hasError   = drawErr !== null
 
-  const homeName   = fixture.home_team_name ?? proj?.homeName ?? fixture.home_placeholder ?? "TBD"
-  const awayName   = fixture.away_team_name ?? proj?.awayName ?? fixture.away_placeholder ?? "TBD"
-  const homeFlag   = fixture.home_team_flag ?? proj?.homeFlag ?? null
-  const awayFlag   = fixture.away_team_flag ?? proj?.awayFlag ?? null
-  const homeIsProj = !fixture.home_team_name && (proj?.homeIsProjected ?? true)
-  const awayIsProj = !fixture.away_team_name && (proj?.awayIsProjected ?? true)
+  // Priority: the user's own saved pick for this slot always wins — a team
+  // eliminated in real life must keep showing here until the user re-picks.
+  // Real fixture data is only a fallback for slots with no saved pick yet.
+  const homeName   = pick?.home_team_name_pred ?? proj?.homeName ?? fixture.home_team_name ?? fixture.home_placeholder ?? "TBD"
+  const awayName   = pick?.away_team_name_pred ?? proj?.awayName ?? fixture.away_team_name ?? fixture.away_placeholder ?? "TBD"
+  const homeFlag   = pick?.home_team_flag_pred ?? proj?.homeFlag ?? fixture.home_team_flag ?? null
+  const awayFlag   = pick?.away_team_flag_pred ?? proj?.awayFlag ?? fixture.away_team_flag ?? null
+  const homeIsProj = !pick?.home_team_name_pred && !fixture.home_team_name && (proj?.homeIsProjected ?? true)
+  const awayIsProj = !pick?.away_team_name_pred && !fixture.away_team_name && (proj?.awayIsProjected ?? true)
 
   const truncate = (s: string, n: number) => s.length > n ? s.slice(0, n - 1) + "…" : s
 
@@ -386,9 +390,7 @@ function BracketMatchCard({ fixture, pred, isLocked, proj, onUpdate, onSave }: {
                   fontWeight: pred?.penalties_winner === side ? 700 : 500,
                 }}
               >
-                {side === "home"
-                  ? truncate(fixture.home_team_name ?? homeName, 5)
-                  : truncate(fixture.away_team_name ?? awayName, 5)}
+                {side === "home" ? truncate(homeName, 5) : truncate(awayName, 5)}
               </button>
             ))}
           </div>
@@ -399,9 +401,7 @@ function BracketMatchCard({ fixture, pred, isLocked, proj, onUpdate, onSave }: {
       {isDraw && !editable && pred?.penalties_winner && (
         <div className="pt-1 mt-0.5 border-t border-[#2a5438] text-center text-[10px]"
           style={{ color: "#F5C518" }}>
-          🥅 {pred.penalties_winner === "home"
-            ? truncate(fixture.home_team_name ?? homeName, 10)
-            : truncate(fixture.away_team_name ?? awayName, 10)}
+          🥅 {pred.penalties_winner === "home" ? truncate(homeName, 10) : truncate(awayName, 10)}
         </div>
       )}
 
@@ -700,14 +700,18 @@ export default function PredictionsEditor({
         setPreds(prev => ({ ...prev, [fixture.id]: { ...prev[fixture.id], saving: false, error: "Slot inválido" } }))
         return
       }
-      // Capture team IDs: prefer real fixture IDs, fall back to projected
+      // Preserve the user's already-saved predicted team — never replace it with
+      // the real fixture's team once eliminated in real life. Only derive from
+      // the real fixture/projection the first time this slot is saved (no
+      // existing pick yet).
+      const existing = existingBracketPicks[slot_key]
       const proj = projectedBracketRef.current[fixture.id]
-      const homeTeamId   = fixture.home_team_id   ?? proj?.homeId   ?? null
-      const awayTeamId   = fixture.away_team_id   ?? proj?.awayId   ?? null
-      const homeTeamName = fixture.home_team_name ?? proj?.homeName ?? null
-      const awayTeamName = fixture.away_team_name ?? proj?.awayName ?? null
-      const homeTeamFlag = fixture.home_team_flag ?? proj?.homeFlag ?? null
-      const awayTeamFlag = fixture.away_team_flag ?? proj?.awayFlag ?? null
+      const homeTeamId   = existing?.home_team_id_pred   ?? fixture.home_team_id   ?? proj?.homeId   ?? null
+      const awayTeamId   = existing?.away_team_id_pred   ?? fixture.away_team_id   ?? proj?.awayId   ?? null
+      const homeTeamName = existing?.home_team_name_pred ?? fixture.home_team_name ?? proj?.homeName ?? null
+      const awayTeamName = existing?.away_team_name_pred ?? fixture.away_team_name ?? proj?.awayName ?? null
+      const homeTeamFlag = existing?.home_team_flag_pred ?? fixture.home_team_flag ?? proj?.homeFlag ?? null
+      const awayTeamFlag = existing?.away_team_flag_pred ?? fixture.away_team_flag ?? proj?.awayFlag ?? null
       const res = await supabase.from("bracket_picks").upsert(
         {
           quiniela_id: quinielaId, slot_key,
@@ -743,7 +747,7 @@ export default function PredictionsEditor({
     }
 
     setPreds(prev => ({ ...prev, [fixture.id]: { ...prev[fixture.id], saving: false, saved: !error, error: error?.message ?? null } }))
-  }, [quinielaId, supabase])
+  }, [quinielaId, supabase, existingBracketPicks])
 
   // ── Save draft (bulk upsert — groups → predictions, knockout → bracket_picks) ─
   const saveAllPreds = useCallback(async () => {
@@ -789,17 +793,19 @@ export default function PredictionsEditor({
       if (isBracketSlotId(fixture.id)) {
         const slot_key = slotKeyById(fixture.id)
         if (!slot_key) continue
+        // Preserve the user's already-saved predicted team — see savePred above.
+        const existing = existingBracketPicks[slot_key]
         const proj = projBracket[fixture.id]
         bpRows.push({
           quiniela_id: quinielaId, slot_key,
           home_score_pred: h, away_score_pred: a,
           predicts_penalties: pred.predicts_penalties, penalties_winner: pred.penalties_winner || null,
-          home_team_id_pred:   fixture.home_team_id   ?? proj?.homeId   ?? null,
-          away_team_id_pred:   fixture.away_team_id   ?? proj?.awayId   ?? null,
-          home_team_name_pred: fixture.home_team_name ?? proj?.homeName ?? null,
-          away_team_name_pred: fixture.away_team_name ?? proj?.awayName ?? null,
-          home_team_flag_pred: fixture.home_team_flag ?? proj?.homeFlag ?? null,
-          away_team_flag_pred: fixture.away_team_flag ?? proj?.awayFlag ?? null,
+          home_team_id_pred:   existing?.home_team_id_pred   ?? fixture.home_team_id   ?? proj?.homeId   ?? null,
+          away_team_id_pred:   existing?.away_team_id_pred   ?? fixture.away_team_id   ?? proj?.awayId   ?? null,
+          home_team_name_pred: existing?.home_team_name_pred ?? fixture.home_team_name ?? proj?.homeName ?? null,
+          away_team_name_pred: existing?.away_team_name_pred ?? fixture.away_team_name ?? proj?.awayName ?? null,
+          home_team_flag_pred: existing?.home_team_flag_pred ?? fixture.home_team_flag ?? proj?.homeFlag ?? null,
+          away_team_flag_pred: existing?.away_team_flag_pred ?? fixture.away_team_flag ?? proj?.awayFlag ?? null,
           updated_at: new Date().toISOString(),
         })
       } else {
@@ -870,7 +876,7 @@ export default function PredictionsEditor({
       setDraftError(hasDrawErrors ? `${total} ${t("partial_saved")}` : null)
       setTimeout(() => setDraftResult(null), 4000)
     }
-  }, [quinielaId, supabase, allFixturesMerged])
+  }, [quinielaId, supabase, allFixturesMerged, existingBracketPicks])
 
   // ── Submit ───────────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
@@ -1206,6 +1212,7 @@ export default function PredictionsEditor({
                           key={f.id}
                           fixture={f}
                           pred={preds[f.id]}
+                          pick={existingBracketPicks[slotKeyById(f.id) ?? ""]}
                           isLocked={isFixtureLocked(f)}
                           proj={displayBracket[f.id]}
                           onUpdate={updatePred}
@@ -1242,6 +1249,7 @@ export default function PredictionsEditor({
                               key={f.id}
                               fixture={f}
                               pred={preds[f.id]}
+                              pick={existingBracketPicks[slotKeyById(f.id) ?? ""]}
                               isLocked={isFixtureLocked(f)}
                               proj={displayBracket[f.id]}
                               onUpdate={updatePred}
