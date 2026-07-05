@@ -53,6 +53,11 @@ interface FixtureRow {
   bracket_position: string | null
   home_placeholder: string | null
   away_placeholder: string | null
+  // Set once this slot is matched to a real API-Football fixture (lib/fixtures-sync.ts).
+  // A non-null value means this slot's teams are ground truth and must never be
+  // overwritten by a derived/projected assignment again (see fillGroupAdvancers,
+  // assignBest3rd, advanceKnockout).
+  api_fixture_id: number | null
 }
 
 // -------------------------------------------------------------------
@@ -219,6 +224,15 @@ export async function fillGroupAdvancers(
   const fixtures = r32Fixtures as FixtureRow[]
 
   for (const fixture of fixtures) {
+    // Once this slot is matched to a real API-Football fixture, its teams are
+    // ground truth — never let the group-placeholder projection touch them
+    // again. The static "1ro/2do Grupo X" mapping in bracket-slots.ts is a
+    // pre-tournament guess about which numbered slot hosts which group's
+    // winner; it can be wrong even when the group's own composition (which
+    // teams belong to it) is correct, and a confirmed real fixture always
+    // wins over a projection.
+    if (fixture.api_fixture_id) continue
+
     const updates: Partial<FixtureRow> = {}
     let changed = false
 
@@ -334,6 +348,7 @@ export async function assignBest3rd(
 
   for (const slot of slots) {
     if (slot.away_team_id) continue // Already filled
+    if (slot.api_fixture_id) continue // Real match already confirmed — never overwrite
     if (teamIdx >= best8.length) break
 
     // Try to match the team's group to the slot's pool if specified
@@ -440,13 +455,14 @@ export async function advanceKnockout(supabase: SupabaseClient) {
   // Fetch all fixtures with bracket positions (for the "next" lookup)
   const { data: allBracketFixtures, error: allErr } = await supabase
     .from("fixtures")
-    .select("id, bracket_position, home_team_id, away_team_id")
+    .select("id, bracket_position, home_team_id, away_team_id, api_fixture_id")
     .not("bracket_position", "is", null)
 
   if (allErr) throw new Error(`Fetch bracket fixtures: ${allErr.message}`)
 
-  const byPosition: Record<string, { id: number; home_team_id: number | null; away_team_id: number | null }> = {}
-  for (const f of allBracketFixtures as { id: number; bracket_position: string; home_team_id: number | null; away_team_id: number | null }[]) {
+  type BracketPositionRow = { id: number; home_team_id: number | null; away_team_id: number | null; api_fixture_id: number | null }
+  const byPosition: Record<string, BracketPositionRow> = {}
+  for (const f of allBracketFixtures as (BracketPositionRow & { bracket_position: string })[]) {
     byPosition[f.bracket_position] = f
   }
 
@@ -466,10 +482,13 @@ export async function advanceKnockout(supabase: SupabaseClient) {
   // ── Pass 1: clear downstream slots whose source is no longer finished ────────
   // This is what fixes the "cleared result leaves stale team in next round" bug.
   // We write null team fields to any slot whose feeder game has no result yet.
+  // Never touch a slot that's already matched to a real API-Football fixture
+  // (api_fixture_id set) — its teams are ground truth, not a projection.
   for (const [pos, advance] of Object.entries(ADVANCE)) {
     if (finishedPositions.has(pos)) continue
     const nextFixture = byPosition[advance.next]
     if (!nextFixture) continue
+    if (nextFixture.api_fixture_id) continue
     const clearData = advance.side === "home"
       ? { home_team_id: null, home_team_name: null, home_team_code: null, home_team_flag: null, updated_at: new Date().toISOString() }
       : { away_team_id: null, away_team_name: null, away_team_code: null, away_team_flag: null, updated_at: new Date().toISOString() }
@@ -482,6 +501,7 @@ export async function advanceKnockout(supabase: SupabaseClient) {
     if (finishedPositions.has(pos)) continue
     const thirdPlace = byPosition["3P"]
     if (!thirdPlace) continue
+    if (thirdPlace.api_fixture_id) continue
     const clearData = loserSide === "home"
       ? { home_team_id: null, home_team_name: null, home_team_code: null, home_team_flag: null, updated_at: new Date().toISOString() }
       : { away_team_id: null, away_team_name: null, away_team_code: null, away_team_flag: null, updated_at: new Date().toISOString() }
@@ -519,11 +539,16 @@ export async function advanceKnockout(supabase: SupabaseClient) {
       loserId  = fixture.home_team_id; loserName  = fixture.home_team_name; loserCode  = fixture.home_team_code; loserFlag  = fixture.home_team_flag
     }
 
-    // Advance winner to next round (always overwrite — Pass 1 already cleared stale slots)
+    // Advance winner to next round (always overwrite — Pass 1 already cleared stale
+    // slots). Skip if the next slot is already matched to a real API-Football
+    // fixture: that slot's teams are ground truth, and the static bracket-slots.ts
+    // mapping used to compute this "winner" projection can be wrong about which
+    // numbered slot a group/round winner actually lands in, even when the
+    // winner itself was correctly determined.
     const advance = ADVANCE[pos]
     if (advance) {
       const nextFixture = byPosition[advance.next]
-      if (nextFixture) {
+      if (nextFixture && !nextFixture.api_fixture_id) {
         const updateData = advance.side === "home"
           ? { home_team_id: winnerId, home_team_name: winnerName, home_team_code: winnerCode, home_team_flag: winnerFlag, updated_at: new Date().toISOString() }
           : { away_team_id: winnerId, away_team_name: winnerName, away_team_code: winnerCode, away_team_flag: winnerFlag, updated_at: new Date().toISOString() }
@@ -537,7 +562,7 @@ export async function advanceKnockout(supabase: SupabaseClient) {
     const loserSide = LOSER_TO_3P[pos]
     if (loserSide && loserId) {
       const thirdPlace = byPosition["3P"]
-      if (thirdPlace) {
+      if (thirdPlace && !thirdPlace.api_fixture_id) {
         const updateData = loserSide === "home"
           ? { home_team_id: loserId, home_team_name: loserName, home_team_code: loserCode, home_team_flag: loserFlag, updated_at: new Date().toISOString() }
           : { away_team_id: loserId, away_team_name: loserName, away_team_code: loserCode, away_team_flag: loserFlag, updated_at: new Date().toISOString() }
