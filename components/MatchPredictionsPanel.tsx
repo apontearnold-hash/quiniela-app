@@ -29,10 +29,14 @@ interface PredRow {
   pointsEarned: number
   homeTeamNamePred: string | null
   awayTeamNamePred: string | null
+  homeTeamIdPred: number | null
+  awayTeamIdPred: number | null
 }
 
 interface MatchFixture {
   id: number
+  home_team_id: number | null
+  away_team_id: number | null
   home_team_name: string | null
   away_team_name: string | null
   home_team_flag: string | null
@@ -171,17 +175,23 @@ function MatchHeader({ fixture }: { fixture: MatchFixture }) {
   )
 }
 
-function SummaryBar({ total, home, draw, away, homeName, awayName, mostCommon }: {
+function SummaryBar({ total, home, draw, away, eliminated, homeName, awayName, mostCommon }: {
   total: number
   home: number
   draw: number
   away: number
+  // Knockout-only: picks whose predicted winner is neither of the fixture's
+  // two real teams (the team they picked got eliminated before this slot).
+  // Counted on their own — never folded into home/away just because the
+  // predicted scoreline happened to lean that direction.
+  eliminated: number
   homeName: string
   awayName: string
   mostCommon: { score: string; count: number } | null
 }) {
   const pct = (n: number) => total > 0 ? Math.round((n / total) * 100) : 0
-  const hp = pct(home), dp = pct(draw), ap = pct(away)
+  const hp = pct(home), dp = pct(draw), ap = pct(away), elp = pct(eliminated)
+  const showEliminated = eliminated > 0
 
   return (
     <div className="rounded-xl border border-gray-100 bg-gray-50 overflow-hidden">
@@ -190,10 +200,11 @@ function SummaryBar({ total, home, draw, away, homeName, awayName, mostCommon }:
         <div className="bg-blue-400 transition-all" style={{ width: `${hp}%` }} />
         <div className="bg-gray-300 transition-all" style={{ width: `${dp}%` }} />
         <div className="bg-green-400 transition-all" style={{ width: `${ap}%` }} />
+        {showEliminated && <div className="bg-slate-400 transition-all" style={{ width: `${elp}%` }} />}
       </div>
 
-      {/* Three-column stats */}
-      <div className="grid grid-cols-3 divide-x divide-gray-200 text-center text-xs py-2.5">
+      {/* Column stats */}
+      <div className={`grid ${showEliminated ? "grid-cols-4" : "grid-cols-3"} divide-x divide-gray-200 text-center text-xs py-2.5`}>
         <div className="px-2">
           <div className="font-black text-blue-600 text-base leading-none">{home}</div>
           <div className="text-gray-500 mt-0.5 truncate px-1">{homeName}</div>
@@ -209,6 +220,13 @@ function SummaryBar({ total, home, draw, away, homeName, awayName, mostCommon }:
           <div className="text-gray-500 mt-0.5 truncate px-1">{awayName}</div>
           <div className="text-gray-400">{ap}%</div>
         </div>
+        {showEliminated && (
+          <div className="px-2">
+            <div className="font-black text-slate-500 text-base leading-none">{eliminated}</div>
+            <div className="text-gray-500 mt-0.5 truncate px-1">Equipo eliminado</div>
+            <div className="text-gray-400">{elp}%</div>
+          </div>
+        )}
       </div>
 
       {/* Footer */}
@@ -436,22 +454,47 @@ export default function MatchPredictionsPanel({
     const { predictions, fixture } = matchData
     const withScore = predictions.filter(p => p.homeScorePred !== null && p.awayScorePred !== null)
     const isKnockout = fixture.phase !== "groups"
-    let home = 0, draw = 0, away = 0
+    let home = 0, draw = 0, away = 0, eliminated = 0
     const counts: Record<string, number> = {}
     for (const p of withScore) {
       const key = `${p.homeScorePred}-${p.awayScorePred}`
       counts[key] = (counts[key] ?? 0) + 1
       const d = direction(p.homeScorePred, p.awayScorePred)
-      if (d === "home") home++
-      else if (d === "away") away++
-      else if (isKnockout && p.predictsPenalties && p.penaltiesWinner === "home") home++
-      else if (isKnockout && p.predictsPenalties && p.penaltiesWinner === "away") away++
-      else draw++
+
+      // Which side (in the user's OWN predicted matchup) came out ahead —
+      // "home"/"away" here refer to the pick's own slots, not necessarily
+      // the real fixture's sides yet.
+      let predictedWinnerSide: "home" | "away" | "draw" = d ?? "draw"
+      if (predictedWinnerSide === "draw" && isKnockout && p.predictsPenalties && p.penaltiesWinner) {
+        predictedWinnerSide = p.penaltiesWinner === "home" ? "home" : "away"
+      }
+
+      if (predictedWinnerSide === "draw") {
+        draw++
+        continue
+      }
+
+      // Knockout: a predicted winner only counts toward the real fixture's
+      // home/away column if that team's ID actually matches — a pick whose
+      // predicted team was eliminated before this real match must never be
+      // folded into whichever side its scoreline happened to lean toward.
+      if (isKnockout && p.homeTeamIdPred != null && p.awayTeamIdPred != null
+          && fixture.home_team_id != null && fixture.away_team_id != null) {
+        const predictedWinnerId = predictedWinnerSide === "home" ? p.homeTeamIdPred : p.awayTeamIdPred
+        if (predictedWinnerId === fixture.home_team_id) home++
+        else if (predictedWinnerId === fixture.away_team_id) away++
+        else eliminated++
+      } else {
+        // Groups (teams always fixed/correct) or legacy picks with no team-id
+        // data — fall back to the original scoreline-direction bucketing.
+        if (predictedWinnerSide === "home") home++
+        else away++
+      }
     }
     const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]
     return {
       total:      withScore.length,
-      home, draw, away,
+      home, draw, away, eliminated,
       homeName:   fixture.home_team_name ?? "Local",
       awayName:   fixture.away_team_name ?? "Visitante",
       mostCommon: top ? { score: top[0], count: top[1] } : null,
@@ -555,6 +598,7 @@ export default function MatchPredictionsPanel({
               home={summary.home}
               draw={summary.draw}
               away={summary.away}
+              eliminated={summary.eliminated}
               homeName={summary.homeName}
               awayName={summary.awayName}
               mostCommon={summary.mostCommon}

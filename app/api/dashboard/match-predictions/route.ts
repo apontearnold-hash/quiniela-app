@@ -31,7 +31,7 @@ export async function GET(request: Request) {
   // Fetch fixture
   const { data: fixture } = await admin
     .from("fixtures")
-    .select("id, home_team_name, away_team_name, home_team_flag, away_team_flag, status, home_score, away_score, phase, kickoff, bracket_position, went_to_penalties, penalties_winner")
+    .select("id, home_team_id, away_team_id, home_team_name, away_team_name, home_team_flag, away_team_flag, status, home_score, away_score, phase, kickoff, bracket_position, went_to_penalties, penalties_winner")
     .eq("id", numId)
     .single()
   if (!fixture) return NextResponse.json({ error: "Fixture not found" }, { status: 404 })
@@ -65,6 +65,8 @@ export async function GET(request: Request) {
     pointsEarned: number
     homeTeamNamePred: string | null
     awayTeamNamePred: string | null
+    homeTeamIdPred: number | null
+    awayTeamIdPred: number | null
   }
 
   let predictions: PredRow[] = []
@@ -73,7 +75,7 @@ export async function GET(request: Request) {
     // Knockout phase: keyed by slot_key in bracket_picks
     const { data: picks } = await admin
       .from("bracket_picks")
-      .select("quiniela_id, home_score_pred, away_score_pred, predicts_penalties, penalties_winner, points_earned, home_team_name_pred, away_team_name_pred")
+      .select("quiniela_id, home_score_pred, away_score_pred, predicts_penalties, penalties_winner, points_earned, home_team_name_pred, away_team_name_pred, home_team_id_pred, away_team_id_pred")
       .eq("slot_key", fixture.bracket_position)
       .in("quiniela_id", quinielaIds)
 
@@ -90,6 +92,8 @@ export async function GET(request: Request) {
         pointsEarned:     pick.points_earned,
         homeTeamNamePred: pick.home_team_name_pred,
         awayTeamNamePred: pick.away_team_name_pred,
+        homeTeamIdPred:   pick.home_team_id_pred,
+        awayTeamIdPred:   pick.away_team_id_pred,
       }
     })
   } else {
@@ -113,6 +117,8 @@ export async function GET(request: Request) {
         pointsEarned:     pred.points_earned,
         homeTeamNamePred: null,
         awayTeamNamePred: null,
+        homeTeamIdPred:   null,
+        awayTeamIdPred:   null,
       }
     })
   }
