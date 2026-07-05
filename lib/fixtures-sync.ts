@@ -82,11 +82,24 @@ function emptyResult(overrides: Partial<FixturesSyncResult> = {}): FixturesSyncR
  * @param logPrefix  Short tag prepended to fixture_sync_log messages, e.g.
  *                    "[cron]" or "[user-sync]". Pass "" for the admin path.
  */
+// ── EMERGENCY KILL SWITCH (2026-07-05) ──────────────────────────────────────
+// Investigating a possible fixtures/groups data integrity issue surfaced by
+// fillGroupAdvancers() re-deriving R32 team assignments from group standings
+// that may not match the real FIFA group draw. Freezing all three sync paths
+// (admin button, cron, user button) until root cause is confirmed. This blocks
+// WRITES only — set to false once cleared, do not delete this switch casually.
+const SYNC_DISABLED_FOR_INTEGRITY_REPAIR = true
+
 export async function syncResultsFromApiFootball(
   admin: SupabaseClient,
   logPrefix: string,
 ): Promise<FixturesSyncResult> {
   const tag = logPrefix ? `${logPrefix} ` : ""
+
+  if (SYNC_DISABLED_FOR_INTEGRITY_REPAIR) {
+    await writeLog("results", "error", `${tag}Sync temporarily disabled during fixture integrity repair.`, 0)
+    return emptyResult({ errors: ["Sync temporarily disabled during fixture integrity repair."] })
+  }
 
   // ── 1. Fetch fixtures from API-Football ──────────────────────────────────
   let apiFixtures: FixtureAPIResponse[]
