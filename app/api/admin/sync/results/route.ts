@@ -35,9 +35,11 @@ export async function POST() {
   }
 
   if (!r.ok && r.fixturesUpdated === 0 && r.groupsUpdated === 0 && r.knockoutUpdated === 0) {
-    // Fatal failure before any write (API fetch error or upsert error)
-    const msg = r.errors.join("; ") || "Error desconocido al sincronizar"
-    return NextResponse.json({ error: msg }, { status: 502 })
+    // Fatal failure before any write (API fetch error, upsert error, or maintenance mode)
+    const msg = r.maintenanceMode
+      ? "Sync temporalmente desactivado por mantenimiento (DISABLE_FIXTURES_SYNC)"
+      : r.errors.join("; ") || "Error desconocido al sincronizar"
+    return NextResponse.json({ error: msg, maintenance: r.maintenanceMode }, { status: r.maintenanceMode ? 503 : 502 })
   }
 
   const msg = [
@@ -46,6 +48,9 @@ export async function POST() {
     `bracket: ${r.bracketAdvanced} avances`,
     `${r.predictionsProcessed} predicciones y ${r.quinielasRecalculated} quinielas recalculadas`,
     ...(r.ghostRowsDeleted > 0 ? [`${r.ghostRowsDeleted} filas fantasma limpiadas`] : []),
+    ...(r.ghostRowsRemaining > 0 ? [`⚠ ${r.ghostRowsRemaining} filas fantasma detectadas sin limpiar`] : []),
+    ...(r.orphanKnockoutRows > 0 ? [`⚠ ${r.orphanKnockoutRows} filas huérfanas de eliminatoria`] : []),
+    ...(!r.bracketPicksUntouched ? ["⚠ el conteo de bracket_picks cambió — revisar"] : []),
     ...(r.errors.length ? [`errores: ${r.errors.join("; ")}`] : []),
   ].join(" · ")
 
@@ -55,6 +60,9 @@ export async function POST() {
     bracketAdvanced: r.bracketAdvanced,
     scored: { predictions: r.predictionsProcessed, quinielas: r.quinielasRecalculated },
     ghostRowsDeleted: r.ghostRowsDeleted,
+    ghostRowsRemaining: r.ghostRowsRemaining,
+    orphanKnockoutRows: r.orphanKnockoutRows,
+    bracketPicksUntouched: r.bracketPicksUntouched,
     ...(r.errors.length && { errors: r.errors }),
     ...(r.warnings.length && { warnings: r.warnings }),
     timestamp: new Date().toISOString(),

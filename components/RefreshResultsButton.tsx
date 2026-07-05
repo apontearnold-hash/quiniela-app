@@ -7,6 +7,7 @@ import { useT } from "@/components/LangProvider"
 interface RefreshResponse {
   ok: boolean
   cooldown?: boolean
+  maintenance?: boolean
   minutes_ago?: number
   last_sync_at?: string
   fixtures_checked?: number
@@ -67,9 +68,10 @@ export default function RefreshResultsButton({
   const lastSyncLabel = timeAgoLabel(lastSyncAt, t("refresh_just_now"), t("refresh_n_min_ago"))
 
   // Determine visual state
-  const isCooldown = response?.cooldown === true
-  const isSuccess  = response?.ok === true
-  const isError    = response != null && !response.ok && !response.cooldown
+  const isCooldown    = response?.cooldown === true
+  const isMaintenance = response?.maintenance === true
+  const isSuccess      = response?.ok === true
+  const isError        = response != null && !response.ok && !response.cooldown && !response.maintenance
 
   return (
     <div
@@ -139,6 +141,12 @@ export default function RefreshResultsButton({
           <span className="text-amber-600 text-xs font-medium">
             {t("refresh_cooldown_msg").replace("{n}", String(response.minutes_ago))}
           </span>
+        </div>
+      )}
+
+      {isMaintenance && (
+        <div className="mt-2">
+          <span className="text-amber-600 text-xs font-medium">{t("refresh_maintenance_msg")}</span>
         </div>
       )}
 

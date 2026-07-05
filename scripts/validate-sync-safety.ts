@@ -37,23 +37,26 @@ for (const slot of BRACKET_SLOTS) {
   }
 }
 
-// ── 2. Sync pipeline never writes to bracket_picks or predictions ──────────
+// ── 2. Sync pipeline never WRITES to bracket_picks or predictions ─────────
 // The central sync (lib/fixtures-sync.ts) and its three callers must never
-// reference bracket_picks/predictions directly — only lib/recalculate.ts may
-// (and only points_earned, audited separately). A regression here means a
-// sync accidentally started overwriting user picks again.
+// insert/update/upsert/delete bracket_picks or predictions — only
+// lib/recalculate.ts may (and only points_earned, audited separately).
+// A read-only row-count check (the post-sync integrity scan) is fine and
+// expected; only a write verb chained to the table is a real regression.
 const SYNC_FILES = [
   "../lib/fixtures-sync.ts",
   "../app/api/admin/sync/results/route.ts",
   "../app/api/cron/refresh-results/route.ts",
   "../app/api/sync/request-refresh/route.ts",
 ]
+const WRITE_VERBS = ["update", "insert", "upsert", "delete"]
+function writesToTable(src: string, table: string): boolean {
+  return WRITE_VERBS.some(verb => new RegExp(`\\.from\\(["']${table}["']\\)[\\s\\S]{0,80}?\\.${verb}\\(`).test(src))
+}
 for (const relPath of SYNC_FILES) {
   const src = readFileSync(new URL(relPath, import.meta.url), "utf8")
-  // Check actual usage (`.from("bracket_picks")`), not prose — these files'
-  // own comments legitimately explain that they must NOT touch bracket_picks.
-  check(`${relPath.replace("../", "")} never queries/writes bracket_picks`, !/\.from\(["']bracket_picks["']\)/.test(src))
-  check(`${relPath.replace("../", "")} never queries/writes the predictions table`, !/\.from\(["']predictions["']\)/.test(src))
+  check(`${relPath.replace("../", "")} never writes to bracket_picks (read-only ok)`, !writesToTable(src, "bracket_picks"))
+  check(`${relPath.replace("../", "")} never writes to the predictions table`, !writesToTable(src, "predictions"))
 }
 
 // ── 3. Knockout results never upsert by raw API id ─────────────────────────

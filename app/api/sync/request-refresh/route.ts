@@ -94,10 +94,10 @@ export async function POST() {
   }
 
   if (!r.ok && r.fixturesUpdated === 0 && r.groupsUpdated === 0 && r.knockoutUpdated === 0) {
-    // Fatal failure before any write (API fetch error or upsert error)
+    // Fatal failure before any write (API fetch error, upsert error, or maintenance mode)
     return NextResponse.json(
-      { ok: false, error: "Could not fetch or apply results", details: r.errors, timestamp },
-      { status: 502 }
+      { ok: false, error: "Could not fetch or apply results", maintenance: r.maintenanceMode, details: r.errors, timestamp },
+      { status: r.maintenanceMode ? 503 : 502 }
     )
   }
 
@@ -112,6 +112,9 @@ export async function POST() {
     group_standings_recalculated: r.standingsRecalculated,
     bracket_advanced:             r.bracketAdvanced,
     ghost_rows_deleted:           r.ghostRowsDeleted,
+    ghost_rows_remaining:         r.ghostRowsRemaining,
+    orphan_knockout_rows:         r.orphanKnockoutRows,
+    bracket_picks_untouched:      r.bracketPicksUntouched,
     predictions_processed:        r.predictionsProcessed,
     quinielas_recalculated:       r.quinielasRecalculated,
     warnings: r.warnings,

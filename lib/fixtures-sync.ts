@@ -34,6 +34,7 @@ const BATCH = 50
 export interface FixturesSyncResult {
   ok: boolean
   noMatchesYet: boolean
+  maintenanceMode: boolean
   fixturesChecked: number
   fixturesUpdated: number
   groupsUpdated: number
@@ -43,6 +44,10 @@ export interface FixturesSyncResult {
   bracketAdvanced: number
   predictionsProcessed: number
   quinielasRecalculated: number
+  // Post-sync integrity scan (read-only — detects, never auto-deletes).
+  ghostRowsRemaining: number
+  orphanKnockoutRows: number
+  bracketPicksUntouched: boolean
   warnings: string[]
   errors: string[]
 }
@@ -51,6 +56,7 @@ function emptyResult(overrides: Partial<FixturesSyncResult> = {}): FixturesSyncR
   return {
     ok: false,
     noMatchesYet: false,
+    maintenanceMode: false,
     fixturesChecked: 0,
     fixturesUpdated: 0,
     groupsUpdated: 0,
@@ -60,6 +66,9 @@ function emptyResult(overrides: Partial<FixturesSyncResult> = {}): FixturesSyncR
     bracketAdvanced: 0,
     predictionsProcessed: 0,
     quinielasRecalculated: 0,
+    ghostRowsRemaining: 0,
+    orphanKnockoutRows: 0,
+    bracketPicksUntouched: true,
     warnings: [],
     errors: [],
     ...overrides,
@@ -82,13 +91,20 @@ function emptyResult(overrides: Partial<FixturesSyncResult> = {}): FixturesSyncR
  * @param logPrefix  Short tag prepended to fixture_sync_log messages, e.g.
  *                    "[cron]" or "[user-sync]". Pass "" for the admin path.
  */
-// ── EMERGENCY KILL SWITCH (2026-07-05) ──────────────────────────────────────
-// Investigating a possible fixtures/groups data integrity issue surfaced by
-// fillGroupAdvancers() re-deriving R32 team assignments from group standings
-// that may not match the real FIFA group draw. Freezing all three sync paths
-// (admin button, cron, user button) until root cause is confirmed. This blocks
-// WRITES only — set to false once cleared, do not delete this switch casually.
-const SYNC_DISABLED_FOR_INTEGRITY_REPAIR = true
+// ── Kill switch ──────────────────────────────────────────────────────────
+// Set DISABLE_FIXTURES_SYNC=true in the environment to freeze all three sync
+// paths (admin button, cron, user button) without a code change/deploy —
+// only an env var change + redeploy on Vercel. Defaults to enabled (sync
+// runs normally) when the var is unset, so a missing/misconfigured env var
+// never silently disables the app. This blocks WRITES only; read-only
+// diagnostics (scripts/check-ghost-fixtures.mjs) are unaffected.
+//
+// Added 2026-07-05 during the fillGroupAdvancers/advanceKnockout data
+// integrity incident (see lib/bracket.ts's api_fixture_id guard) — kept as
+// permanent operational tooling, not a one-off hack to delete later.
+function isSyncDisabled(): boolean {
+  return process.env.DISABLE_FIXTURES_SYNC === "true"
+}
 
 export async function syncResultsFromApiFootball(
   admin: SupabaseClient,
@@ -96,10 +112,18 @@ export async function syncResultsFromApiFootball(
 ): Promise<FixturesSyncResult> {
   const tag = logPrefix ? `${logPrefix} ` : ""
 
-  if (SYNC_DISABLED_FOR_INTEGRITY_REPAIR) {
-    await writeLog("results", "error", `${tag}Sync temporarily disabled during fixture integrity repair.`, 0)
-    return emptyResult({ errors: ["Sync temporarily disabled during fixture integrity repair."] })
+  if (isSyncDisabled()) {
+    await writeLog("results", "error", `${tag}Sync temporarily disabled for maintenance.`, 0)
+    return emptyResult({ maintenanceMode: true, errors: ["Sync temporarily disabled for maintenance."] })
   }
+
+  // Snapshot the bracket_picks row count before touching anything, so the
+  // post-sync check below can prove this run never inserted/deleted a pick —
+  // this file never writes to bracket_picks, but this is a cheap, real
+  // production-time assertion of that fact rather than just a code comment.
+  const { count: bracketPicksCountBefore } = await admin
+    .from("bracket_picks")
+    .select("id", { count: "exact", head: true })
 
   // ── 1. Fetch fixtures from API-Football ──────────────────────────────────
   let apiFixtures: FixtureAPIResponse[]
@@ -284,11 +308,45 @@ export async function syncResultsFromApiFootball(
 
   const fixturesUpdated = groupsUpdated + knockoutUpdated
 
+  // ── 6. Defensive post-sync integrity scan (read-only — detect, don't fix) ──
+  // Never auto-deletes anything found here; a nonzero count is a signal to
+  // investigate (same checks as scripts/check-ghost-fixtures.mjs, run live
+  // in production after every sync instead of only on manual demand).
+  let ghostRowsRemaining = 0
+  let orphanKnockoutRows = 0
+  let bracketPicksUntouched = true
+  try {
+    const { count: phaseNullCount } = await admin
+      .from("fixtures").select("id", { count: "exact", head: true }).is("phase", null)
+    ghostRowsRemaining = phaseNullCount ?? 0
+
+    const { count: orphanCount } = await admin
+      .from("fixtures").select("id", { count: "exact", head: true })
+      .not("phase", "is", null).neq("phase", "groups").is("bracket_position", null)
+    orphanKnockoutRows = orphanCount ?? 0
+
+    const { count: bracketPicksCountAfter } = await admin
+      .from("bracket_picks").select("id", { count: "exact", head: true })
+    bracketPicksUntouched = bracketPicksCountAfter === bracketPicksCountBefore
+
+    if (ghostRowsRemaining > 0 || orphanKnockoutRows > 0 || !bracketPicksUntouched) {
+      warnings.push(
+        `integrity scan: ghost_rows=${ghostRowsRemaining} orphan_knockout=${orphanKnockoutRows} bracket_picks_count_changed=${!bracketPicksUntouched}`
+      )
+    }
+  } catch (err) {
+    // Scan failure should never fail the whole sync — it's a diagnostic, not a write.
+    console.error(`[fixtures-sync]${logPrefix ? " " + logPrefix : ""} Post-sync integrity scan failed:`, err)
+  }
+
   const logParts = [
     `${tag}${fixturesUpdated}/${fixturesChecked} fixtures updated`,
     standingsRecalculated ? `bracket: ${bracketAdvanced} avances` : "bracket ✗",
     `${predictionsProcessed} preds · ${quinielasRecalculated} quinielas`,
     ...(ghostRowsDeleted > 0 ? [`ghosts cleaned: ${ghostRowsDeleted}`] : []),
+    ...(ghostRowsRemaining > 0 ? [`⚠ ghosts remaining: ${ghostRowsRemaining}`] : []),
+    ...(orphanKnockoutRows > 0 ? [`⚠ orphan knockout rows: ${orphanKnockoutRows}`] : []),
+    ...(!bracketPicksUntouched ? ["⚠ bracket_picks row count changed"] : []),
     ...(warnings.length ? [`warnings: ${warnings.join("; ")}`] : []),
     ...(errors.length   ? [`errors: ${errors.join("; ")}`]     : []),
   ]
@@ -302,6 +360,7 @@ export async function syncResultsFromApiFootball(
   return {
     ok: errors.length === 0,
     noMatchesYet: false,
+    maintenanceMode: false,
     fixturesChecked,
     fixturesUpdated,
     groupsUpdated,
@@ -311,6 +370,9 @@ export async function syncResultsFromApiFootball(
     bracketAdvanced,
     predictionsProcessed,
     quinielasRecalculated,
+    ghostRowsRemaining,
+    orphanKnockoutRows,
+    bracketPicksUntouched,
     warnings,
     errors,
   }
